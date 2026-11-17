@@ -1,0 +1,66 @@
+/* The knot stays inside the sheet's existing metadata, even in scaled readers. */
+.quest-paper .quest-dependency-badge { position: relative; overflow: visible; }
+.quest-unlock-effect {
+  position: absolute;
+  left: -5px;
+  top: 50%;
+  width: 26px;
+  height: 24px;
+  margin-top: -12px;
+  z-index: 7;
+  pointer-events: none !important;
+  user-select: none;
+  overflow: visible;
+  contain: layout style;
+}
+.quest-unlock-effect *, .quest-unlock-effect *::before { pointer-events: none !important; }
+.quest-unlock-effect > span { position: absolute; display: block; box-sizing: border-box; }
+.quest-unlock-ring {
+  left: 4px;
+  top: 3px;
+  width: 18px;
+  height: 18px;
+  border: 1px solid #b68a35;
+  border-radius: 50%;
+  box-shadow: 0 0 4px #e2be6660, inset 0 0 3px #e5c87940;
+  opacity: 0;
+}
+.quest-unlock-cord {
+  top: 10px;
+  width: 12px;
+  height: 6px;
+  border-bottom: 1px solid #8a7046;
+  border-radius: 0 0 55% 55%;
+  opacity: 0;
+}
+.quest-unlock-cord-left { left: 1px; transform-origin: right center; }
+.quest-unlock-cord-right { right: 1px; transform-origin: left center; }
+.quest-unlock-lock {
+  left: 9px;
+  top: 10px;
+  width: 8px;
+  height: 7px;
+  border: 1px solid #866a37;
+  border-radius: 1px;
+  background: #dbc58b;
+  box-shadow: 0 1px 1px #73532220;
+  opacity: 0;
+}
+.quest-unlock-lock::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  top: -6px;
+  width: 4px;
+  height: 6px;
+  border: 1px solid #866a37;
+  border-bottom: 0;
+  border-radius: 4px 4px 0 0;
+  transform: rotate(-22deg);
+  transform-origin: left bottom;
+}
+.quest-unlock-at-metadata { left: 0; }
+.quest-unlock-at-paper { left: 24px; top: auto; bottom: 52px; margin-top: 0; }
+@media (prefers-reduced-motion: reduce) {
+  .quest-unlock-effect { display: none !important; }
+}

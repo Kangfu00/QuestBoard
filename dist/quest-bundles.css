@@ -1,0 +1,18 @@
+.quest-bundle-select{position:absolute;right:13px;top:47px;z-index:9;display:grid;place-items:center;width:23px;height:23px;padding:4px;border:1px solid #72573270;border-radius:4px;background:#f5e6beaa;color:#725732;opacity:.48;cursor:pointer;touch-action:manipulation}
+.quest-bundle-select svg{width:14px;height:14px;opacity:.12}
+.quest-paper:hover>.quest-bundle-select,.quest-bundle-select:focus-visible,.quest-bundle-select[aria-pressed=true]{opacity:1}
+.quest-bundle-select[aria-pressed=true]{background:#6d7145;color:#fff3ce;border-color:#4d532c}
+.quest-bundle-select[aria-pressed=true] svg{opacity:1}
+.quest-bundle-select:focus-visible{outline:3px solid #b38a42;outline-offset:3px}
+.bundle-selected{outline:2px solid #b99a5b;outline-offset:4px}
+.bundle-source{opacity:.24!important}
+.quest-bundle-selection{position:fixed;left:50%;bottom:22px;transform:translateX(-50%);z-index:900;display:flex;align-items:center;gap:14px;max-width:calc(100vw - 32px);padding:10px 14px;border:1px solid #a78b58;border-radius:8px;background:#30291eef;box-shadow:0 7px 22px #160e0b55;color:#f3e4be;font-size:14px;line-height:1.4}
+.quest-bundle-selection[hidden]{display:none}
+.quest-bundle-selection button{padding:4px 8px;border:1px solid #c2a66c80;border-radius:4px;background:#e9d4a11a;color:inherit;white-space:nowrap;cursor:pointer}
+.quest-bundle-selection button:focus-visible{outline:2px solid #ead7a2;outline-offset:3px}
+.quest-bundle-ghost,.quest-bundle-ghost *{pointer-events:none!important}
+.quest-bundle-ghost{isolation:isolate;contain:layout style;filter:drop-shadow(6px 15px 11px #140d0960);will-change:transform,left,top}
+.quest-bundle-ghost .quest-bundle-sheet{position:absolute;width:300px;height:350px;margin:0;transform-origin:150px 28px;opacity:1;outline:0;box-shadow:1px 2px 4px #2d1b1738}
+.quest-bundle-ghost .quest-bundle-select{display:none}
+.quest-bundle-count{position:absolute;right:-12px;top:-12px;z-index:10;display:grid;place-items:center;min-width:34px;height:34px;padding:0 7px;box-sizing:border-box;border:2px solid #dfc28b;border-radius:50%;background:#4d3923;color:#fff0c9;box-shadow:1px 3px 7px #130a0840;font:700 16px/1.2 system-ui,sans-serif}
+@media(prefers-reduced-motion:reduce){.quest-bundle-ghost{will-change:auto}}

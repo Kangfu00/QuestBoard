@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="th"><head><meta charset="utf-8"><title>Isolated dummy daypart audio fixture</title>
+<link rel="stylesheet" href="/atmosphere.css">
+<style>
+body{margin:20px;background:#281e17;color:#e3cda6;font:15px sans-serif}.board-scroll{position:relative;width:600px;height:80px;overflow:hidden}#start{position:relative;z-index:5;padding:16px 28px;font:inherit}#menu{max-width:560px}#report{font:11px monospace;white-space:pre-wrap}
+</style></head><body>
+<button id="start">Start isolated dummy audio test</button>
+<main class="board-scroll"><p>Dummy guild ambience fixture — no saved quests or app API.</p></main>
+<section id="menu"></section><pre id="report">initializing</pre>
+<script type="module">
+import {createDeskAtmosphere} from '/atmosphere.mjs';
+import {createGuildAmbience} from '/ambience.mjs';
+import {createDaypartAmbience} from '/daypart-ambience.mjs';
+
+const report=document.querySelector('#report'),checks=[],contexts=[],sources=[],requests=[],phaseEvents=[],writes=[];
+const bytePaths=new WeakMap(),bufferPaths=new WeakMap(),nativeFetch=window.fetch.bind(window),NativeAudioContext=window.AudioContext;
+let atmosphere,daypart,manual,hidden=false,clock=new Date(2026,10,17,7,30),gesture,maxDaypartVoices=0,signalPeak=0,crossfade;
+const check=(condition,message)=>{if(!condition)throw Error(message);checks.push(message)};
+const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const wait=async(condition,label,timeout=5000)=>{const start=performance.now();while(!condition()){if(performance.now()-start>timeout)throw Error(label+' timed out: '+JSON.stringify(debug()));await sleep(20)}};
+const active=label=>sources.filter(source=>source.label===label&&source.active);
+const path=name=>'/audio/ambience/'+name+'.wav';
+const isActive=name=>active('daypart').some(source=>source.path===path(name));
+const starts=()=>sources.filter(source=>source.startedAt!==undefined);
+const field=name=>document.querySelector('[data-atmosphere-setting="'+name+'"]');
+const status=name=>document.querySelector('[data-atmosphere-status="'+name+'"]')?.dataset.state;
+// Subsequent native select/range/checkbox changes deliberately use synthetic
+// DOM events. Only the initial start button is driven by trusted browser input.
+const choose=(name,value)=>{const control=field(name);control.value=value;control.dispatchEvent(new Event('change',{bubbles:true}))};
+const slide=(name,value)=>{const control=field(name);control.value=String(value);control.dispatchEvent(new Event('input',{bubbles:true}))};
+const visibility=value=>{hidden=value;document.dispatchEvent(new Event('visibilitychange'))};
+Object.defineProperty(document,'hidden',{configurable:true,get:()=>hidden});
+Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>hidden?'hidden':'visible'});
+
+function debug(){return {clock:clock.toTimeString().slice(0,8),hidden,gesture,requests,contexts:contexts.map(c=>({label:c.label,state:c.context.state,time:c.context.currentTime,sampleRate:c.context.sampleRate})),sources:sources.map(s=>({label:s.label,path:s.path,active:s.active,startedAt:s.startedAt,stoppedAt:s.stoppedAt,disconnected:s.disconnected})),statuses:{daypart:daypart?.getStatus(),manual:manual?.getStatus()},checks:checks.length,lastCheck:checks.at(-1)}}
+window.__nativeDebug=debug;
+
+async function trackedFetch(url,options){
+  const pathname=new URL(url,location.href).pathname;requests.push(pathname);
+  const response=await nativeFetch(url,options),arrayBuffer=response.arrayBuffer.bind(response);
+  response.arrayBuffer=async()=>{const bytes=await arrayBuffer();bytePaths.set(bytes,pathname);return bytes};
+  return response;
+}
+
+// These are actual browser AudioContexts and native source/gain/AudioParam nodes.
+// Wrappers only observe calls. Each player's gain also feeds an analyser whose
+// output is zeroed; Chromium itself is launched with --mute-audio as well.
+function observedContext(label){return class extends NativeAudioContext{
+  constructor(){
+    super();this.label=label;this.analyser=super.createAnalyser();this.analyser.fftSize=2048;
+    const silent=super.createGain();silent.gain.value=0;this.analyser.connect(silent);silent.connect(this.destination);
+    contexts.push({label,context:this});
+  }
+  decodeAudioData(bytes,...args){const file=bytePaths.get(bytes);return super.decodeAudioData(bytes,...args).then(buffer=>{bufferPaths.set(buffer,file);return buffer})}
+  createGain(){
+    const gain=super.createGain(),connect=gain.connect.bind(gain),ramp=gain.gain.linearRampToValueAtTime.bind(gain.gain);
+    gain.automation=[];
+    gain.gain.linearRampToValueAtTime=(value,time)=>{gain.automation.push({value,time,at:this.currentTime});return ramp(value,time)};
+    gain.connect=(...args)=>{const result=connect(...args);if(args[0]===this.destination)connect(this.analyser);return result};
+    return gain;
+  }
+  createBufferSource(){
+    const source=super.createBufferSource(),start=source.start.bind(source),stop=source.stop.bind(source),connect=source.connect.bind(source),disconnect=source.disconnect.bind(source);
+    const entry={source,label:this.label,active:false,disconnected:false};sources.push(entry);
+    source.connect=(...args)=>{entry.gain=args[0];entry.connected=true;return connect(...args)};
+    source.start=(...args)=>{const result=start(...args);entry.path=bufferPaths.get(source.buffer);entry.startedAt=this.currentTime;entry.wallStart=performance.now();entry.active=true;if(this.label==='daypart')maxDaypartVoices=Math.max(maxDaypartVoices,active('daypart').length);return result};
+    source.stop=(...args)=>{const result=stop(...args);entry.active=false;entry.stoppedAt=this.currentTime;entry.wallStop=performance.now();return result};
+    source.disconnect=(...args)=>{entry.disconnected=true;return disconnect(...args)};
+    return source;
+  }
+}}
+
+function header(bytes){
+  const view=new DataView(bytes),text=(offset,length)=>String.fromCharCode(...new Uint8Array(bytes,offset,length));
+  check(text(0,4)==='RIFF'&&text(8,4)==='WAVE','actual recording has a RIFF/WAVE header');
+  for(let offset=12;offset+8<=view.byteLength;){const size=view.getUint32(offset+4,true);if(text(offset,4)==='fmt ')return {format:view.getUint16(offset+8,true),channels:view.getUint16(offset+10,true),rate:view.getUint32(offset+12,true),bits:view.getUint16(offset+22,true)};offset+=8+size+(size%2)}
+  throw Error('actual recording has no fmt chunk');
+}
+async function decodeRecordings(){
+  const offline=new OfflineAudioContext(1,1,22050),results=[];
+  for(const [name,duration] of [['morning',33.5],['day',47.5],['evening',47.5],['night',43.5]]){
+    const response=await nativeFetch(path(name));check(response.ok,name+': real WAV is served');
+    const bytes=await response.arrayBuffer(),info=header(bytes);
+    check(info.format===1&&info.channels===1&&info.rate===22050&&info.bits===16,name+': WAV is mono 22050Hz PCM16');
+    const buffer=await offline.decodeAudioData(bytes);
+    check(buffer instanceof AudioBuffer,name+': browser returns a real AudioBuffer');
+    check(buffer.numberOfChannels===1&&buffer.sampleRate===22050,name+': native decoded channel/rate match');
+    check(Math.abs(buffer.duration-duration)<1/22050,name+': native decoded duration matches prepared loop');
+    let peak=0,squares=0,nonzero=0;const samples=buffer.getChannelData(0);
+    for(const sample of samples){if(!Number.isFinite(sample))throw Error(name+': nonfinite sample');peak=Math.max(peak,Math.abs(sample));squares+=sample*sample;if(sample!==0)nonzero++}
+    check(peak>.24&&peak<.26,name+': native peak stays near conservative -12dBFS');
+    check(nonzero>samples.length*.9&&squares>0,name+': native samples contain sustained nonzero signal');
+    results.push({name,channels:buffer.numberOfChannels,sampleRate:buffer.sampleRate,duration:buffer.duration,peak,rms:Math.sqrt(squares/samples.length)});
+  }
+  return results;
+}
+
+async function run(){
+  let decodes;
+  try{
+    check(gesture.trusted&&gesture.active,'trusted click carries real transient user activation');
+    check(contexts.length===2&&contexts.every(c=>c.context instanceof NativeAudioContext),'gesture creates two real native AudioContexts');
+    await wait(()=>daypart.getStatus().soundscape==='playing'&&isActive('morning'),'morning auto playback');
+    check(active('daypart').length===1,'morning auto begins with one voice');
+    const morning=active('daypart')[0];check(morning.source instanceof AudioBufferSourceNode&&morning.connected,'morning uses a connected native buffer source');
+    check(status('soundscape')==='playing','composed native UI reports actual morning playback');
+    check(requests.includes(path('morning')),'gesture fetches actual morning recording');
+    decodes=await decodeRecordings();
+    const analyser=contexts.find(c=>c.label==='daypart').context.analyser,samples=new Float32Array(analyser.fftSize);
+    await wait(()=>{analyser.getFloatTimeDomainData(samples);signalPeak=Math.max(...samples.map(Math.abs));return signalPeak>1e-6},'native zero-output analyser signal',2000);
+    check(signalPeak>1e-6,'native morning gain produces nonzero signal at the zero-output analyser tap');
+    const tavernToggle=field('tavern');tavernToggle.checked=true;tavernToggle.dispatchEvent(new Event('change',{bubbles:true}));
+    await wait(()=>manual.getStatus().tavern==='playing'&&active('manual').length===1,'manual tavern playback');
+    const tavern=active('manual')[0];check(tavern.path===path('tavern'),'manual layer plays the original tavern recording');
+    choose('soundscape','morning');
+    await wait(()=>status('soundscape')==='playing','same-recording manual choice playback hint',500);
+    check(active('daypart')[0]===morning,'selecting the current morning recording preserves its native source');
+    check(status('soundscape')==='playing','same-recording manual choice keeps the actual playing hint');
+    choose('soundscape','auto');
+    await wait(()=>status('soundscape')==='playing','same-recording automatic choice playback hint',500);
+    check(active('daypart')[0]===morning,'returning to automatic morning keeps its native source');
+    choose('lighting','night');await sleep(60);
+    check(document.querySelector('.desk-atmosphere').dataset.lighting==='night','synthetic native select previews night lighting');
+    check(active('daypart')[0]===morning&&isActive('morning'),'manual lighting preview keeps actual-clock morning sound');
+    check(active('manual')[0]===tavern,'lighting preview preserves existing tavern source identity');
+    choose('soundscape','evening');await wait(()=>isActive('evening'),'native evening selection');
+    const evening=active('daypart').find(s=>s.path===path('evening'));
+    check(active('daypart').length===2&&morning.active,'evening starts while outgoing morning remains connected');
+    check(document.querySelector('[data-atmosphere-soundscape-hint]').dataset.phase==='evening','manual sound hint identifies evening independently');
+    const incomingRamp=evening.gain.automation.find(a=>a.value>0),outgoingRamp=morning.gain.automation.findLast(a=>a.value===0);
+    check(Math.abs(incomingRamp.time-incomingRamp.at-2.5)<.03,'native incoming gain ramps for 2.5 seconds');
+    check(Math.abs(outgoingRamp.time-outgoingRamp.at-2.5)<.03,'native outgoing gain ramps for 2.5 seconds');
+    await wait(()=>!morning.active,'native morning crossfade cleanup',3700);
+    crossfade={wallSeconds:(morning.wallStop-evening.wallStart)/1000,audioSeconds:morning.stoppedAt-evening.startedAt};
+    check(crossfade.wallSeconds>=2.45&&crossfade.wallSeconds<3.6,'real wall time spans the full evening crossfade');
+    check(crossfade.audioSeconds>=2.4&&crossfade.audioSeconds<3.6,'native audio clock spans the full evening crossfade');
+    check(morning.disconnected&&active('daypart').length===1,'outgoing native source disconnects after crossfade');
+    check(active('manual')[0]===tavern,'evening transition preserves original tavern source identity');
+    clock=new Date(2026,10,17,11,5);visibility(false);await sleep(70);
+    check(active('daypart')[0]===evening,'manual evening sound ignores an actual-clock day sync');
+    check(phaseEvents.at(-1).phase==='day'&&phaseEvents.at(-1).time==='11:05','controller still publishes actual local day clock');
+    choose('soundscape','auto');await wait(()=>isActive('day'),'return to automatic day sound');
+    const day=active('daypart').find(s=>s.path===path('day'));check(day&&evening.active,'automatic day transition keeps outgoing evening during preparation');
+    clock=new Date(2026,10,17,19,1);visibility(false);await wait(()=>isActive('night'),'newest automatic night phase');
+    await wait(()=>active('daypart').length===1,'newest phase crossfade cleanup',3700);
+    check(isActive('night')&&!day.active&&!evening.active,'newest actual-clock phase wins over prior automatic transition');
+    check(maxDaypartVoices===2,'rapid native transitions never stack more than two time voices');
+    check(active('manual')[0]===tavern,'automatic clock transitions never restart the manual tavern source');
+    const settingsWrites=writes.length;clock=new Date(2026,10,17,19,2);visibility(false);await sleep(40);
+    check(writes.length===settingsWrites,'clock-only native sync does not persist phase or settings');
+    daypart.setMuted(true);manual.setMuted(true);await wait(()=>active('daypart').length===0&&active('manual').length===0,'global mute releases sources',1200);
+    check(status('soundscape')==='muted'&&status('tavern')==='muted','global mute reaches both composed status hints');
+    check(sources.filter(s=>s.startedAt!==undefined&&!s.active).every(s=>s.disconnected),'muted source nodes disconnect');
+    daypart.setMuted(false);manual.setMuted(false);await wait(()=>isActive('night')&&active('manual').length===1,'global unmute resumes current mix');
+    const resumedTavern=active('manual')[0];slide('soundscapeVolume',0);await wait(()=>active('daypart').length===0,'soundscape fader zero stops native voice',1200);
+    check(status('soundscape')==='quiet','zero soundscape level reports quiet rather than playing');
+    check(active('manual')[0]===resumedTavern,'soundscape zero leaves native tavern source untouched');
+    slide('soundscapeVolume',40);await wait(()=>isActive('night'),'soundscape fader restores night');
+    slide('volume',0);await wait(()=>active('daypart').length===0&&active('manual').length===0,'master fader zero releases both players',1200);
+    check(status('soundscape')==='quiet'&&status('tavern')==='quiet','master zero reports quiet in both native UI hints');
+    slide('volume',30);await wait(()=>isActive('night')&&active('manual').length===1,'master fader restores mix');
+    const beforeOffTavern=active('manual')[0];choose('soundscape','off');await wait(()=>active('daypart').length===0,'soundscape off releases source',1200);
+    check(status('soundscape')==='off','off selection cannot retain a playing hint');check(active('manual')[0]===beforeOffTavern,'off leaves original manual layer independent');
+    choose('soundscape','auto');await wait(()=>isActive('night'),'auto after off resumes latest phase');
+    visibility(true);check(active('daypart').length===0&&active('manual').length===0,'synthetic hide stops both native players immediately');
+    check(status('soundscape')==='paused'&&status('tavern')==='paused','hidden hints report paused');
+    clock=new Date(2026,10,18,7,31);const beforeShow=starts().length;visibility(false);
+    check(starts().length===beforeShow,'visible event does not synchronously start a stale sound');
+    check(phaseEvents.at(-1).phase==='morning'&&phaseEvents.at(-1).time==='07:31','visible event refreshes new-day phase before player resume');
+    await wait(()=>isActive('morning')&&active('manual').length===1,'visible return uses refreshed morning');
+    check(starts().slice(beforeShow).filter(s=>s.label==='daypart').every(s=>s.path===path('morning')),'native visible return never starts the stale night buffer');
+    const beforeDestroy=starts().length;atmosphere.destroy();daypart.destroy();manual.destroy();
+    check(active('daypart').length===0&&active('manual').length===0,'destroy stops every live source immediately');
+    check(sources.filter(s=>s.startedAt!==undefined).every(s=>s.disconnected),'destroy disconnects every started native source');
+    await wait(()=>contexts.every(c=>c.context.state==='closed'),'native context close',1200);
+    visibility(false);daypart.setPhase('night');daypart.setSettings({soundscape:'auto'});manual.setSettings({tavern:true});await sleep(230);
+    check(starts().length===beforeDestroy,'late clock/settings activity cannot restart destroyed native players');
+    check(document.querySelector('#menu').children.length===0,'destroy removes composed native controls');
+    check(contexts.every(c=>c.context.state==='closed'),'destroy closes both real AudioContexts');
+    report.textContent=JSON.stringify({ok:true,gesture,checks:checks.length,decodes,crossfade,signalPeak,maxDaypartVoices,sourceStarts:starts().map(s=>({label:s.label,path:s.path})),debug:debug()});
+  }catch(error){report.textContent=JSON.stringify({ok:false,error:error.stack??error.message,debug:debug()})}
+  finally{atmosphere?.destroy();daypart?.destroy();manual?.destroy()}
+}
+
+try{
+  const onStatus=status=>atmosphere?.setAudioStatus(status);
+  daypart=createDaypartAmbience({document,window,AudioContext:observedContext('daypart'),fetch:trackedFetch,onStatus});
+  manual=createGuildAmbience({document,window,AudioContext:observedContext('manual'),fetch:trackedFetch,onStatus});
+  atmosphere=createDeskAtmosphere({document,window,now:()=>clock,storage:{getItem:()=>null,setItem:(key,value)=>writes.push({key,value})},onPhaseChange:info=>{phaseEvents.push(info);daypart.setPhase(info.phase)},onAudioChange:settings=>{daypart.setSettings(settings);manual.setSettings(settings)}});
+  atmosphere.mount();atmosphere.mountControls(document.querySelector('#menu'));
+  atmosphere.setAudioStatus({...manual.getStatus(),...daypart.getStatus()});
+  check(contexts.length===0&&requests.length===0,'composed initial auto settings create no context or fetch before gesture');
+  check(status('soundscape')==='waiting','native initial hint waits for the user gesture');
+  check(phaseEvents[0].phase==='morning'&&phaseEvents[0].time==='07:30','initial actual-clock morning phase primes the player');
+  check(writes.length===0,'native initial defaults and clock do not write storage');
+  document.querySelector('#start').addEventListener('click',event=>{
+    if(gesture)return;gesture={trusted:event.isTrusted,active:navigator.userActivation.isActive};
+    // Both native resume calls occur synchronously in the trusted click handler.
+    daypart.unlock();manual.unlock();report.textContent='running';run();
+  });
+  report.textContent='waiting-for-trusted-start';window.__nativeReady=true;
+}catch(error){report.textContent=JSON.stringify({ok:false,error:error.stack??error.message,debug:debug()})}
+</script></body></html>

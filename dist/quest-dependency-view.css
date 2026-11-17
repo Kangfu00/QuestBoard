@@ -1,0 +1,85 @@
+.quest-dependency-badge {
+  position: relative;
+  display: inline-flex;
+  flex: 0 1 auto;
+  align-items: center;
+  gap: 4px;
+  max-width: 150px;
+  height: 16px;
+  min-width: 0;
+  padding: 0 5px 0 0;
+  overflow: visible;
+  vertical-align: middle;
+  color: #806335;
+  font: 500 9px/16px var(--body, sans-serif);
+  white-space: nowrap;
+}
+.quest-dependency-badge.is-locked { color: #8b6336; }
+.quest-dependency-badge.is-ready { color: #7a6c3b; }
+.quest-dependency-badge > svg {
+  flex: 0 0 11px;
+  width: 11px;
+  height: 11px;
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.quest-dependency-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+
+.quest-prerequisite-picker {
+  min-width: 0;
+  margin: 0 0 19px;
+  padding: 12px 13px 10px;
+  border: 1px solid #b8a36f38;
+  border-radius: 4px;
+  background: #c3ae7807;
+}
+.quest-prerequisite-legend {
+  padding: 0 6px;
+  color: var(--gold, #c3ae78);
+  font-size: 12px;
+  font-weight: 600;
+}
+.quest-prerequisite-help { margin: 0 0 10px; color: var(--muted, #989b8b); font-size: 10px; line-height: 1.7; }
+.quest-prerequisite-search-label { display: block; color: var(--muted, #989b8b); font-size: 10px; }
+.quest-prerequisite-search {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  margin: 4px 0 8px;
+  padding: 7px 9px;
+  border: 1px solid #b8a36f38;
+  border-radius: 3px;
+  color: var(--ink, #e7e3d5);
+  background: #171b174f;
+  font: inherit;
+  font-size: 12px;
+}
+.quest-prerequisite-search::placeholder { color: #989b8b9c; }
+.quest-prerequisite-search:focus-visible { outline: 1px solid var(--gold, #c3ae78); outline-offset: 1px; }
+.quest-prerequisite-count { min-height: 18px; margin: 0 0 4px; color: var(--gold, #c3ae78); font-size: 10px; line-height: 18px; }
+.quest-prerequisite-list { max-height: 184px; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #a38b5759 transparent; }
+.quest-prerequisite-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  padding: 7px 4px;
+  border-top: 1px solid #b8a36f14;
+  color: var(--ink, #e7e3d5);
+  cursor: pointer;
+}
+.quest-prerequisite-option:hover { background: #c3ae780a; }
+.quest-prerequisite-checkbox { flex: 0 0 auto; width: 14px; height: 14px; margin: 3px 0 0; accent-color: #a58d55; cursor: inherit; }
+.quest-prerequisite-checkbox:focus-visible { outline: 2px solid var(--gold, #c3ae78); outline-offset: 3px; }
+.quest-prerequisite-copy { display: block; min-width: 0; }
+.quest-prerequisite-title { display: block; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.quest-prerequisite-detail { display: block; color: var(--muted, #989b8b); font-size: 10px; line-height: 1.6; }
+.quest-prerequisite-option.is-disabled { cursor: not-allowed; }
+.quest-prerequisite-option.is-disabled .quest-prerequisite-title { color: var(--muted, #989b8b); }
+.quest-prerequisite-reason { display: block; color: #c79e78; font-size: 10px; line-height: 1.6; }
+.quest-prerequisite-empty { padding: 15px 4px; color: var(--muted, #989b8b); font-size: 11px; }
+.quest-prerequisite-warning { margin:8px 0 14px;padding:10px 12px;border:1px solid #b299624d;border-radius:3px;background:#bda16b0d;color:#ddc99f;font-size:12px;line-height:1.7;overflow-wrap:anywhere; }

@@ -1,0 +1,209 @@
+/* Small, finite motions belong to the paper and covers, never the hit area. */
+.quest-drag-ghost.paper-in-hand {
+  box-shadow: 8px 23px 27px #180d0870, 2px 7px 8px #180d0833;
+  filter: brightness(1.025);
+}
+
+/* A folder accepts a sheet by lifting its front cover at the lower crease. */
+.board-folder .folder-cover {
+  transform-origin: 50% 100%;
+  transition: transform 260ms cubic-bezier(.2, .75, .25, 1), box-shadow 260ms ease, filter 200ms ease;
+  backface-visibility: hidden;
+}
+
+.board-folder::after {
+  transition: transform 260ms cubic-bezier(.2, .75, .25, 1), box-shadow 260ms ease;
+}
+
+.board-folder.folder-drop-ready,
+.board-folder.folder-receiving {
+  outline: none;
+  box-shadow: none;
+}
+
+.board-folder.folder-drop-ready .folder-cover {
+  transform: perspective(760px) rotateX(-28deg);
+  filter: brightness(1.025);
+  box-shadow: inset 0 1px 0 #fff7d6a8, inset 0 -5px 9px #6e4c2010, 0 -8px 10px #61431c32;
+}
+
+.board-folder.folder-drop-ready::after {
+  transform: translateY(-7px) rotate(-1.5deg);
+  box-shadow: 0 -3px 0 -1px #e9dcbc, 0 -6px 0 -2px #b49f78;
+}
+
+.board-folder.folder-receiving .folder-cover {
+  animation: folder-cover-settle 460ms cubic-bezier(.22, .7, .3, 1) both;
+}
+
+.board-folder.folder-receiving::after {
+  animation: folder-pages-settle 460ms cubic-bezier(.22, .7, .3, 1) both;
+}
+
+/* The reading window is the open manila folder, with cream sheets inside. */
+.folder-window {
+  isolation: isolate;
+  color: var(--folder-ink, #49371e);
+  border-color: var(--folder-dark, #96703e);
+  background:
+    linear-gradient(90deg, #68451e18, transparent 12px),
+    repeating-linear-gradient(1deg, transparent 0 4px, #fff2c90a 5px, transparent 6px 9px),
+    linear-gradient(125deg, var(--folder-light, #dec58d), var(--folder-mid, #c7a667));
+  box-shadow: 0 18px 42px #110b0870, 0 3px 8px #130e0b47, inset 0 1px 0 #fff1c7a0;
+}
+
+.folder-window::before {
+  border-color: var(--folder-dark, #96703e);
+  background: linear-gradient(125deg, var(--folder-light, #dec58d), var(--folder-mid, #c7a667));
+}
+
+.folder-window-header { border-bottom-color: #684b2438; }
+.folder-window-header h2,
+.folder-window-header strong { color: var(--folder-ink, #49371e); }
+.folder-window-header p,
+.folder-window-header small,
+.folder-window-header button,
+.folder-window-footnote,
+.folder-window .folder-empty { color: var(--folder-muted, #725a35); }
+.folder-window-header button:hover { color: var(--folder-ink, #49371e); background: #fff2cd3b; }
+.folder-window-header button:focus-visible { outline-color: #574829; }
+.folder-window .drawer-search { color: var(--folder-muted, #725a35); border-color: #80623d57; background: #fff0cb36; }
+.folder-window .folder-search { color: var(--folder-ink, #49371e); }
+.folder-window .folder-search::placeholder { color: #79603b; }
+
+.folder-window-drop {
+  border-color: #80623d5c;
+  background: #fff2d021;
+  color: var(--folder-muted, #725a35);
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.folder-window-drop > .icon,
+.folder-window-drop p,
+.folder-window-drop small { color: var(--folder-muted, #725a35); }
+.folder-window-drop h3,
+.folder-window-drop strong { color: var(--folder-ink, #49371e); }
+
+/* Drop targets keep their physical outline; the lifted cover is the cue. */
+.folder-window.folder-drop-ready,
+.folder-window-drop.folder-drop-ready {
+  border-color: #80623d;
+  box-shadow: 0 18px 42px #110b0870, 0 3px 8px #130e0b47, inset 0 1px 0 #fff1c7a0;
+}
+.folder-window.folder-drop-ready .folder-window-drop {
+  border-color: #80623d;
+  background: #fff2cd5c;
+  color: var(--folder-ink, #49371e);
+}
+.folder-window-drop.folder-drop-ready { box-shadow: inset 0 1px 4px #67451f1f; }
+.drawer-folder-row.folder-drop-ready { border-color: #d7ba83; background: #d1b07824; box-shadow: 0 2px 3px #1a10062e; }
+.drawer-folder-row.folder-drop-ready::before { border-color: #d7ba83; background: #927044; }
+
+.folder-window .folder-window-list {
+  scrollbar-color: #96703e #b7955c;
+}
+
+.folder-window .folder-quest-row {
+  position: relative;
+  border-color: #b8a17b;
+  border-radius: 1px 2px 2px 1px;
+  background:
+    linear-gradient(90deg, #b79c6926, transparent 14px),
+    repeating-linear-gradient(1deg, transparent 0 4px, #b8a07605 5px, transparent 6px 9px),
+    linear-gradient(110deg, #f3e9ce, #e9ddbd);
+  box-shadow: inset 0 1px 0 #fff8e5, 0 2px 0 -1px #f5eacc, 0 3px 0 -1px #a38b61, 1px 5px 0 -2px #ddcba4, 1px 6px 0 -2px #a38b6177, 1px 7px 5px -2px #5b3e1e29;
+}
+
+/* Decorative only: this cover never blocks a control or changes panel bounds. */
+.folder-window > .folder-window-cover {
+  position: absolute;
+  z-index: 5;
+  inset: 0;
+  border: 1px solid var(--folder-dark, #96703e);
+  border-radius: inherit;
+  background:
+    linear-gradient(90deg, #6e4a2229, transparent 13px),
+    radial-gradient(ellipse at 10% 0, #fff4cf45, transparent 70%),
+    linear-gradient(105deg, var(--folder-light, #dec58d), var(--folder-mid, #c7a667));
+  box-shadow: inset 0 1px 0 #fff7d68c, 3px 2px 9px #4f341c35;
+  transform-origin: 0 50%;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  backface-visibility: hidden;
+}
+
+.folder-window-cover::before {
+  content: '';
+  position: absolute;
+  inset: 14px;
+  border: 1px solid #7653282b;
+  border-left-color: #fff2ca50;
+  border-radius: 2px;
+}
+
+.folder-window-cover::after {
+  content: '✧';
+  position: absolute;
+  right: 27px;
+  bottom: 27px;
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border: 1px double currentColor;
+  border-radius: 50%;
+  color: var(--folder-muted, #725a35);
+  opacity: .34;
+  font: 26px/1 var(--display);
+}
+
+.folder-window.is-unfolding > .folder-window-cover {
+  visibility: visible;
+  animation: folder-window-unfold 620ms cubic-bezier(.25, .7, .25, 1) both;
+}
+
+.folder-window.is-unfolding .folder-quest-row {
+  animation: folder-sheet-reveal 350ms cubic-bezier(.2, .75, .25, 1) both;
+  animation-delay: calc(120ms + min(var(--sheet-order, 0), 7) * 40ms);
+}
+
+@keyframes folder-cover-settle {
+  0%, 18% { transform: perspective(760px) rotateX(-28deg); }
+  72% { transform: perspective(760px) rotateX(2deg); }
+  100% { transform: perspective(760px) rotateX(0deg); }
+}
+
+@keyframes folder-pages-settle {
+  0%, 18% { transform: translateY(-7px) rotate(-1.5deg); }
+  75% { transform: translateY(1px) rotate(-1deg); }
+  100% { transform: translateY(0) rotate(-1deg); }
+}
+
+@keyframes folder-window-unfold {
+  0% { opacity: 1; transform: perspective(1000px) rotateY(0deg); }
+  58% { opacity: 1; }
+  100% { opacity: 0; transform: perspective(1000px) rotateY(-112deg); visibility: hidden; }
+}
+
+@keyframes folder-sheet-reveal {
+  0% { opacity: 0; transform: translateY(9px) rotate(.6deg); }
+  100% { opacity: 1; transform: translateY(0) rotate(0deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .board-folder .folder-cover,
+  .board-folder::after,
+  .folder-window-drop,
+  .folder-window .folder-quest-row,
+  .folder-window > .folder-window-cover,
+  .quest-drag-ghost.paper-in-hand {
+    animation: none !important;
+    transition: none !important;
+  }
+  .board-folder.folder-drop-ready .folder-cover,
+  .board-folder.folder-receiving .folder-cover { transform: none; }
+  .board-folder.folder-drop-ready::after,
+  .board-folder.folder-receiving::after { transform: rotate(-1deg); }
+  .folder-window.is-unfolding > .folder-window-cover { opacity: 0; visibility: hidden; }
+  .folder-window.is-unfolding .folder-quest-row { opacity: 1; transform: none; }
+}

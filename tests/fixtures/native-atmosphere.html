@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Isolated dummy sunlight fixture</title>
+<link rel="stylesheet" href="/atmosphere.css">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#281e17;color:#40301f;font:16px Georgia,serif}
+.board-scroll{position:relative;width:100vw;height:100vh;overflow:hidden;background:repeating-linear-gradient(1deg,#6f5036 0 2px,#73543b 3px 8px,#6b4c33 9px 10px)}
+.dummy-heading{position:absolute;left:48px;top:22px;color:#ead6ae;font-size:25px;letter-spacing:2px}
+.quest-paper{position:absolute;z-index:2;left:110px;top:110px;width:280px;height:380px;padding:32px;background:linear-gradient(120deg,#efe1ba,#d6c298);box-shadow:4px 8px 13px #180e0788;transform:rotate(-4deg)}
+.quest-paper h2{font-size:25px}.quest-paper p{line-height:1.8}.dummy-lines{height:120px;background:repeating-linear-gradient(transparent 0 20px,#85653e30 21px 22px)}
+.dummy-folder{position:absolute;z-index:3;left:500px;top:260px;width:330px;height:230px;padding:40px 30px;background:linear-gradient(125deg,#997347,#75502d);box-shadow:5px 8px 14px #170c0780;border:1px solid #c69b61;transform:rotate(3deg);color:#f3dfb6}
+.dummy-folder:before{content:"";position:absolute;left:0;top:-22px;width:140px;height:23px;background:#9c784c;border-radius:8px 20px 0 0}
+button{padding:9px 15px;border:1px solid #91704a;background:#e0c99e;color:#4a351e;font:inherit;cursor:pointer}
+.dummy-expanded{position:fixed;z-index:160;right:55px;top:64px;width:310px;height:185px;padding:22px;background:#eee0bb;box-shadow:6px 12px 25px #190e0799}
+.dummy-expanded h2{font-size:20px;margin:0 0 10px}.dummy-expanded p{font-size:14px}
+#report{position:fixed;bottom:0;left:0;z-index:200;max-width:100vw;margin:0;padding:3px;color:white;background:#0009;font:10px monospace}
+html[data-capture] #report{display:none}
+</style></head><body>
+<main class="board-scroll"><div class="dummy-heading">DUMMY GUILD DESK</div>
+<article class="quest-paper"><h2>Practice quest</h2><p>Dummy paper for checking sunlight and tiny drifting dust.</p><div class="dummy-lines"></div><button id="board-button">Board action</button></article>
+<section class="dummy-folder"><h2>Sample folder</h2><p>No saved quests or personal data.</p><button id="folder-button">Folder action</button></section>
+</main>
+<section class="dummy-expanded"><h2>Expanded dummy document</h2><p>This body-level window stays above the atmosphere.</p><button id="expanded-button">Document action</button></section>
+<pre id="report">running</pre>
+<script type="module">
+import {createDeskAtmosphere} from '/atmosphere.mjs';
+const report=document.querySelector('#report'),checks=[],parameters=new URLSearchParams(location.search);
+const check=(condition,message)=>{if(!condition)throw Error(message);checks.push(message)};
+const css=(element,pseudo)=>getComputedStyle(element,pseudo),close=(a,b)=>Math.abs(a-b)<.02;
+const hiddenPaint=element=>{const s=css(element);return s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0};
+const fieldPairs=layer=>[...layer.querySelector('.desk-atmosphere-dust').children].map((normal,i)=>[normal,layer.querySelector('.desk-atmosphere-dust-lit').children[i]]);
+const animate=element=>element.getAnimations().find(animation=>animation instanceof CSSAnimation);
+// Seek inside a later iteration so a negative CSS delay never puts the
+// animation's local currentTime before zero, where there is no active effect.
+const seek=(animation,fraction)=>{animation.pause();const timing=animation.effect.getTiming();animation.currentTime=Number(timing.delay)+Number(timing.duration)*(2+fraction)};
+const matrix=element=>new DOMMatrixReadOnly(css(element).transform);
+const settleTransitions=layer=>{css(layer).opacity;for(const animation of layer.getAnimations({subtree:true}))if(animation instanceof CSSTransition)animation.finish()};
+const nativeFrame=()=>new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error('native animation-frame timeout')),750);requestAnimationFrame(()=>{clearTimeout(timer);resolve()})});
+const checkNaturalPairing=async(layer,label)=>{
+ layer.getAnimations({subtree:true});await nativeFrame();
+ const pairs=fieldPairs(layer).map(pair=>pair.map(animate));
+ check(pairs.length>0&&pairs.every(pair=>pair.every(Boolean)),label+': native paired animations exist');
+ await new Promise((resolve,reject)=>{const timer=setTimeout(()=>reject(Error(label+': native animation readiness timeout')),3000);Promise.all(pairs.flat().map(animation=>animation.ready)).then(()=>{clearTimeout(timer);resolve()},error=>{clearTimeout(timer);reject(error)})});
+ const before=pairs[0][0].currentTime;
+ await nativeFrame();await nativeFrame();
+ check(pairs[0][0].currentTime>before,label+': native dust advances on the document timeline '+JSON.stringify({before,after:pairs[0][0].currentTime,hidden:document.hidden,paused:layer.dataset.paused,playState:pairs[0][0].playState,startTime:pairs[0][0].startTime,pending:pairs[0][0].pending,timeline:document.timeline.currentTime,clock:performance.now()}));
+ for(const [a,b] of pairs){
+  check(typeof a.startTime==='number'&&typeof b.startTime==='number'&&Math.abs(a.startTime-b.startTime)<.1,label+': normal and lit dust start together');
+  check(Math.abs(a.currentTime-b.currentTime)<.1,label+': normal and lit dust stay on the same native timeline');
+ }
+};
+const baseOptions={document,window,storage:{getItem:()=>null,setItem:()=>{}},now:()=>new Date(2026,10,17,7,30)};
+let controller,layer,reduced=false;
+async function run(){try{
+ if(parameters.has('media')){
+  check(matchMedia('(prefers-reduced-motion: reduce)').matches,'native reduced-motion media query is active');
+  controller=createDeskAtmosphere(baseOptions);layer=controller.mount();controller.setSettings({lighting:'morning'});
+  check(layer.dataset.motion==='still','controller follows native reduced-motion preference');
+  check(hiddenPaint(layer.querySelector('.desk-atmosphere-dust'))&&hiddenPaint(layer.querySelector('.desk-atmosphere-dust-lit')),'native preference hides both dust fields');
+  check(layer.getAnimations({subtree:true}).length===0,'native preference removes all atmosphere animations');
+  controller.destroy();
+  // Explicitly bypass the JS preference to verify the independent CSS fallback.
+  controller=createDeskAtmosphere({...baseOptions,reducedMotion:false});layer=controller.mount();controller.setSettings({lighting:'evening'});
+  check(layer.dataset.motion==='moving','CSS fallback is exercised with moving dataset');
+  check(hiddenPaint(layer.querySelector('.desk-atmosphere-dust'))&&hiddenPaint(layer.querySelector('.desk-atmosphere-dust-lit')),'CSS media fallback hides both dust fields');
+  check(layer.getAnimations({subtree:true}).length===0,'CSS media fallback removes all atmosphere animations');
+ }else{
+  controller=createDeskAtmosphere({...baseOptions,reducedMotion:()=>reduced});layer=controller.mount();controller.setSettings({lighting:'morning',dustDensity:.2});
+  check(!!layer.querySelector('.desk-atmosphere-dust-lit'),'sunlit dust field exists');
+  let clouds=[...layer.querySelectorAll('.desk-atmosphere-cloud')];
+  check(clouds.length===2&&clouds[1].classList.contains('desk-atmosphere-cloud-far'),'two independently drifting cloud layers exist');
+  let lit=layer.querySelector('.desk-atmosphere-dust-lit'),normal=layer.querySelector('.desk-atmosphere-dust');
+  check(fieldPairs(layer).length===12&&lit.children.length===12,'density creates twelve matched motes');
+  const comparePairs=label=>{
+   for(const [a,b] of fieldPairs(layer)){
+    check(!!b&&b.classList.contains('desk-atmosphere-lit-particle'),label+': bright visual copy exists');
+    check(a.style.cssText===b.style.cssText,label+': paired inline geometry and drift variables agree');
+    const x=a.getBoundingClientRect(),y=b.getBoundingClientRect();
+    check(close(x.x,y.x)&&close(x.y,y.y)&&close(x.width,y.width)&&close(x.height,y.height),label+': normal and lit dust share native geometry');
+    check(css(a).animationDirection===css(b).animationDirection,label+': alternating particle direction stays paired');
+   }
+  };
+  await checkNaturalPairing(layer,'initial natural drift');
+  comparePairs('initial');
+  const preserved=fieldPairs(layer).slice(0,6).map(pair=>pair.map(node=>({node,animation:animate(node)})));
+  for(const time of [0,.23,.51,.87]){
+   for(const pair of fieldPairs(layer))for(const node of pair)seek(animate(node),time);
+   comparePairs('drift '+time);
+  }
+  controller.setSettings({dustDensity:.1,volume:.7,lighting:'evening'});
+  check(normal.children.length===6&&lit.children.length===6,'density reduction trims both fields');
+  for(const pair of preserved)for(const entry of pair)check(entry.node.isConnected&&animate(entry.node)===entry.animation,'settings preserve existing native particle animation');
+  controller.setSettings({dustDensity:.3});
+  check(normal.children.length===18&&lit.children.length===18,'density increase extends both fields');
+  for(const pair of preserved)for(const entry of pair)check(entry.node.isConnected&&animate(entry.node)===entry.animation,'density growth preserves existing native particle animation');
+  for(const pair of fieldPairs(layer))for(const node of pair)seek(animate(node),.42);
+  comparePairs('after density edits');
+  let morningMask;
+  for(const phase of ['morning','evening']){
+   controller.setSettings({lighting:phase});settleTransitions(layer);
+   const rays=layer.querySelector('.desk-atmosphere-'+phase),r=css(rays,'::before'),l=css(lit),bounds=layer.getBoundingClientRect(),dustBounds=lit.getBoundingClientRect();
+   check(css(layer).getPropertyValue('--sun-beam-mask').trim().length>0,phase+': shared spatial beam mask is defined');
+   check(l.maskImage!=='none'&&l.maskImage===r.maskImage,phase+': rays and lit dust resolve the same mask');
+   check(l.maskPosition===r.maskPosition&&l.maskSize===r.maskSize&&l.maskRepeat===r.maskRepeat,phase+': mask coordinates agree');
+   check(close(bounds.x,dustBounds.x)&&close(bounds.y,dustBounds.y)&&close(bounds.width,dustBounds.width)&&close(bounds.height,dustBounds.height)&&parseFloat(r.left)===0&&parseFloat(r.top)===0&&close(parseFloat(r.width),bounds.width)&&close(parseFloat(r.height),bounds.height),phase+': ray and dust masks cover the same viewport');
+   check(!hiddenPaint(lit),phase+': lit dust is visible');
+   if(phase==='morning')morningMask=l.maskImage;else check(l.maskImage!==morningMask,'evening uses a different anchored mask');
+   for(const cloud of clouds)check(css(cloud).visibility==='visible'&&css(cloud).animationPlayState==='running',phase+': cloud loop runs');
+  }
+  const durations=[];
+  for(const [index,cloud] of clouds.entries()){
+   const animation=animate(cloud);check(!!animation,'cloud '+index+': native CSS animation exists');
+   const s=css(cloud);check(s.animationDirection==='normal'&&s.animationTimingFunction==='linear','cloud '+index+': one-direction linear travel');
+   durations.push(animation.effect.getTiming().duration);
+   const positions=[];
+   for(const fraction of [.1,.35,.65,.9]){seek(animation,fraction);positions.push(matrix(cloud).m41)}
+   const steps=positions.slice(1).map((x,i)=>x-positions[i]);
+   check(steps.every(x=>x>1)||steps.every(x=>x< -1),'cloud '+index+': transform moves consistently in one direction '+JSON.stringify(positions));
+   seek(animation,.5);check(Number(css(cloud).opacity)>0,'cloud '+index+': shadow is visible during travel');
+   for(const fraction of [0,.001,.999,1]){seek(animation,fraction);check(Number(css(cloud).opacity)<.01,'cloud '+index+': reset is invisible at '+fraction)}
+  }
+  check(durations[0]!==durations[1],'cloud layers have independent loop periods');
+  for(const phase of ['day','night','off']){
+   controller.setSettings({lighting:phase});settleTransitions(layer);
+   check(hiddenPaint(lit),phase+': no bright dust remains');
+   for(const cloud of clouds)check(hiddenPaint(cloud)&&css(cloud).animationPlayState==='paused',phase+': clouds hide and pause');
+  }
+  // Use fresh CSS-owned timelines for lifecycle checks: a Web Animations
+  // pause/play used by the seek probe overrides CSS animation-play-state.
+  controller.destroy();controller=createDeskAtmosphere({...baseOptions,reducedMotion:()=>reduced});layer=controller.mount();controller.setSettings({lighting:'morning',dustDensity:.2});
+  lit=layer.querySelector('.desk-atmosphere-dust-lit');normal=layer.querySelector('.desk-atmosphere-dust');clouds=[...layer.querySelectorAll('.desk-atmosphere-cloud')];
+  controller.setSettings({dust:false});settleTransitions(layer);
+  check(hiddenPaint(normal)&&hiddenPaint(lit),'dust toggle hides both fields');
+  controller.setSettings({dust:true});
+  await checkNaturalPairing(layer,'fresh lifecycle drift');
+  const activeLoops=()=>[...fieldPairs(layer).flat(),...clouds].map(animate);
+  check(activeLoops().every(animation=>animation?.playState==='running'),'native dust and cloud loops run before visibility pause');
+  // A controlled visibility seam drives the real controller listener; this does
+  // not claim to exercise the operating system's tab/background lifecycle.
+  let fixtureHidden=true;
+  Object.defineProperty(document,'hidden',{configurable:true,get:()=>fixtureHidden});
+  Object.defineProperty(document,'visibilityState',{configurable:true,get:()=>fixtureHidden?'hidden':'visible'});
+  document.dispatchEvent(new Event('visibilitychange'));
+  check(layer.dataset.paused==='true','visibility listener marks atmosphere paused');
+  check(layer.getAnimations({subtree:true}).every(animation=>animation.playState==='paused'),'hidden document pauses every native atmosphere animation');
+  fixtureHidden=false;document.dispatchEvent(new Event('visibilitychange'));
+  check(layer.dataset.paused==='false','visibility listener resumes atmosphere');
+  check(activeLoops().every(animation=>animation?.playState==='running'),'visible document resumes native dust and cloud animations');
+  await checkNaturalPairing(layer,'visibility resume');
+  reduced=true;document.dispatchEvent(new Event('visibilitychange'));
+  check(layer.dataset.motion==='still','reduced-motion dataset path is active');
+  check(hiddenPaint(normal)&&hiddenPaint(lit),'reduced-motion dataset hides both dust fields');
+  check(layer.getAnimations({subtree:true}).length===0,'reduced-motion dataset removes every atmosphere animation');
+  reduced=false;document.dispatchEvent(new Event('visibilitychange'));
+  await checkNaturalPairing(layer,'reduced-motion resume');
+  check([layer,...layer.querySelectorAll('*')].every(node=>css(node).pointerEvents==='none'),'every decorative layer is pointer transparent');
+  const clicked=[];
+  for(const id of ['board-button','folder-button','expanded-button']){
+   const target=document.getElementById(id),bounds=target.getBoundingClientRect(),hit=document.elementFromPoint(bounds.x+bounds.width/2,bounds.y+bounds.height/2);
+   check(hit===target,id+': native hit testing reaches dummy control through atmosphere');
+   target.addEventListener('click',()=>clicked.push(id));hit.click();
+  }
+  check(clicked.join(',')==='board-button,folder-button,expanded-button','synthetic clicks reach all three native hit-tested controls');
+  check(Number(css(layer).zIndex)>Number(css(document.querySelector('.dummy-folder')).zIndex)&&Number(css(layer).zIndex)<Number(css(document.querySelector('.dummy-expanded')).zIndex),'atmosphere paints above dummy desk content and below expanded document');
+ }
+ if(parameters.has('capture')){
+  const phase=parameters.get('capture');document.documentElement.dataset.capture=phase;
+  controller.setSettings({lighting:phase,dustDensity:1});
+  for(const animation of layer.getAnimations({subtree:true})){
+   if(animation instanceof CSSAnimation)seek(animation,.43);
+   else animation.finish();
+  }
+  if(parameters.has('withoutLit')){const lit=layer.querySelector('.desk-atmosphere-dust-lit');lit.style.transition='none';lit.style.opacity='0'}
+ }
+ const dust=parameters.has('capture')?[...layer.querySelector('.desk-atmosphere-dust').children].map((particle,index)=>{const r=particle.getBoundingClientRect();return {index,x:r.x,y:r.y,width:r.width,height:r.height}}):undefined;
+ report.textContent=JSON.stringify({ok:true,checks:checks.length,mode:parameters.has('media')?'native-reduced-motion':'moving',capture:parameters.get('capture'),dust});
+}catch(error){report.textContent=JSON.stringify({ok:false,checks:checks.length,error:error.stack??error.message})}
+finally{if(!parameters.has('capture'))controller?.destroy()}}
+run();
+</script></body></html>

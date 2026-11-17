@@ -1,0 +1,39 @@
+Guild Board time-of-day ambience recordings
+Imported and primary author/license pages verified: 2026-11-17
+
+All four recordings: CC0 1.0 Universal public domain dedication
+Canonical deed: https://creativecommons.org/publicdomain/zero/1.0/
+Governing legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+morning.wav is an edited excerpt of:
+  Morning Birds in a Quiet Urban Garden by WhisperingEarth
+  https://freesound.org/people/WhisperingEarth/sounds/798842/
+  Public preview: https://cdn.freesound.org/previews/798/798842_17200815-hq.mp3
+
+day.wav is an edited excerpt of:
+  Wind(leaves).WAV by o_ciz
+  https://freesound.org/people/o_ciz/sounds/475448/
+  Public preview: https://cdn.freesound.org/previews/475/475448_7009965-hq.mp3
+
+evening.wav is an edited excerpt of:
+  Fire place (open door) XY 60 cm away by Sadiquecat
+  https://freesound.org/people/Sadiquecat/sounds/802230/
+  Public preview: https://cdn.freesound.org/previews/802/802230_5287430-hq.mp3
+
+night.wav is an edited excerpt of:
+  Night Crickets Ambience on Rural Property by OwlStorm
+  Author's preferred credit: Ashe Kirk / Owlish Media
+  https://freesound.org/people/OwlStorm/sounds/320145/
+  Public preview: https://cdn.freesound.org/previews/320/320145_140737-hq.mp3
+
+The four primary author pages explicitly designate these recordings Creative
+Commons 0. This permits copying, modification, redistribution and performance,
+including commercial use. Source authors are credited voluntarily as provenance;
+their endorsement is not implied. This notice links the governing dedication
+and does not replace its legal code.
+
+Edits: excerpt selection, stereo-to-mono conversion, resampling to 22,050 Hz,
+rumble/high-frequency filtering, 2.5-second baked loop crossfade and conservative
+-12 dBFS peak normalization; outputs are 16-bit PCM WAV. No music, generated tones
+or additional recording layers were added. Full source/processing hashes,
+measurements and reproducible preparation details: docs/daypart-audio-sources.md.

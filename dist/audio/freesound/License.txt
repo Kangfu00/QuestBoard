@@ -1,0 +1,36 @@
+Additional recordings are licensed CC0 1.0: https://creativecommons.org/publicdomain/zero/1.0/
+
+Each public Freesound page was checked for its Creative Commons 0 declaration.
+These are edits/conversions of publicly published HQ previews, not downloads of gated originals.
+
+paperFlip1.wav: paper flip 1.wav by gynation
+https://freesound.org/people/gynation/sounds/82377/
+Decoded the published HQ MP3 preview to 16-bit PCM WAV; no other processing.
+
+paperFlip2.wav: paper flip 2.wav by gynation
+https://freesound.org/people/gynation/sounds/82378/
+Excerpt 0.08–0.50 s of published HQ MP3; 6 ms edge fades; encoded 16-bit PCM WAV. No normalization, filtering, or pitch processing.
+
+paperFlip3.wav: paper flip 3.wav by gynation
+https://freesound.org/people/gynation/sounds/82379/
+Decoded the published HQ MP3 preview to 16-bit PCM WAV; no other processing.
+
+paperScrape.wav: paper scrape 1.wav by gynation
+https://freesound.org/people/gynation/sounds/82383/
+Decoded the published HQ MP3 preview to 16-bit PCM WAV; no other processing.
+
+paperSlide.wav: Paper slide by Kingofgamers_cz
+https://freesound.org/people/Kingofgamers_cz/sounds/352914/
+Excerpt 0.25–0.80 s of published HQ MP3; 6 ms edge fades; encoded 16-bit PCM WAV. No normalization, filtering, or pitch processing.
+
+pencilScratch1.wav: Pencil Scratch 1 by OwlStorm (Ashe Kirk / Owlish Media)
+https://freesound.org/people/OwlStorm/sounds/320151/
+Excerpt 16.50–16.80 s of published HQ MP3; 220 Hz second-order high-pass; 6 ms edge fades; scaled to at most -14 dBFS peak and -31 dBFS RMS; encoded 16-bit PCM WAV.
+
+pencilScratch2.wav: Pencil Scratch 1 by OwlStorm (Ashe Kirk / Owlish Media)
+https://freesound.org/people/OwlStorm/sounds/320151/
+Excerpt 22.50–22.77 s of published HQ MP3; 220 Hz second-order high-pass; 6 ms edge fades; scaled to at most -14 dBFS peak and -31 dBFS RMS; encoded 16-bit PCM WAV.
+
+pencilScratch3.wav: Pencil Scratch 1 by OwlStorm (Ashe Kirk / Owlish Media)
+https://freesound.org/people/OwlStorm/sounds/320151/
+Excerpt 27.30–27.54 s of published HQ MP3; 220 Hz second-order high-pass; 6 ms edge fades; scaled to at most -14 dBFS peak and -31 dBFS RMS; encoded 16-bit PCM WAV.

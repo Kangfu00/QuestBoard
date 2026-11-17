@@ -1,0 +1,22 @@
+Guild Board ambience recordings
+Imported: 2026-11-16
+
+License: CC0 1.0 Universal public domain dedication
+Canonical deed: https://creativecommons.org/publicdomain/zero/1.0/
+Legal code: https://creativecommons.org/publicdomain/zero/1.0/legalcode
+
+rain.wav is an edited version of:
+  Light Rain by soundrecorder7
+  https://freesound.org/people/soundrecorder7/sounds/167034/
+  Public preview: https://cdn.freesound.org/previews/167/167034_2328971-hq.mp3
+
+tavern.wav is an edited version of:
+  Bar, Pub, Tavern_2.wav by o_ciz
+  https://freesound.org/people/o_ciz/sounds/475504/
+  Public preview: https://cdn.freesound.org/previews/475/475504_7009965-hq.mp3
+
+Both original author pages explicitly identify the recording's license as
+Creative Commons 0. Attribution is preserved voluntarily and does not imply
+endorsement by either author. Processing, hashes, and measurements are recorded
+in docs/ambience-sources.md. This file records provenance and links the license;
+it does not replace the CC0 legal code.

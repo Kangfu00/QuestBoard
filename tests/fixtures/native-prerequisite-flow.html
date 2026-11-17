@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Isolated dummy prerequisite flow</title>
+<link rel="stylesheet" href="/quest-dependency-view.css">
+<link rel="stylesheet" href="/quest-unlock.css">
+<style>
+*{box-sizing:border-box}body{margin:20px;background:#32251c;color:#eadfc1;font:14px Georgia,serif}
+h1{margin:0 0 12px;font-size:21px;font-weight:500}#picker{max-width:600px}.quest-prerequisite-list{max-height:105px}
+.surfaces{display:flex;gap:24px;align-items:flex-start;margin-top:18px}.surface-slot{flex:0 0 300px;position:relative}
+.surface-label{margin:0 0 14px;color:#ccb987;font-size:12px}.quest-paper{position:relative;width:300px;height:424.285714px;padding:30px 24px;background:linear-gradient(115deg,#efdfb9,#dac596);color:#574227;box-shadow:3px 6px 10px #10090066;transform:rotate(-1deg)}
+.quest-paper h2{font-size:22px;font-weight:500}.quest-paper p{font-size:13px;line-height:1.9}.dummy-lines{height:170px;background:repeating-linear-gradient(transparent 0 23px,#85653e30 24px 25px)}
+.quest-metadata{display:flex;align-items:center;position:absolute;left:24px;right:24px;bottom:55px;height:18px;line-height:18px}
+.quest-xp{margin-left:auto;font-size:10px}.paper-reader{position:relative;inset:auto;margin:0;padding:0;border:0;background:transparent;overflow:visible;color:inherit;width:300px;height:424.285714px}
+.paper-reader-scene,.paper-reader-live,.reader-front,.folio-paper-stage,.folio-paper-viewport{width:300px;height:424.285714px}
+.folio-paper-viewport{overflow:hidden}.paper-reader-live{transform:rotateY(0deg)}
+.probe{position:absolute;left:0;top:-2px;z-index:1;width:18px;height:20px;padding:0;border:0;background:transparent;cursor:pointer}
+.excluded{position:fixed;left:-2000px;top:0}.quest-paper.quest-drag-ghost{position:fixed;left:-3000px;top:0}
+#report{position:fixed;bottom:0;left:0;right:0;max-height:50px;overflow:hidden;z-index:100;margin:0;padding:4px;background:#000b;color:#fff;font:10px monospace}
+</style></head><body>
+<h1>Dummy guild desk · prerequisite flow</h1><div id="picker"></div><main class="surfaces"></main>
+<pre id="report">running</pre>
+<script type="module">
+import {createQuest,updateItem,setItemStatus,serializeState,parseState} from '/model.mjs';
+import {applyHeldStamp,chooseStampTool} from '/stamp-tools.mjs';
+import {dependencyInfo,newlyUnlockedQuestIds} from '/quest-dependencies.mjs';
+import {createPrerequisitePicker,dependencyMarkup} from '/quest-dependency-view.mjs';
+import {createQuestUnlockEffects} from '/quest-unlock.mjs';
+
+// This page uses only invented state. Clicks are synthetic DOM actions and
+// status/stamp calls use the real model; this is not trusted OS input testing.
+const report=document.querySelector('#report'),checks=[],parameters=new URLSearchParams(location.search);
+const nativeReduced=parameters.get('reduced')==='1',close=(a,b)=>Math.abs(a-b)<.01;
+const check=(value,message)=>{if(!value)throw Error(message);checks.push(message)};
+const equal=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+const css=element=>getComputedStyle(element);
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+const bounded=(promise,label,timeout=1800)=>new Promise((resolve,reject)=>{
+ const timer=setTimeout(()=>reject(Error(label+' timed out')),timeout);
+ Promise.resolve(promise).then(value=>{clearTimeout(timer);resolve(value)},error=>{clearTimeout(timer);reject(error)});
+});
+const frame=()=>bounded(new Promise(resolve=>requestAnimationFrame(resolve)),'native animation frame',1200);
+const waitFor=async(condition,label)=>{const start=performance.now();while(!condition()){if(performance.now()-start>1600)throw Error(label+' timed out');await delay(20)}};
+const node=(tag,classes='',data={})=>{const result=document.createElement(tag);result.className=classes;Object.assign(result.dataset,data);return result};
+let state={version:1,items:[],stamps:[],settings:{stampStyle:'seal',theme:'walnut',boardName:'Dummy prerequisites'}};
+const add=(id,title)=>{const quest={...createQuest({title},state),id};state.items.push(quest);return quest};
+const quest=()=>state.items.find(item=>item.id==='dependent');
+let effects,picker,callbackReduced=false,serialized='',clicks=0;
+const views=[],invalid=[];
+function surface(kind,{excluded=false,back=false}={}){
+ const slot=node('section',excluded?'surface-slot excluded':'surface-slot'),label=node('p','surface-label');label.textContent=kind+' · dummy copy';slot.append(label);
+ let host,parent,scene;
+ if(kind==='reader'){
+  host=node('dialog','paper-reader',{readerQuest:'dependent',side:back?'back':'front'});host.open=true;
+  scene=node('div','paper-reader-scene',{side:back?'back':'front'});const live=node('div','paper-reader-live');parent=node('div','reader-front');host.append(scene);scene.append(live);live.append(parent);
+ }else if(kind==='folio'){
+  host=node('section','folder-window folio-spread',{openFolder:'dummy-folder'});const right=node('div','folio-right'),viewport=node('div','folio-paper-viewport');parent=node('div','folio-paper-stage');host.append(right);right.append(viewport);viewport.append(parent);
+ }else{host=parent=node('div');host.id=kind==='board'?'board-canvas':'drawer-list'}
+ slot.append(host);(excluded?document.body:document.querySelector('.surfaces')).append(slot);
+ const paper=node('article','quest-paper',kind==='reader'?{}:{[kind==='folio'?'folioPaper':kind==='tray'?'storageId':'id']:'dependent'});
+ const heading=node('h2');heading.textContent='Cross the old gate';const description=node('p');description.textContent='A dummy quest which waits for both the survey and the key.';const lines=node('div','dummy-lines'),meta=node('div','quest-metadata');paper.append(heading,description,lines,meta);parent.append(paper);
+ return {kind,host,parent,scene,paper,meta};
+}
+function render(){
+ for(const view of [...views,...invalid]){
+  view.meta.innerHTML=dependencyMarkup(quest(),state.items)+'<span class="quest-xp">50 XP</span>';
+  const anchor=view.meta.querySelector('.quest-dependency-badge');
+  if(anchor){const probe=node('button','probe');probe.type='button';probe.setAttribute('aria-label',view.kind+' underlying dummy control');probe.addEventListener('click',()=>clicks++);anchor.append(probe);}
+ }
+}
+function commit(next,{animate=true}={}){
+ const ids=newlyUnlockedQuestIds(state.items,next.items);effects.cancelAll();state=next;render();serialized=serializeState(state);if(animate&&ids.length)effects.play(ids);return ids;
+}
+const pose=paper=>{const r=paper.getBoundingClientRect();return {left:r.left,top:r.top,width:r.width,height:r.height,transform:css(paper).transform,inline:paper.style.transform}};
+function samePose(before,after,label){check(['left','top','width','height'].every(key=>close(before[key],after[key]))&&before.transform===after.transform&&before.inline===after.inline,label+': sheet geometry and transform unchanged')}
+function checkBadges(locked,label){for(const view of views)check(view.meta.querySelector('.quest-dependency-badge').classList.contains(locked?'is-locked':'is-ready'),view.kind+': '+label)}
+function rejectLocked(action,label){const before=serializeState(state);let error;try{action()}catch(value){error=value}check(Boolean(error)&&/ก่อน|สำเร็จ/.test(error.message),label+': locked completion rejected');check(serializeState(state)===before,label+': rejection preserves dummy state')}
+
+try{
+ check(matchMedia('(prefers-reduced-motion: reduce)').matches===nativeReduced,'native motion preference matches requested fixture mode');
+ add('first','First survey');add('second','Second key');add('dependent','Cross the old gate');
+ picker=createPrerequisitePicker({container:document.querySelector('#picker'),items:state.items,questId:'dependent',selectedIds:[]});
+ check(Boolean(document.querySelector('#picker fieldset legend')),'actual picker has a native fieldset and legend');
+ check(!document.querySelector('#picker input[value="dependent"]'),'picker excludes the current quest');
+ const search=document.querySelector('.quest-prerequisite-search');
+ search.value='survey';search.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('input[value="first"]').click();
+ check(equal(picker.getSelectedIds(),['first']),'synthetic first checkbox click selects the first prerequisite');
+ search.value='key';search.dispatchEvent(new Event('input',{bubbles:true}));document.querySelector('input[value="second"]').click();
+ check(equal(picker.getSelectedIds(),['first','second']),'selection survives actual search rerender and second checkbox click');
+ search.value='';search.dispatchEvent(new Event('input',{bubbles:true}));
+ check(document.querySelectorAll('.quest-prerequisite-checkbox:checked').length===2,'both selected checkboxes restore after clearing search');
+ const selected=picker.getSelectedIds(),created=createQuest({title:'Creation probe',prerequisiteIds:selected},state);
+ check(equal(created.prerequisiteIds,['first','second']),'actual creation accepts both selected predecessor IDs');
+ state=updateItem(state,'dependent',{prerequisiteIds:selected});
+ check(equal(quest().prerequisiteIds,['first','second']),'actual update saves both predecessor IDs');
+ check(equal(parseState(serializeState(state)).items.find(item=>item.id==='dependent').prerequisiteIds,['first','second']),'selected prerequisites survive serialize and parse');
+ for(const kind of ['board','tray','reader','folio'])views.push(surface(kind));
+ const hidden=surface('board',{excluded:true});hidden.paper.hidden=true;invalid.push(hidden);
+ const ghost=surface('board',{excluded:true});ghost.paper.classList.add('quest-drag-ghost');invalid.push(ghost);
+ invalid.push(surface('reader',{excluded:true,back:true}));
+ effects=createQuestUnlockEffects({document,window,reducedMotion:()=>callbackReduced});render();
+ check(dependencyInfo(state.items,'dependent').locked,'two unfinished prerequisites lock the real model');checkBadges(true,'waiting badge is rendered');
+ const tool=chooseStampTool('done','banner');
+ rejectLocked(()=>applyHeldStamp(state,'dependent',tool,{x:31,y:77}),'held stamp');
+ rejectLocked(()=>setItemStatus(state,'dependent','done'),'direct status');
+ check(equal(commit(setItemStatus(state,'first','done')),[]),'first completion produces no unlock transition');
+ check(dependencyInfo(state.items,'dependent').locked&&dependencyInfo(state.items,'dependent').pending.length===1,'first completion still waits for the second prerequisite');checkBadges(true,'partial completion remains waiting');
+ const before=views.map(view=>pose(view.paper)),focus=document.activeElement;
+ check(equal(commit(setItemStatus(state,'second','done')),['dependent']),'final predecessor completion produces exactly one dependent ID');
+ check(!dependencyInfo(state.items,'dependent').locked&&parseState(serialized).items.find(item=>item.id==='second').status==='done','state is unlocked and serialized before effects are inspected');checkBadges(false,'ready badge follows final completion');
+ check(invalid.every(view=>!view.paper.querySelector('.quest-unlock-effect')),'hidden, ghost and back-facing copies receive no effect');
+ if(nativeReduced){
+  check(!document.querySelector('.quest-unlock-effect'),'native reduced motion creates no transient children');
+  check(document.getAnimations().length===0,'native reduced motion creates no WAAPI animations');
+  const fallback=node('span','quest-unlock-effect'),ring=node('span','quest-unlock-ring');fallback.append(ring);views[0].meta.querySelector('.quest-dependency-badge').append(fallback);
+  check(css(fallback).display==='none','actual native CSS media fallback hides a directly inserted flourish without its controller');fallback.remove();
+ }else{
+  check(views.every(view=>view.paper.querySelectorAll('.quest-unlock-effect').length===1),'all four live copies receive one local flourish');
+  const animations=views.flatMap(view=>view.paper.getAnimations({subtree:true}));
+  check(animations.length===16,'four native child animations exist for each visible copy');
+  check(animations.every(animation=>animation instanceof Animation&&animation.effect.target.closest('.quest-unlock-effect')),'native WAAPI targets only ephemeral flourish descendants');
+  for(const [index,view]of views.entries()){
+   samePose(before[index],pose(view.paper),view.kind);check(view.paper.getAnimations().length===0,view.kind+': no animation targets the whole paper');
+   const effect=view.paper.querySelector('.quest-unlock-effect');check(css(effect).pointerEvents==='none'&&effect.inert&&effect.getAttribute('aria-hidden')==='true',view.kind+': flourish is pointer transparent and decorative');
+   const probe=view.paper.querySelector('.probe'),r=probe.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);
+   check(hit===probe,view.kind+': native hit testing reaches the control beneath the flourish');hit.click();
+  }
+  check(clicks===4,'synthetic clicks activate all four controls under the flourish');
+  check(document.activeElement===focus,'unlock and synthetic controls do not steal native focus');
+  await bounded(Promise.all(animations.map(animation=>animation.ready)),'native flourish readiness');await frame();const time=animations[0].currentTime;await frame();await frame();
+  check(Number.isFinite(time)&&animations[0].currentTime>time,'flourish advances naturally on the native document timeline');
+  for(const [index,view]of views.entries())samePose(before[index],pose(view.paper),view.kind+' during native motion');
+  await bounded(Promise.allSettled(animations.map(animation=>animation.finished)),'native flourish finish');
+  await waitFor(()=>!document.querySelector('.quest-unlock-effect')&&document.getAnimations().length===0,'native flourish retirement');
+  check(!document.querySelector('.quest-unlock-effect')&&document.getAnimations().length===0,'natural completion removes every effect and native animation');
+ }
+ check(equal(commit(setItemStatus(state,'second','done')),[]),'repeating completed state produces no second unlock');
+ check(!document.querySelector('.quest-unlock-effect'),'unchanged completion starts no flourish');
+ callbackReduced=true;effects.play(['dependent']);check(!document.querySelector('.quest-unlock-effect')&&document.getAnimations().length===0,'application reduced-motion callback also skips all transient work');callbackReduced=false;
+ check(equal(commit(setItemStatus(state,'first','active')),[]),'reopening a predecessor does not play an unlock');
+ check(dependencyInfo(state.items,'dependent').locked,'unfinished dependent relocks when a predecessor reopens');checkBadges(true,'reopened prerequisite restores waiting badge');
+ commit(setItemStatus(state,'first','done'),{animate:false});
+ commit(applyHeldStamp(state,'dependent',tool,{x:31,y:77}));
+ check(quest().status==='done'&&quest().stampStyle==='banner'&&equal(quest().stampPosition,{x:31,y:77}),'unlocked held stamp records the completed quest and its ink placement');
+ const completed=quest();commit(setItemStatus(state,'first','active'));
+ check(quest()===completed&&quest().status==='done'&&quest().stampStyle==='banner'&&equal(quest().stampPosition,{x:31,y:77}),'completed history retains its exact stamp when a predecessor reopens');
+ check(!dependencyInfo(state.items,'dependent').locked&&dependencyInfo(state.items,'dependent').pending.length===1,'historical completed quest remains achieved while its predecessor waits again');
+ const restored=parseState(serializeState(state)).items.find(item=>item.id==='dependent');
+ check(equal(restored.prerequisiteIds,['first','second'])&&restored.status==='done'&&equal(restored.stampPosition,{x:31,y:77}),'final serialization preserves dependencies, completed history and stamp placement');
+ checkBadges(false,'historical achievement keeps the quiet completed badge');
+ report.textContent=JSON.stringify({ok:true,mode:nativeReduced?'native-reduced-motion':'moving',checks:checks.length,surfaces:views.map(view=>view.kind),input:'synthetic DOM clicks and direct real model calls',assertions:checks});
+}catch(error){report.textContent=JSON.stringify({ok:false,mode:nativeReduced?'native-reduced-motion':'moving',checks:checks.length,error:error.stack??error.message,assertions:checks})}
+finally{effects?.destroy();picker?.destroy()}
+</script></body></html>

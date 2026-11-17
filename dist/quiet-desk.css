@@ -1,0 +1,184 @@
+/* An uninterrupted tabletop. The small drawer pulls are the only chrome. */
+body:has(.quiet-desk) { overflow: hidden; }
+.main.quiet-desk { margin: 0; min-height: 100dvh; height: 100dvh; background: #261c15; }
+.page-content.desk-content { height: 100dvh; max-width: none; margin: 0; padding: 20px; }
+.board-frame.desk-board { width: 100%; height: 100%; padding: 10px; border-radius: 5px; border-color: #755437; box-shadow: 0 5px 24px #100c0a88, inset 0 1px 0 #ca9d635e, inset 0 -2px 3px #160e07; }
+.desk-board .board-scroll { width: 100%; height: 100%; max-height: none; scrollbar-color: #7a5d3c #37291d; }
+.desk-board .canvas-size { min-height: 100%; margin-inline: 0; }
+.desk-board .board-watermark { display: none; }
+.quiet-desk .quest-paper .quest-actions { display: none; }
+.quiet-desk .quest-paper .quest-date { bottom: 31px; }
+.quiet-desk .quest-paper .quest-metadata { bottom: 64px; }
+.quiet-desk .quest-paper .quest-top { border-radius: 2px; }
+.quiet-desk .quest-paper .quest-top:hover { background: #856c3220; }
+.quiet-desk .quest-paper .quest-title { cursor: pointer; }
+.quiet-desk .quest-paper .quest-title:focus-visible { outline-color: #796236; outline-offset: 4px; }
+.quiet-desk .quest-paper:not(.has-photo) .quest-description { height: 63px; -webkit-line-clamp: 3; }
+.quiet-desk .quest-paper.has-photo .quest-photo { height: 92px; }
+.quiet-desk .quest-paper.has-photo .on-paper { bottom: 45px; }
+.quiet-desk .quest-paper.has-photo .stamp-rectangle.on-paper { bottom: 57px; }
+.quiet-desk .empty-board { inset: 0; background: transparent; backdrop-filter: none; gap: 9px; color: #dac396; }
+.quiet-desk .empty-board > .icon { width: 35px; height: 35px; color: #c7a56e88; }
+.quiet-desk .empty-board h3 { color: #dcc49b; font: 500 18px/1.8 var(--serif); text-shadow: 0 2px 3px #25190c66; }
+.quiet-desk .empty-board p { font-size: 11px; color: #c0a57b; }
+.quiet-desk .empty-board button { margin-top: 8px; }
+.toast { left: 50%; }
+#return-stamp[hidden] { display: none; }
+.quest-drag-ghost .quest-date { bottom: 31px; }
+.quest-drag-ghost .quest-metadata { bottom: 64px; }
+.quest-drag-ghost:not(.has-photo) .quest-description { height: 63px; -webkit-line-clamp: 3; }
+.quest-drag-ghost.has-photo .quest-photo { height: 92px; }
+.quest-drag-ghost.has-photo .on-paper { bottom: 45px; }
+.quest-drag-ghost.has-photo .stamp-rectangle.on-paper { bottom: 57px; }
+
+/* Three brass pulls share a quiet rail: tools, papers, then folders. */
+.quest-drawer { --drawer-edge: clamp(8px, 4dvh, 22px); --drawer-pull-height: min(100px, 23dvh); --drawer-paper-pull-height: min(136px, 30dvh); --drawer-pull-gap: min(10px, 2dvh); right: 0; bottom: var(--drawer-edge); align-items: flex-end; width: min(376px, calc(100vw - 16px)); max-height: calc(100dvh - var(--drawer-edge) - var(--drawer-edge)); pointer-events: none; }
+.quest-drawer .drawer-handle, .quest-drawer .drawer-body { pointer-events: auto; }
+.quest-drawer:not(.is-open) { z-index: 170; }
+.quest-drawer.is-open, .quest-drawer.receiving { z-index: 160; }
+.quest-drawer.receiving { transition: none; }
+.quest-drawer.is-pulling { z-index: 175; }
+.quest-drawer .drawer-handle { min-height: 0; height: var(--drawer-pull-height); padding: 9px 8px; gap: 5px; }
+.quest-drawer .drawer-handle > .icon { width: 16px; height: 16px; }
+.quest-drawer .drawer-handle > span { font-size: 10px; letter-spacing: 1px; }
+.quest-drawer .drawer-handle > b { min-width: 18px; font-size: 9px; padding: 0 3px; line-height: 1.7; }
+.quest-drawer .drawer-handle::before { top: 6px; }
+.quest-drawer .drawer-handle::after { bottom: 6px; }
+#tool-drawer .drawer-handle { margin-bottom: 0; }
+#quest-drawer .drawer-handle { height: var(--drawer-paper-pull-height); margin-bottom: calc(var(--drawer-pull-height) + var(--drawer-pull-gap)); }
+#folder-drawer .drawer-handle { margin-bottom: calc(var(--drawer-pull-height) + var(--drawer-paper-pull-height) + var(--drawer-pull-gap) + var(--drawer-pull-gap)); }
+#quest-drawer .drawer-handle > .icon:first-child, #folder-drawer .drawer-handle > .icon:first-child { display: none; }
+.quest-drawer .drawer-body { height: min(600px, calc(100dvh - var(--drawer-edge) - var(--drawer-edge))); max-height: calc(100dvh - var(--drawer-edge) - var(--drawer-edge)); padding: 21px 57px 15px 17px; }
+.quest-drawer .drawer-body::before { right: 45px; }
+.quest-drawer .drawer-body::after { content: ''; position: absolute; top: 0; bottom: 0; right: 0; width: 43px; border-left: 1px solid #c29b6130; background: repeating-linear-gradient(2deg, transparent 0 4px, #160e081a 5px, transparent 6px 9px), linear-gradient(90deg, #2d1f1699, #4b3423a6 19%, #251b148c); box-shadow: inset 2px 0 4px #140c0740; pointer-events: none; }
+#tool-drawer .drawer-body { height: min(640px, calc(100dvh - var(--drawer-edge) - var(--drawer-edge))); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #927046 #2b1d14; }
+.quest-drawer .drawer-top h2, .tool-drawer-top h2 { font-size: 18px; }
+.quest-drawer .drawer-top .eyebrow { font-size: 6px; letter-spacing: 1.6px; }
+.quest-drawer .drawer-dropzone { min-height: 104px; }
+.quest-drawer .drawer-dropzone strong { font-size: 10px; }
+.quest-drawer .drawer-dropzone small { font-size: 8px; }
+.quest-drawer .archived-open strong { font-size: 10px; }
+.quest-drawer .archived-open { gap: 8px; }
+.quest-drawer .archived-open > img { width: 34px; height: 40px; flex-basis: 34px; }
+.quest-drawer .archived-open > .icon { width: 22px; margin-inline: 3px; }
+.quest-drawer .drawer-empty { padding-inline: 3px; }
+.quest-drawer .drawer-empty h3 { font-size: 12px; }
+.quest-drawer .drawer-empty p { font-size: 9px; }
+
+.tool-drawer-top { display: flex; flex: 0 0 auto; align-items: flex-start; justify-content: space-between; gap: 9px; margin-bottom: 13px; }
+.tool-drawer-top h2 { color: #f1dfb8; font-family: var(--serif); font-weight: 500; line-height: 1.7; }
+.tool-drawer-top .eyebrow { color: #c5ae7d; font: 6px/1.5 var(--display); letter-spacing: 1.8px; margin: 0 0 6px; }
+.tool-drawer-top > button { flex: 0 0 26px; width: 26px; height: 26px; padding: 5px; margin: -3px -3px 0 0; color: #bfa77e; }
+.tool-drawer-top > button:hover { color: #ffe9be; background: #e1c28b0d; }
+.tool-drawer-top > button > .icon { width: 15px; height: 15px; }
+
+/* A quill on its writing rest, followed by three stamps in a wooden rack. */
+.pen-tool { display: flex; flex: 0 0 auto; align-items: center; gap: 15px; width: 100%; min-height: 94px; padding: 12px 12px 12px 14px; margin: 0 0 18px; text-align: left; border: 1px solid #ccb58136; border-radius: 3px; background: radial-gradient(ellipse at 20% 40%, #e3c68a0f, transparent 75%), linear-gradient(110deg, #a3885d17, #b3996421); box-shadow: 0 3px 5px #1a0e0730, inset 0 1px 0 #d9be8530, inset 0 -1px 0 #21160c50; }
+.pen-tool:hover { border-color: #dfc79769; background: linear-gradient(110deg, #c4aa7920, #b3996430); box-shadow: 0 4px 9px #140d083d, inset 0 1px 0 #dfc99b40; }
+.pen-tool:active { transform: translateY(1px); }
+.pen-tool > span:last-child { min-width: 0; }
+.pen-tool strong { display: block; color: #f0dfb7; font: 500 13px/1.75 var(--serif); }
+.pen-tool small { display: block; margin-top: 5px; color: #c6b18a; font-size: 8px; line-height: 1.8; }
+.quill-illustration { display: block; flex: 0 0 40px; width: 40px; height: 61px; color: #e1cb9f; transform: rotate(-13deg); filter: drop-shadow(3px 5px 2px #1b110b80); transition: transform .2s; }
+.quill-illustration .icon { width: 40px; height: 61px; stroke-width: 1.1; }
+.pen-tool:hover .quill-illustration { transform: translateY(-3px) rotate(-8deg); }
+.stamp-rack { display: grid; flex: 0 0 auto; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; padding: 9px 1px 12px; border-bottom: 3px solid #281a10; border-radius: 3px; background: linear-gradient(0deg, #1e130b55, transparent 55%); box-shadow: 0 1px 0 #b58b4b33; }
+.stamp-pick { position: relative; display: flex; min-width: 0; flex-direction: column; align-items: center; justify-content: flex-start; gap: 6px; padding: 3px 2px 9px; border: 1px solid transparent; border-radius: 4px; color: #dcc79f; }
+.stamp-pick:hover { border-color: #c3a66c33; background: #e1c88f09; }
+.stamp-pick.is-selected { border-color: #dac08380; background: #e3c68b12; box-shadow: inset 0 0 12px #d9b4650c, 0 0 0 1px #120d0730; }
+.stamp-pick strong { color: #dfcca9; font-size: 10px; line-height: 1.7; font-weight: 500; }
+.stamp-pick small { color: #b8a078; font: 6px/1.5 var(--display); letter-spacing: .7px; }
+.stamp-pick.is-selected strong { color: #fff0ca; }
+.stamp-pick.is-selected small { color: #e2c99a; }
+.mini-stamper, .cursor-stamper { position: relative; display: block; flex: 0 0 auto; width: 53px; height: 70px; margin: 0 0 2px; color: var(--tool-ink, #a7bd8c); background: linear-gradient(90deg, #6c4c27, #d7b97a 34%, #ad8646 63%, #654423) center 22px / 16px 33px no-repeat; filter: drop-shadow(2px 5px 2px #1b110c8c); transition: transform .18s; }
+.mini-stamper::before, .cursor-stamper::before { content: ''; position: absolute; top: 2px; left: 7px; width: 39px; height: 29px; border-radius: 48% 48% 40% 40%; border: 1px solid #4f321d; background: repeating-linear-gradient(3deg, transparent 0 3px, #36201620 4px, #ddba7715 5px, transparent 6px), radial-gradient(ellipse at 38% 15%, #b4884e, #7c502d 51%, #41291a 95%); box-shadow: inset 0 1px 1px #e8c0859c, inset 0 -3px 3px #27110866, 0 1px 1px #29180e80; }
+.mini-stamper::after, .cursor-stamper::after { content: ''; position: absolute; bottom: 2px; left: 0; width: 100%; height: 22px; border: 1px solid #5e4227; border-bottom: 5px solid var(--tool-ink, #718260); border-radius: 4px 4px 2px 2px; background: linear-gradient(#d6b578, #ad874e 13%, #9e7742 72%, #6b4a28); box-shadow: inset 0 1px 0 #efd29873, 0 2px 0 #18170f; }
+.mini-stamper > .icon, .cursor-stamper > .icon { position: absolute; z-index: 1; top: 8px; left: 19px; width: 15px; height: 15px; color: #ecd6a8b0; stroke-width: 1.5; filter: drop-shadow(0 1px 0 #4b2e16); }
+.stamp-pick:hover .mini-stamper { transform: translateY(-4px) rotate(-3deg); }
+.stamp-pick.is-selected .mini-stamper { transform: translateY(-5px); }
+.tool-help { flex: 0 0 auto; margin: 15px 0 13px; color: #c4b08a; font-size: 9px; line-height: 1.95; text-align: center; }
+.tool-custom-select, .tool-style-select { display: flex; flex: 0 0 auto; flex-direction: column; gap: 6px; margin: 11px 0 0; color: #cdb890; font-size: 9px; }
+.tool-custom-select select, .tool-style-select select { min-width: 0; width: 100%; padding: 8px 9px; border: 1px solid #c4a36a40; border-radius: 3px; background: #291e15; color: #e7d5af; font-size: 10px; }
+.tool-custom-select[hidden], .tool-style-select[hidden] { display: none; }
+
+/* Secondary controls stay folded away until they are needed. */
+.drawer-menu { flex: 0 0 auto; margin: 18px 0 0; border-top: 1px solid #c7a4652e; padding-top: 12px; }
+.drawer-menu > summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; cursor: pointer; list-style: none; color: #d2bd95; font-size: 10px; padding: 3px 0; }
+.drawer-menu > summary::-webkit-details-marker { display: none; }
+.drawer-menu > summary::after { content: '+'; color: #b79e6c; font: 17px/1 var(--display); }
+.drawer-menu[open] > summary::after { content: '−'; }
+.drawer-menu > summary:hover { color: #f1dfbc; }
+.drawer-menu > summary:focus-visible { outline: 2px solid #dfc18a; outline-offset: 4px; border-radius: 2px; }
+.drawer-menu .drawer-search { width: 100%; margin: 14px 0 9px; }
+.drawer-filters { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 13px; }
+.drawer-filters button { padding: 4px 7px; border: 1px solid #b898622b; border-radius: 3px; color: #c6b18b; background: #1b140d29; font-size: 8px; line-height: 1.7; }
+.drawer-filters button:hover { border-color: #c8ab7369; color: #f0ddb7; }
+.drawer-filters button.active { border-color: #c7ae7491; background: #d6b77821; color: #eedab3; }
+.drawer-menu-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-bottom: 13px; }
+.drawer-menu-grid button { display: flex; align-items: center; justify-content: flex-start; gap: 7px; min-height: 36px; padding: 7px 9px; border: 1px solid #b99b6230; border-radius: 3px; background: #eed59807; color: #d8c29b; text-align: left; font-size: 9px; line-height: 1.6; }
+.drawer-menu-grid button .icon { width: 14px; height: 14px; color: #bda374; }
+.drawer-menu-grid button:hover { background: #e4c79215; border-color: #c7a56f5c; color: #f5e1ba; }
+.drawer-menu .canvas-controls { display: flex; flex-wrap: wrap; justify-content: center; width: 100%; gap: 4px; border-top: 1px solid #bfa06b20; padding-top: 9px; }
+.drawer-menu .canvas-controls > button { color: #d0bb93; font-size: 9px; }
+.drawer-menu .canvas-controls > button:hover { background: #e4c78f12; color: #f2dfb7; }
+.drawer-menu .canvas-controls .zoom-percent { min-width: 35px; }
+.drawer-menu .canvas-controls .control-divider { background: #c8aa6b36; margin-inline: 2px; }
+.drawer-summary { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 10px; margin: 13px 0 8px; padding-top: 11px; border-top: 1px solid #bfa06b20; color: #b9a17b; font-size: 8px; line-height: 1.9; }
+.drawer-summary strong { color: #d5bf96; font-weight: 500; }
+.drawer-summary .icon { width: 11px; height: 11px; }
+.drawer-menu #save-indicator { color: #b6aa87; font-size: 8px; padding-top: 4px; }
+
+/* The selected stamp follows the hand, ready to meet a sheet of paper. */
+.stamp-cursor { position: fixed; z-index: 220; left: 0; top: 0; display: flex; flex-direction: column; align-items: center; gap: 5px; width: 116px; opacity: 0; visibility: hidden; pointer-events: none; user-select: none; transform: translate(-50%, -85%); transition: opacity .1s; }
+.stamp-cursor.is-visible { opacity: 1; visibility: visible; }
+.cursor-stamper { width: 68px; height: 90px; margin: 0; background-size: 20px 43px; background-position: center 29px; filter: drop-shadow(5px 8px 4px #17100673); }
+.cursor-stamper::before { left: 9px; width: 50px; height: 37px; }
+.cursor-stamper::after { height: 28px; border-bottom-width: 6px; }
+.cursor-stamper > .icon { top: 12px; left: 24px; width: 20px; height: 20px; }
+.cursor-caption { display: block; max-width: 116px; padding: 3px 8px; border: 1px solid #c2a36b55; border-radius: 3px; background: #292017ed; color: #ecdbb8; box-shadow: 0 2px 6px #160f0a47; text-align: center; font-size: 8px; line-height: 1.7; white-space: nowrap; }
+.cursor-stamp-image { width: 70px; height: 74px; object-fit: contain; filter: drop-shadow(3px 5px 3px #140e0a60); }
+.cursor-stamper:has(.cursor-stamp-image) { background: none; }
+.cursor-stamper:has(.cursor-stamp-image)::before, .cursor-stamper:has(.cursor-stamp-image)::after { display: none; }
+.stamp-cursor.is-pressing .cursor-stamper { animation: cursor-press .56s ease-out both; }
+body.is-stamping .desk-board,
+body.is-stamping .desk-board * { cursor: none !important; }
+body.is-stamping .quest-paper.stamp-target { outline: 2px solid #c9dbafc2; outline-offset: 6px; box-shadow: 2px 5px 8px #170e0a60, 0 0 0 5px #aec68c16, 0 0 18px #d0d7a41a; }
+.desk-stamp-instruction { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); pointer-events: none; color: #e2d3ad; background: #2a2118db; border: 1px solid #bfa16a36; border-radius: 4px; font-size: 10px; padding: 8px 13px; z-index: 140; }
+
+@keyframes cursor-press { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(10px) scale(1.03, .95); } }
+
+@media (max-width: 760px) {
+  .page-content.desk-content { padding: 12px; }
+  .board-frame.desk-board { padding: 8px; }
+}
+
+@media (max-width: 500px) {
+  .page-content.desk-content { padding: 8px; }
+  .board-frame.desk-board { padding: 6px; }
+  .quest-drawer .drawer-body { padding-left: 14px; padding-right: 55px; }
+  .pen-tool { gap: 11px; padding-left: 11px; }
+  .pen-tool strong { font-size: 12px; }
+  .quest-drawer .drawer-handle > span { font-size: 9px; }
+}
+
+@media (max-height: 620px) {
+  .quest-drawer .drawer-body { padding-top: 15px; }
+  .tool-drawer-top { margin-bottom: 9px; }
+  .pen-tool { min-height: 77px; padding-block: 8px; margin-bottom: 10px; }
+  .quill-illustration, .quill-illustration .icon { height: 53px; }
+  .stamp-rack { padding-top: 5px; padding-bottom: 8px; }
+  .tool-help { margin-top: 10px; margin-bottom: 9px; }
+  .drawer-menu { margin-top: 12px; padding-top: 8px; }
+}
+
+@media (max-height: 400px) {
+  .quest-drawer .drawer-handle { padding-block: 8px; gap: 3px; }
+  .quest-drawer .drawer-handle > span { font-size: 9px; letter-spacing: .5px; }
+  #tool-drawer .drawer-handle > .icon { display: none; }
+  .quest-drawer .drawer-dropzone { min-height: 78px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stamp-cursor, .mini-stamper, .quill-illustration { transition: none !important; }
+  .stamp-cursor.is-pressing .cursor-stamper { animation: none !important; }
+}

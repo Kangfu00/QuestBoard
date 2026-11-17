@@ -1,0 +1,225 @@
+/* Physical sheet geometry is shared by every live sheet and its visual copies.
+   Load after the desk, reader, folio and bundle styles. */
+:root {
+  --quest-paper-width: 300px;
+  --quest-paper-height: calc(var(--quest-paper-width) * 297 / 210);
+  --quest-paper-aspect: 210 / 297;
+}
+
+.quest-paper {
+  width: var(--quest-paper-width);
+  height: var(--quest-paper-height);
+  aspect-ratio: var(--quest-paper-aspect);
+  padding: 22px 24px 18px;
+}
+.quest-paper .quest-top {
+  height: 26px;
+  padding: 2px 28px 8px 6px;
+}
+.quest-paper .quest-type { min-width: 0; overflow: hidden; white-space: nowrap; }
+.quest-paper .quest-bundle-select { top: 24px; right: 12px; width: 20px; height: 20px; padding: 3px; }
+.quest-paper .paper-rule { padding-top: 8px; margin-bottom: 10px; }
+.quest-paper .rank { width: 22px; height: 22px; }
+.quest-paper .quest-title,
+.quest-paper.has-photo .quest-title {
+  height: 57px;
+  max-height: 57px;
+  font: 600 19px/1.5 var(--serif);
+  letter-spacing: -.3px;
+  overflow-wrap: anywhere;
+  -webkit-line-clamp: 2;
+}
+
+/* The upper body ends before the endorsement band and the ruled footer.
+   Its geometry stays fixed when a status impression is added. */
+.quest-paper .quest-description {
+  position: absolute;
+  top: 158px;
+  left: 24px;
+  right: 24px;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  font-size: 11px;
+  line-height: 20px;
+  color: #716044;
+}
+.quest-paper:not(.has-photo) .quest-description,
+.quiet-desk .quest-paper:not(.has-photo) .quest-description,
+.quest-drag-ghost:not(.has-photo) .quest-description {
+  height: 80px;
+  -webkit-line-clamp: 4;
+}
+.quest-paper.has-photo .quest-description {
+  display: -webkit-box;
+  left: 160px;
+  height: 80px;
+  -webkit-line-clamp: 4;
+}
+.quest-paper.has-photo .quest-photo,
+.quiet-desk .quest-paper.has-photo .quest-photo,
+.quest-drag-ghost.has-photo .quest-photo {
+  top: 158px;
+  left: 24px;
+  width: max-content;
+  max-width: 126px;
+  height: auto;
+  padding: 4px 4px 8px;
+  background: #f0e8cf;
+}
+.quest-paper .quest-photo img {
+  width: auto;
+  height: auto;
+  max-width: 116px;
+  max-height: 148px;
+  object-fit: contain;
+  object-position: center;
+}
+
+.quest-paper .quest-metadata,
+.quiet-desk .quest-paper .quest-metadata,
+.quest-drag-ghost .quest-metadata {
+  left: 24px;
+  right: 24px;
+  bottom: 55px;
+  height: 18px;
+  line-height: 18px;
+}
+.quest-paper .quest-date,
+.quiet-desk .quest-paper .quest-date,
+.quest-drag-ghost .quest-date {
+  left: 24px;
+  right: 45px;
+  bottom: 24px;
+  min-height: 27px;
+  padding-top: 8px;
+  line-height: 18px;
+  gap: 5px;
+}
+.quest-paper .quest-date > span { min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.quest-paper .quest-date > small { flex: 0 0 auto; }
+.quest-paper .paper-back-hint {
+  left: 24px;
+  right: 48px;
+  bottom: 7px;
+  height: 12px;
+  line-height: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+/* Only automatic endorsements use this clear area. Explicit ink anchors keep
+   their original dimensions and user-selected positions. */
+.quest-paper > .quest-ink-layer > .stamp.on-paper:not(.positioned-ink) {
+  left: auto;
+  top: auto;
+  right: 16px;
+  bottom: 85px;
+}
+.quest-paper > .quest-ink-layer > .stamp-seal.on-paper:not(.positioned-ink) { width: 90px; height: 90px; }
+.quest-paper > .quest-ink-layer > .stamp-seal.on-paper:not(.positioned-ink) .icon { width: 20px; height: 20px; }
+.quest-paper > .quest-ink-layer > .stamp-seal.on-paper:not(.positioned-ink) strong { font-size: 10px; }
+.quest-paper > .quest-ink-layer > .stamp-seal.on-paper:not(.positioned-ink) .stamp-top { font-size: 4px; letter-spacing: .7px; }
+.quest-paper > .quest-ink-layer > .stamp-seal.on-paper:not(.positioned-ink) .stamp-bottom { font-size: 7px; }
+.quest-paper > .quest-ink-layer > .stamp-rectangle.on-paper:not(.positioned-ink) { width: 120px; height: 54px; bottom: 103px; }
+.quest-paper > .quest-ink-layer > .stamp-rectangle.on-paper:not(.positioned-ink) strong { font-size: 15px; line-height: 1.4; }
+.quest-paper > .quest-ink-layer > .stamp-rectangle.on-paper:not(.positioned-ink) .stamp-bottom { font-size: 8px; }
+.quest-paper > .quest-ink-layer > .stamp-banner.on-paper:not(.positioned-ink) { width: 120px; height: 62px; bottom: 99px; }
+.quest-paper > .quest-ink-layer > .stamp-banner.on-paper:not(.positioned-ink) strong { font-size: 14px; letter-spacing: 1px; }
+.quest-paper > .quest-ink-layer > .custom-stamp.on-paper:not(.positioned-ink) { width: 104px; height: 72px; bottom: 94px; }
+
+/* A single uniform scale preserves type and image proportions on both faces
+   and on the five temporary strips used by the page-turn animation. */
+.paper-reader {
+  --reader-width: min(600px, calc(100vw - 40px), calc((100dvh - 40px) * 210 / 297));
+  width: var(--reader-width);
+}
+.paper-reader-scene { aspect-ratio: var(--quest-paper-aspect); }
+.reader-front > .quest-paper,
+.reader-back-sheet {
+  width: var(--quest-paper-width);
+  height: var(--quest-paper-height);
+  aspect-ratio: var(--quest-paper-aspect);
+}
+.paper-reader .reader-front .quest-top { padding-right: calc(110px / var(--reader-scale, 1)); }
+.paper-reader .reader-front .quest-top > .icon { display: none; }
+.paper-reader .reader-front .quest-date { right: max(45px, calc(50px / var(--reader-scale, 1))); }
+.reader-back-sheet {
+  display: grid;
+  grid-template-rows: auto minmax(52px, .9fr) 15px minmax(24px, 1fr) 24px 10px auto;
+  padding: 20px 21px max(18px, calc(44px / var(--reader-scale, 1)));
+  gap: 5px;
+}
+.reader-back-sheet .back-heading {
+  min-width: 0;
+  padding: 0 max(0px, calc(110px / var(--reader-scale, 1) - 21px)) 4px 0;
+}
+.reader-back-sheet .back-heading small { display: block; font-size: 5px; line-height: 7px; overflow: hidden; white-space: nowrap; }
+.reader-back-sheet .back-heading h2 {
+  margin: 2px 0 0;
+  font-size: 15px;
+  line-height: 20px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.reader-back-sheet .back-heading p { line-height: 11px; }
+.reader-back-sheet .back-notes-label { min-height: 0; line-height: 13px; }
+.reader-back-sheet .back-notes {
+  flex: 1 1 auto;
+  height: 0;
+  font-size: 11px;
+  line-height: 20px;
+  background: repeating-linear-gradient(transparent 0 19px, #8e733528 19px 20px);
+}
+.reader-back-sheet .back-tasks-heading { line-height: 15px; }
+.reader-back-sheet .back-task-list { min-height: 0; }
+.reader-back-sheet .back-task { min-height: 28px; }
+.reader-back-sheet .back-add-form { height: 24px; min-width: 0; }
+.reader-back-sheet .back-add-input { height: 24px; padding: 0 2px; font-size: 9px; line-height: 22px; }
+.reader-back-sheet .back-add-form button { height: 24px; padding: 0; line-height: 22px; }
+.reader-back-sheet .back-save-status { height: 10px; min-height: 0; line-height: 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.reader-back-sheet .back-retry { min-height: 14px; padding: 0; line-height: 14px; }
+
+/* The controller publishes a measured fit for both dimensions. Important
+   defaults retire the old mobile constants; measured inline values win. */
+.folder-window.folio-spread {
+  --folio-paper-scale: 1 !important;
+  --folio-paper-width: var(--quest-paper-width) !important;
+  --folio-paper-height: var(--quest-paper-height) !important;
+}
+.folio-spread .folio-paper-viewport {
+  display: grid;
+  place-items: center;
+  padding: 8px;
+  overflow: visible;
+}
+.folio-spread .folio-paper-stage {
+  width: var(--folio-paper-width);
+  height: var(--folio-paper-height);
+  aspect-ratio: var(--quest-paper-aspect);
+  margin: 0;
+}
+.folio-spread .folio-paper-stage > .quest-paper {
+  width: var(--quest-paper-width);
+  height: var(--quest-paper-height);
+}
+.folio-spread .folio-stack-sheet {
+  top: 50%;
+  left: 50%;
+  width: var(--folio-paper-width);
+  height: var(--folio-paper-height);
+  aspect-ratio: var(--quest-paper-aspect);
+  transform: translate(-50%, -50%) translate(var(--sheet-x), var(--sheet-y)) rotate(var(--sheet-angle));
+}
+.quest-bundle-ghost .quest-bundle-sheet {
+  width: var(--quest-paper-width);
+  height: var(--quest-paper-height);
+  aspect-ratio: var(--quest-paper-aspect);
+}
+
+/* The mobile folio now shares the same centered geometry as the wide spread. */
+@media (max-width: 640px) {
+  @keyframes folio-spread-stack-square { to { transform: translate(-50%, -50%) translate(0, 2px) rotate(0deg); } }
+}

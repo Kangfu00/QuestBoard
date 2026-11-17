@@ -1,0 +1,12 @@
+/* Floating documents keep their existing paper and leather art. In particular,
+   no grouping effect here may flatten the folio's animated 3D cover. */
+[data-desk-window] { position:fixed; margin:0; }
+[data-desk-window-handle] { cursor:grab; touch-action:none; }
+[data-desk-window-handle]:focus-visible { outline:1px dashed #e4c98b99; outline-offset:4px; }
+.is-window-dragging [data-desk-window-handle] { cursor:grabbing; user-select:none; }
+[data-desk-window] [data-desk-window-handle] :is(button, a, input, textarea, select, [contenteditable]) { cursor:auto; }
+[data-desk-window].is-window-active .paper-reader-toolbar,
+[data-desk-window].is-window-active .folder-window-header { text-shadow:0 1px 4px #130b08b3; }
+[data-desk-window].is-window-active .reader-face { box-shadow:0 10px 25px #160c0840; }
+[data-desk-window].is-window-active > .folio-left,
+[data-desk-window].is-window-active > .folio-right { box-shadow:0 20px 34px #110b0870,0 4px 7px #130e0b66,inset 0 1px 1px #d9ae7270,inset 0 -4px 2px #1b0e0a80; }

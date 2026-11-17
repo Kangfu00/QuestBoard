@@ -1,0 +1,150 @@
+/* Ink stays on the sheet; only explicitly placed impressions use an anchor. */
+.stamp-cursor { transform: translate(-50%, -98px); }
+body.is-stamping :is(.paper-reader,.folio-spread) .quest-paper.stamp-target,
+body.is-stamping :is(.paper-reader,.folio-spread) .quest-paper.stamp-target * { cursor:none !important; }
+/* The folio's folded corner stays a control rather than hitting paper below. */
+body.is-stamping .folio-spread .paper-turn-corner { pointer-events:auto; }
+
+.quest-ink-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  overflow: hidden;
+  border-radius: inherit;
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+
+.quest-ink-layer > .stamp-anchor {
+  position: absolute;
+  display: block;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Outranks photo/rectangle positions while leaving legacy impressions alone. */
+:is(.quest-paper, .quest-drag-ghost) > .quest-ink-layer > .stamp-anchor > .stamp.on-paper.positioned-ink {
+  left: 0;
+  top: 0;
+  right: auto;
+  bottom: auto;
+  margin: 0;
+  transform: translate(-50%, -50%) rotate(-16deg);
+  transform-origin: 50% 50%;
+}
+
+.quest-ink-layer .stamp.on-paper.positioned-ink.just-stamped {
+  animation: placed-fresh-ink 320ms 240ms cubic-bezier(.2, .8, .3, 1) both;
+}
+
+@keyframes placed-fresh-ink {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-16deg) scale(1.045); }
+  30% { opacity: .96; transform: translate(-50%, -50%) rotate(-16deg) scale(.99); }
+  100% { opacity: .8; transform: translate(-50%, -50%) rotate(-16deg) scale(1); }
+}
+
+/* The mask's clipping line meets the lip at the dropzone's bottom minus 12px. */
+.drawer-dropzone {
+  border-style: solid;
+  border-color: #9b754a66;
+}
+
+.drawer-dropzone::before,
+.drawer-dropzone::after {
+  content: '';
+  position: absolute;
+  box-sizing: border-box;
+  pointer-events: none;
+}
+
+.drawer-dropzone::before {
+  z-index: 1;
+  left: 8px;
+  right: 8px;
+  bottom: 11px; /* Account for the dropzone's 1px border. */
+  height: 8px;
+  border-radius: 3px 3px 0 0;
+  background: linear-gradient(#130c08, #21150e 65%, #372217);
+  box-shadow: inset 0 2px 3px #080504b3, 0 -1px 0 #a47d4b30;
+}
+
+.drawer-dropzone::after {
+  z-index: 3;
+  left: 5px;
+  right: 5px;
+  bottom: -1px;
+  height: 12px;
+  border: 1px solid #25150e;
+  border-top-color: #b58c558c;
+  border-radius: 1px 1px 3px 3px;
+  background:
+    repeating-linear-gradient(2deg, transparent 0 2px, #1c0e0833 3px, transparent 4px 6px),
+    linear-gradient(#775134, #543520 35%, #3c2619);
+  box-shadow: 0 -2px 3px #10090566, inset 0 1px 0 #d2aa6a38,
+    inset 0 -2px 0 #21120b80, 0 1px 1px #170d0966;
+}
+
+.drawer-dropzone.is-feeding::after {
+  animation: drawer-lip-settle 520ms ease-out both;
+}
+
+.drawer-feed-mask {
+  position: fixed;
+  inset: 0;
+  z-index: 180;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+@keyframes drawer-lip-settle {
+  0%, 100% {
+    box-shadow: 0 -2px 3px #10090566, inset 0 1px 0 #d2aa6a38,
+      inset 0 -2px 0 #21120b80, 0 1px 1px #170d0966;
+  }
+  38% {
+    box-shadow: 0 -4px 5px #10090599, inset 0 1px 0 #e4bb7759,
+      inset 0 -2px 0 #21120b80, 0 2px 2px #170d0980;
+  }
+}
+
+/* WAAPI owns the sheet's journey. These effects change only its materials. */
+.quest-paper.paper-arriving {
+  animation: arriving-paper-shadow var(--paper-arrival-duration, 760ms) ease-out both;
+}
+
+.quest-paper.paper-arriving .paper-pin {
+  animation: arriving-paper-pin var(--paper-arrival-duration, 760ms) ease-out both;
+}
+
+.quest-paper.paper-arriving .paper-wear {
+  animation: arriving-paper-edge var(--paper-arrival-duration, 760ms) ease-out both;
+}
+
+@keyframes arriving-paper-shadow {
+  0% { box-shadow: 2px 3px 4px #170e0a40, 0 1px 2px #1c120633; }
+  38% { box-shadow: 9px 20px 24px #170e0a66, 2px 5px 6px #1c120626; }
+  80% { box-shadow: 3px 7px 10px #170e0a60, 0 2px 3px #1c120640; }
+  100% { box-shadow: 2px 5px 8px #170e0a60, 0 1px 2px #1c120650; }
+}
+
+@keyframes arriving-paper-pin {
+  0%, 74% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes arriving-paper-edge {
+  0%, 30% { opacity: .54; }
+  100% { opacity: .3; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quest-ink-layer .stamp.on-paper.positioned-ink.just-stamped,
+  .drawer-dropzone.is-feeding::after,
+  .quest-paper.paper-arriving,
+  .quest-paper.paper-arriving .paper-pin,
+  .quest-paper.paper-arriving .paper-wear {
+    animation: none !important;
+    transition: none !important;
+  }
+}
