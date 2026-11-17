@@ -251,44 +251,30 @@
   width: min(940px, calc(100vw - 28px));
   height: min(650px, calc(100vh - 28px));
   border-radius: 14px;
-  padding: 14px;
-  background:
-    linear-gradient(90deg, #3c2617 0%, #523622 48%, #2a1a10 50%, #523622 52%, #3c2617 100%);
-  box-shadow:
-    0 24px 60px rgba(8, 5, 3, 0.65),
-    0 0 0 2px rgba(230, 193, 122, 0.35),
-    inset 0 2px 6px rgba(255, 232, 185, 0.22);
+  padding: 0;
+  background: none;
+  box-shadow: none;
+  border: none;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
   color: #2d2116;
   z-index: 250;
   perspective: 1600px;
 }
 
-.daily-book-window.book-sage {
-  background: linear-gradient(90deg, #233326 0%, #314735 48%, #172219 50%, #314735 52%, #233326 100%);
-}
-
-.daily-book-window.book-red {
-  background: linear-gradient(90deg, #431c19 0%, #5b2723 48%, #2b110f 50%, #5b2723 52%, #431c19 100%);
-}
-
-.daily-book-window.book-navy {
-  background: linear-gradient(90deg, #1b273b 0%, #283954 48%, #111927 50%, #283954 52%, #1b273b 100%);
-}
-
 .daily-book-window::before {
   content: "";
   position: absolute;
-  top: 10px;
-  bottom: 10px;
-  left: calc(50% - 7px);
-  width: 14px;
-  background: linear-gradient(90deg, rgba(18, 11, 6, 0.55), rgba(255, 238, 205, 0.15) 50%, rgba(18, 11, 6, 0.55));
+  top: 4px;
+  bottom: 4px;
+  left: calc(50% - 8px);
+  width: 16px;
+  background: linear-gradient(90deg, #1c110a 0%, #3e2616 48%, #1c110a 52%, #2a1a10 100%);
   border-radius: 4px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
   pointer-events: none;
-  z-index: 2;
+  z-index: 25;
 }
 
 /* ฝาปกหน้า 3D สำหรับอนิเมชั่นง้างเปิดและพับปิดสมุด (เหมือนแฟ้ม) */
@@ -388,25 +374,41 @@
 }
 
 .daily-book-page {
-  background:
-    radial-gradient(circle at 20% 15%, rgba(255, 252, 242, 0.7), transparent 60%),
-    linear-gradient(180deg, #f8efd9 0%, #f1e3c3 100%);
-  border-radius: 9px;
-  box-shadow:
-    inset 0 0 24px rgba(139, 98, 48, 0.16),
-    0 2px 8px rgba(15, 9, 5, 0.28);
+  position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  position: relative;
+  box-shadow:
+    0 18px 42px rgba(8, 5, 3, 0.62),
+    inset 0 0 24px rgba(139, 98, 48, 0.16);
+  border: 12px solid #3c2617;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255, 252, 242, 0.7), transparent 60%),
+    linear-gradient(180deg, #f8efd9 0%, #f1e3c3 100%);
+}
+
+.daily-book-window.book-sage .daily-book-page {
+  border-color: #233326;
+}
+
+.daily-book-window.book-red .daily-book-page {
+  border-color: #431c19;
+}
+
+.daily-book-window.book-navy .daily-book-page {
+  border-color: #1b273b;
 }
 
 .daily-book-left {
+  border-radius: 14px 4px 4px 14px;
+  border-right-width: 6px;
   padding: 16px 18px;
   gap: 12px;
 }
 
 .daily-book-right {
+  border-radius: 4px 14px 14px 4px;
+  border-left-width: 6px;
   padding: 16px 18px;
   background:
     linear-gradient(90deg, transparent 42px, rgba(168, 74, 62, 0.28) 42px, rgba(168, 74, 62, 0.28) 44px, transparent 44px),
@@ -464,6 +466,10 @@
   animation: daily-book-spread-lift 720ms cubic-bezier(.2, .8, .25, 1) both;
 }
 
+.daily-book-window.is-unfolding::before {
+  animation: daily-book-spine-reveal 720ms ease both;
+}
+
 .daily-book-window.is-unfolding > .daily-book-window-cover {
   visibility: visible;
   animation: daily-book-cover-unfold 680ms 40ms cubic-bezier(.25, .75, .2, 1) both;
@@ -507,11 +513,16 @@
 }
 
 @keyframes daily-book-left-reveal {
-  0%, 70% {
+  0%, 75% {
     opacity: 0;
+    visibility: hidden;
+  }
+  76% {
+    visibility: visible;
   }
   100% {
     opacity: 1;
+    visibility: visible;
   }
 }
 
@@ -524,10 +535,23 @@
   }
 }
 
+@keyframes daily-book-spine-reveal {
+  0%, 72% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
 .daily-book-closing-ghost {
   animation: daily-book-spread-depart 680ms cubic-bezier(.25, .8, .25, 1) both;
   transform-origin: center center;
   pointer-events: none;
+}
+
+.daily-book-closing-ghost::before {
+  animation: daily-book-spine-retire 160ms ease both;
 }
 
 .daily-book-closing-ghost > .daily-book-window-cover {
@@ -536,7 +560,7 @@
 }
 
 .daily-book-closing-ghost .daily-book-page.daily-book-left {
-  animation: daily-book-left-retire 180ms ease both;
+  animation: daily-book-left-retire 160ms ease both;
 }
 
 @keyframes daily-book-cover-refold {
@@ -556,20 +580,24 @@
   }
   100% {
     opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes daily-book-spine-retire {
+  to {
+    opacity: 0;
   }
 }
 
 @keyframes daily-book-spread-depart {
-  0% {
+  0%, 78% {
     opacity: 1;
     transform: scale(1);
   }
-  80% {
-    opacity: 1;
-  }
   100% {
     opacity: 0;
-    transform: scale(0.95) translateY(16px);
+    transform: scale(0.96) translateY(12px);
   }
 }
 

@@ -273,9 +273,12 @@ export function createDailyBookWindow({
   function open({ focus = true } = {}) {
     const el = ensurePanel();
     const wasOpen = isOpen();
+    render();
+    if (!wasOpen && !reducedMotion()) {
+      el.classList.add('is-unfolding');
+    }
     el.hidden = false;
     el.style.display = '';
-    render();
     if (!handle) {
       handle = windows?.register(el, {
         key: 'daily-book',
@@ -288,7 +291,6 @@ export function createDailyBookWindow({
       try { onCue('cordUntie'); } catch {}
       try { onCue('folderOpen', { delay: 180 }); } catch {}
       if (!reducedMotion()) {
-        el.classList.add('is-unfolding');
         setTimeout(() => el.classList.remove('is-unfolding'), 740);
       }
     }
@@ -303,6 +305,7 @@ export function createDailyBookWindow({
       if (panel) {
         panel.hidden = true;
         panel.style.display = 'none';
+        panel.classList.remove('is-unfolding');
       }
       return false;
     }
@@ -333,6 +336,7 @@ export function createDailyBookWindow({
     }
     panel.hidden = true;
     panel.style.display = 'none';
+    panel.classList.remove('is-unfolding');
     if (returnFocus) {
       (document.querySelector('[data-open-daily-book]') || document.querySelector('[data-action="open-daily-book"]'))?.focus({ preventScroll: true });
     }

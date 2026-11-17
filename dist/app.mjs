@@ -137,7 +137,7 @@ function persist() {
 function commit(next, message,{animateUnlock=true}={}){
   const unlocked=animateUnlock?newlyUnlockedQuestIds(state.items,next.items):[];
   questUnlockEffects?.cancelAll();
-  state=ensureTrayPositions(next);renderBoard();renderCounts();renderFolderWindow();paperReader.refresh();persist();
+  state=ensureTrayPositions(next);renderBoard();renderCounts();renderFolderWindow();paperReader.refresh();if(dailyBookWindow?.isOpen)dailyBookWindow.render();persist();
   if(message)showToast(message);
   else if(unlocked.length)showToast(unlocked.length===1?`ปลดล็อกเควส “${state.items.find(q=>q.id===unlocked[0])?.title??''}” แล้ว`:`ปลดล็อก ${unlocked.length} เควส พร้อมออกเดินทางแล้ว`);
   if(unlocked.length)questUnlockEffects?.play(unlocked);
