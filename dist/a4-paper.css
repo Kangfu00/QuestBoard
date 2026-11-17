@@ -132,7 +132,7 @@
 /* A single uniform scale preserves type and image proportions on both faces
    and on the five temporary strips used by the page-turn animation. */
 .paper-reader {
-  --reader-width: min(600px, calc(100vw - 40px), calc((100dvh - 40px) * 210 / 297));
+  --reader-width: min(480px, calc(100vw - 40px), calc((100dvh - 40px) * 210 / 297));
   width: var(--reader-width);
 }
 .paper-reader-scene { aspect-ratio: var(--quest-paper-aspect); }
