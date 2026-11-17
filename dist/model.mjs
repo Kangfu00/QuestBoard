@@ -1,6 +1,45 @@
 import {PAPER,STAMP_SPACE} from './paper-format.mjs';
 import {normalizePhotoLayout} from './photo-layout.mjs';
 import {normalizePrerequisiteIds,validateDependencies,dependencyInfo} from './quest-dependencies.mjs';
+import {
+  DAILY_BOOK_SIZE,
+  MAX_DAILY_TASKS,
+  MAX_DAILY_TALLY,
+  DAILY_BOOK_COLORS,
+  normalizeDailyTask,
+  normalizeDailyBook,
+  createDefaultDailyBook,
+  ensureDailyBook,
+  updateDailyBookMeta,
+  addDailyTask,
+  updateDailyTask,
+  deleteDailyTask,
+  tallyDailyTask,
+  resetDailyTaskCount,
+  resetAllDailyTaskCounts,
+  splitTallyBundles,
+  todayIsoDate,
+} from './daily-book-model.mjs';
+
+export {
+  DAILY_BOOK_SIZE,
+  MAX_DAILY_TASKS,
+  MAX_DAILY_TALLY,
+  DAILY_BOOK_COLORS,
+  normalizeDailyTask,
+  normalizeDailyBook,
+  createDefaultDailyBook,
+  ensureDailyBook,
+  updateDailyBookMeta,
+  addDailyTask,
+  updateDailyTask,
+  deleteDailyTask,
+  tallyDailyTask,
+  resetDailyTaskCount,
+  resetAllDailyTaskCounts,
+  splitTallyBundles,
+  todayIsoDate,
+};
 
 export const BOARD = Object.freeze({ width: 1180, height: 1000 });
 export const BOARD_LIMIT = Object.freeze({ width: 20000, height: 20000 });
@@ -384,7 +423,14 @@ export function validateState(raw) {
   for (const item of raw.items) checkStampReference(item, stamps);
   for (const item of items) checkFolderReference(item, items);
   validateDependencies(items);
-  const normalized = { version: 1, items, stamps, settings };
+  const dailyBook = raw.dailyBook === undefined ? undefined : normalizeDailyBook(raw.dailyBook, BOARD_LIMIT);
+  const normalized = {
+    version: 1,
+    items,
+    stamps,
+    settings,
+    ...(dailyBook === undefined ? {} : { dailyBook }),
+  };
   checkBackupBudget(normalized);
   return normalized;
 }
