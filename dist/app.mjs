@@ -362,7 +362,7 @@ function activateStorageDrawer(id){
   clearStorageFeedback();$('#quest-drawer').classList.add('receiving');setActiveDrawer('quest-drawer',false,false);
 }
 function followStorageHandle(e,type){
-  if(!['quest','folder'].includes(type))return;
+  if(!['quest','folder','daily-book'].includes(type))return;
   const hovered=document.elementFromPoint(e.clientX,e.clientY)?.closest('.drawer-handle')?.closest('.quest-drawer')?.id;
   if(['quest-drawer','folder-drawer'].includes(hovered))activateStorageDrawer(drawerForDraggedItem(type,activeDrawerId(),hovered));
 }
@@ -430,15 +430,18 @@ function storeInFolder(questId,folderId,ghost=null,surface='board-folder'){
   if(animated)cue.signal.addEventListener('abort',()=>{cancelMotion(ghost);ghost.remove();},{once:true});
 }
 function startStoredDrag(e){
-  const grip=e.target.closest('[data-quest-drag],[data-folder-drag]');if(!grip||e.button!==0||drag||storedDrag||heldStamp||questPhotos?.editing||photoViewer?.isOpen||dialog.open)return;
-  const id=grip.dataset.questDrag||grip.dataset.folderDrag,item=state.items.find(i=>i.id===id);if(!item)return;
+  const grip=e.target.closest('[data-quest-drag],[data-folder-drag],[data-daily-book-drag]');if(!grip||e.button!==0||drag||storedDrag||heldStamp||questPhotos?.editing||photoViewer?.isOpen||dialog.open)return;
+  const isBook=Boolean(grip.matches('[data-daily-book-drag]'));
+  const surface=grip.closest('[data-storage-id]');
+  if(isBook&&!surface)return;
+  const id=isBook?'daily-book':(grip.dataset.questDrag||grip.dataset.folderDrag);
+  const item=isBook?{...ensureDailyBook(state).dailyBook,id:'daily-book',type:'daily-book'}:state.items.find(i=>i.id===id);if(!item)return;
   stampCues.get(id)?.abort();stampCues.delete(id);
   storageDrawerControl?.rest();
   e.preventDefault();window.getSelection()?.removeAllRanges();
-  const surface=grip.closest('[data-storage-id]');
   const preview=grip.closest('[data-folio-paper]');
-  let localGrab={x:150,y:28};
-  if(surface){const transform=getComputedStyle(surface).transform;const matrix=transform==='none'?{a:1,b:0,c:0,d:1}:new DOMMatrix(transform);localGrab=stampPoint({x:e.clientX,y:e.clientY},surface.getBoundingClientRect(),matrix,TRAY_SCALE,{width:PAPER.width,height:item.type==='folder'?210:PAPER.height});}
+  let localGrab={x:item.type==='daily-book'?DAILY_BOOK_SIZE.width/2:150,y:28};
+  if(surface){const transform=getComputedStyle(surface).transform;const matrix=transform==='none'?{a:1,b:0,c:0,d:1}:new DOMMatrix(transform);localGrab=stampPoint({x:e.clientX,y:e.clientY},surface.getBoundingClientRect(),matrix,TRAY_SCALE,{width:item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width,height:item.type==='folder'?210:item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height});}
   let scale=surface?TRAY_SCALE:currentScale;
   if(preview){
     // Capture the actual curved/lifted presentation before settling it. Each
@@ -461,10 +464,18 @@ function startStoredDrag(e){
 function moveStoredDrag(e){
   const d=storedDrag;if(!d||e.pointerId!==d.pointerId)return;
   if(!d.moved&&Math.abs(e.clientX-d.startX)+Math.abs(e.clientY-d.startY)>5){
-    d.moved=true;sound.play(d.item.type==='folder'?'folderPick':'paperPick');
-    const container=document.createElement('div');container.innerHTML=d.item.type==='folder'?renderFolder(d.item):renderQuest(d.item,0);
-    const ghost=container.firstElementChild;ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.add(d.item.type==='folder'?'folder-drag-ghost':'quest-drag-ghost');
-    ghost.style.cssText=`position:fixed;width:${PAPER.width}px;height:${d.item.type==='folder'?210:PAPER.height}px;z-index:10000;pointer-events:none;transform:scale(${d.scale}) rotate(${d.rotation}deg);transform-origin:center;`;
+    d.moved=true;sound.play(d.item.type==='folder'||d.item.type==='daily-book'?'folderPick':'paperPick');
+    const container=document.createElement('div');
+    if(d.item.type==='daily-book'){
+      container.innerHTML=renderDailyBookCover(d.item,{icon});
+    }else{
+      container.innerHTML=d.item.type==='folder'?renderFolder(d.item):renderQuest(d.item,0);
+    }
+    const ghost=container.firstElementChild;ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('data-daily-book');ghost.setAttribute('aria-hidden','true');ghost.inert=true;
+    ghost.classList.add(d.item.type==='daily-book'?'book-drag-ghost':d.item.type==='folder'?'folder-drag-ghost':'quest-drag-ghost');
+    const ghostW=d.item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
+    const ghostH=d.item.type==='folder'?210:d.item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
+    ghost.style.cssText=`position:fixed;width:${ghostW}px;height:${ghostH}px;z-index:10000;pointer-events:none;transform:scale(${d.scale}) rotate(${d.rotation}deg);transform-origin:center;`;
     ghost.classList.add('paper-in-hand');document.body.append(ghost);d.ghost=ghost;
     d.surface?.classList.add('storage-source');
     activateStorageDrawer('quest-drawer');
@@ -491,14 +502,31 @@ function endStoredDrag(e){
   cleanupStoredDrag(!!d.folderTarget||!!d.overTray);
   try{
     if(!d.moved){renderFolderWindow();return;}
-    if(d.folderTarget){storeInFolder(d.id,d.folderTarget,d.ghost,d.folderSurface);renderFolderWindow();return;}
-    if(d.overTray){storeAtTray(d.id,e,d.grab);settleTrayItem(d.id,d.ghost,d.grab);renderFolderWindow();return;}
-    if(overBoard){
-      const angle=d.item.rotation*Math.PI/180,cx=PAPER.width/2,cy=d.item.type==='folder'?105:PAPER.height/2,gx=d.grab.x-cx,gy=d.grab.y-cy;
-      const pos=rotatedClampPosition((e.clientX-origin.left)/currentScale-cx-gx*Math.cos(angle)+gy*Math.sin(angle),(e.clientY-origin.top)/currentScale-cy-gx*Math.sin(angle)-gy*Math.cos(angle),d.item.type,d.item.rotation,canvasBounds);
-      const next=updateItem(setArchived(state,d.id,false),d.id,{...pos,z:Math.max(...state.items.map(i=>i.z),0)+1});
-      filters={status:'all',category:'all',search:''};$('#search').value='';
-      setActiveDrawer(null,false,false);commit(next,'วางบนโต๊ะแล้ว');settlePaper(d.id,d.tilt);return;
+    if(d.item.type==='daily-book'){
+      if(d.overTray){
+        const pos=trayDrop({x:e.clientX,y:e.clientY},$('#drawer-list').getBoundingClientRect(),d.grab,TRAY_SCALE,d.item.rotation,'daily-book');
+        commit(updateDailyBookMeta(state,{storagePosition:pos}));
+        settleTrayDailyBook(d.ghost,d.grab);
+        renderFolderWindow();
+        return;
+      }
+      if(overBoard){
+        const angle=d.item.rotation*Math.PI/180,cx=DAILY_BOOK_SIZE.width/2,cy=DAILY_BOOK_SIZE.height/2,gx=d.grab.x-cx,gy=d.grab.y-cy;
+        const pos=rotatedClampPosition((e.clientX-origin.left)/currentScale-cx-gx*Math.cos(angle)+gy*Math.sin(angle),(e.clientY-origin.top)/currentScale-cy-gx*Math.sin(angle)-gy*Math.cos(angle),'daily-book',d.item.rotation,canvasBounds);
+        const topZ=Math.max(...state.items.map(i=>i.z),0)+1;
+        const next=updateDailyBookMeta(state,{archived:false,...pos,z:topZ});
+        setActiveDrawer(null,false,false);commit(next,'นำสมุดงานประจำวันวางบนโต๊ะแล้ว');settleDailyBook(d.tilt);return;
+      }
+    }else{
+      if(d.folderTarget){storeInFolder(d.id,d.folderTarget,d.ghost,d.folderSurface);renderFolderWindow();return;}
+      if(d.overTray){storeAtTray(d.id,e,d.grab);settleTrayItem(d.id,d.ghost,d.grab);renderFolderWindow();return;}
+      if(overBoard){
+        const angle=d.item.rotation*Math.PI/180,cx=PAPER.width/2,cy=d.item.type==='folder'?105:PAPER.height/2,gx=d.grab.x-cx,gy=d.grab.y-cy;
+        const pos=rotatedClampPosition((e.clientX-origin.left)/currentScale-cx-gx*Math.cos(angle)+gy*Math.sin(angle),(e.clientY-origin.top)/currentScale-cy-gx*Math.sin(angle)-gy*Math.cos(angle),d.item.type,d.item.rotation,canvasBounds);
+        const next=updateItem(setArchived(state,d.id,false),d.id,{...pos,z:Math.max(...state.items.map(i=>i.z),0)+1});
+        filters={status:'all',category:'all',search:''};$('#search').value='';
+        setActiveDrawer(null,false,false);commit(next,'วางบนโต๊ะแล้ว');settlePaper(d.id,d.tilt);return;
+      }
     }
   }catch(err){showToast(err.message);}
   setActiveDrawer(d.drawerBefore,false,false);renderFolderWindow();
@@ -1092,48 +1120,151 @@ function confirmDeleteDailyTask(taskId){
     showToast(`ลบ “${task.title}” ออกจากสมุดแล้ว`,{label:'เลิกทำ',run:()=>commit(before,'คืนรายการในสมุดแล้ว')});
   };
 }
+function settleDailyBook(tilt=0){
+  const el=$('#board-canvas [data-daily-book]');if(!el)return;
+  sound.play('folderDrop');
+  if(reducedMotion())return;
+  const book=ensureDailyBook(state).dailyBook;const rotation=book.rotation??0;
+  animateTransient(el,[
+    {transform:`rotate(${rotation+tilt*.35}deg) scale(1.025)`,boxShadow:'0 20px 42px rgba(12, 8, 5, 0.65)',easing:'cubic-bezier(.2,.7,.3,1)'},
+    {transform:`rotate(${rotation-.3}deg) scale(.998)`,offset:.72,easing:'ease-out'},
+    {transform:`rotate(${rotation}deg) scale(1)`}
+  ],{duration:230,easing:'linear'});
+}
+function settleTrayDailyBook(ghost,grab={x:DAILY_BOOK_SIZE.width/2,y:28}){
+  const target=$(`[data-storage-id="daily-book"]`),book=ensureDailyBook(state).dailyBook;
+  const animated=target&&ghost&&!reducedMotion()&&typeof ghost.animate==='function';
+  sound.play('folderDrop');
+  if(!animated){ghost?.remove();return;}
+  const rect=target.getBoundingClientRect(),cx=DAILY_BOOK_SIZE.width/2,cy=DAILY_BOOK_SIZE.height/2;
+  const angle=(book.rotation??0)*Math.PI/180;
+  const dx=grab.x-cx,dy=grab.y-cy;
+  const anchor={x:rect.left+rect.width/2+(dx*Math.cos(angle)-dy*Math.sin(angle))*TRAY_SCALE,y:rect.top+rect.height/2+(dx*Math.sin(angle)+dy*Math.cos(angle))*TRAY_SCALE};
+  const from={left:ghost.style.left,top:ghost.style.top,transform:ghost.style.transform,transformOrigin:ghost.style.transformOrigin};
+  target.classList.add('storage-source');
+  const contact=ghostPose(anchor,grab,TRAY_SCALE,book.rotation??0,0,1);
+  animateTransient(ghost,[{...from,easing:'cubic-bezier(.2,.8,.3,1)'},{...contact,offset:.8},contact],{duration:180,easing:'linear'},{
+    remove:true,
+    onFinish:()=>{target.classList.remove('storage-source');}
+  });
+}
+function archiveDailyBook(ghost,event,grab={x:DAILY_BOOK_SIZE.width/2,y:28}){
+  let next=updateDailyBookMeta(state,{archived:true});
+  setActiveDrawer('quest-drawer',false,false);archiveSearch='';$('#archive-search').value='';
+  if(event){
+    const book=ensureDailyBook(state).dailyBook;
+    const position=trayDrop({x:event.clientX,y:event.clientY},$('#drawer-list').getBoundingClientRect(),grab,TRAY_SCALE,book.rotation??0,'daily-book');
+    next=updateDailyBookMeta(next,{storagePosition:position,z:Math.max(...state.items.map(i=>i.z),0)+1});
+  }
+  commit(next);
+  settleTrayDailyBook(ghost,grab);
+  showToast('เก็บสมุดงานประจำวันเข้าลิ้นชักแล้ว',{label:'นำกลับ',run:()=>restoreDailyBook()});
+}
+function restoreDailyBook(){
+  const topZ=Math.max(...state.items.map(i=>i.z),0)+1;
+  const next=updateDailyBookMeta(state,{archived:false,z:topZ});
+  sound.play('folderDrop');
+  commit(next,'นำสมุดงานประจำวันวางบนโต๊ะแล้ว');
+  const el=$('#board-canvas [data-daily-book]');
+  el?.classList.add('restored-paper');el?.scrollIntoView({block:'nearest',inline:'nearest',behavior:reducedMotion()?'instant':'smooth'});
+}
 function startDailyBookDrag(e){
   const handle=e.target.closest('[data-daily-book-drag]');
   if(!handle||heldStamp||questPhotos?.editing||photoViewer?.isOpen||e.button!==0||drag||storedDrag||bookDrag)return;
-  const el=handle.closest('[data-daily-book]');if(!el)return;
+  const el=handle.closest('[data-daily-book]');
+  if(!el||el.closest('#drawer-list, .quest-drawer'))return;
   e.preventDefault();e.stopPropagation();window.getSelection()?.removeAllRanges();
   handle.focus({preventScroll:true});
   const book=ensureDailyBook(state).dailyBook;
   const topZ=Math.max(...state.items.map(i=>i.z),book.z)+1;
   el.style.zIndex=String(topZ);
-  bookDrag={el,handle,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,origX:book.x,origY:book.y,x:book.x,y:book.y,moved:false,topZ};
+
+  const canvasOrigin=$('#board-canvas').getBoundingClientRect();
+  const bounds=rotatedOrigin(el.getBoundingClientRect(),el.offsetWidth,el.offsetHeight,book.rotation,currentScale);
+  const grab=grabPoint({x:e.clientX,y:e.clientY},bounds,currentScale,book.rotation);
+
+  bookDrag={
+    type:'daily-book',el,handle,pointerId:e.pointerId,startX:e.clientX,startY:e.clientY,
+    origX:book.x,origY:book.y,x:book.x,y:book.y,rotation:book.rotation,scale:currentScale,
+    grab,bounds,canvasOrigin,drawerBefore:activeDrawerId(),moved:false,ghost:null,overTray:false,
+    tilt:0,topZ,
+  };
   handle.setPointerCapture(e.pointerId);
+
   const move=ev=>{
     if(!bookDrag||ev.pointerId!==bookDrag.pointerId)return;
-    const dx=(ev.clientX-bookDrag.startX)/currentScale,dy=(ev.clientY-bookDrag.startY)/currentScale;
-    if(!bookDrag.moved&&Math.abs(ev.clientX-bookDrag.startX)+Math.abs(ev.clientY-bookDrag.startY)>4){
+    const dx=ev.clientX-bookDrag.startX,dy=ev.clientY-bookDrag.startY;
+    if(!bookDrag.moved&&Math.abs(dx)+Math.abs(dy)>4){
       bookDrag.moved=true;sound.play('folderPick');
+      const ghost=bookDrag.el.cloneNode(true);
+      ghost.removeAttribute('data-daily-book');ghost.removeAttribute('aria-label');
+      ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');
+      ghost.classList.add('book-drag-ghost','paper-in-hand');
+      ghost.style.setProperty('--drag-scale',currentScale);
+      ghost.style.zIndex='10000';
+      ghost.querySelectorAll('[tabindex],button').forEach(b=>b.setAttribute('tabindex','-1'));
+      document.body.append(ghost);
+      bookDrag.ghost=ghost;bookDrag.el.classList.add('drag-source');
     }
     if(!bookDrag.moved)return;
-    bookDrag.x=Math.max(0,Math.min(canvasBounds.width-DAILY_BOOK_SIZE.width,bookDrag.origX+dx));
-    bookDrag.y=Math.max(0,Math.min(canvasBounds.height-DAILY_BOOK_SIZE.height,bookDrag.origY+dy));
-    bookDrag.el.style.left=bookDrag.x+'px';bookDrag.el.style.top=bookDrag.y+'px';
+    const origin=$('#board-canvas').getBoundingClientRect();
+    const raw=dragPosition(
+      {x:bookDrag.x,y:bookDrag.y,pointerX:bookDrag.startX,pointerY:bookDrag.startY},
+      {x:ev.clientX,y:ev.clientY},currentScale,
+      {x:origin.left-bookDrag.canvasOrigin.left,y:origin.top-bookDrag.canvasOrigin.top}
+    );
+    const p=rotatedClampPosition(raw.x,raw.y,'daily-book',bookDrag.rotation,canvasBounds);
+    bookDrag.next=p;
+    if(bookDrag.ghost)updateHeldGhost(bookDrag,ev);
+    else{bookDrag.el.style.left=p.x+'px';bookDrag.el.style.top=p.y+'px';}
+    followStorageHandle(ev,'daily-book');
+    bookDrag.overTray=overStorageTray(ev,'daily-book');
+    highlightStorageTray(bookDrag.overTray);
   };
+
+  const cleanup=(keepGhost=false)=>{
+    if(!bookDrag)return;
+    const {handle:h,pointerId,el:element,ghost}=bookDrag;
+    h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',end);h.removeEventListener('pointercancel',cancel);
+    if(h.hasPointerCapture(pointerId))h.releasePointerCapture(pointerId);
+    stopHeldMotion(bookDrag);
+    element.classList.remove('dragging','drag-source');
+    if(!keepGhost)ghost?.remove();
+    clearStorageFeedback();
+    bookDrag=null;
+  };
+
   const end=ev=>{
     if(!bookDrag||ev.pointerId!==bookDrag.pointerId)return;
-    const finished=bookDrag;bookDrag=null;
-    handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',end);handle.removeEventListener('pointercancel',cancel);
-    if(handle.hasPointerCapture(finished.pointerId))handle.releasePointerCapture(finished.pointerId);
-    if(finished.moved){
-      suppressClickUntil=performance.now()+350;
-      sound.play('folderDrop');
-      state=updateDailyBookMeta(state,{x:finished.x,y:finished.y,z:finished.topZ});
-      persist();
+    if(ev&&bookDrag.moved)move(ev);
+    const {moved,next,overTray,ghost,drawerBefore,tilt,grab:localGrab,topZ:z}=bookDrag;
+    cleanup(!!overTray);
+    if(moved)suppressClickUntil=performance.now()+400;
+    if(moved&&overTray){
+      archiveDailyBook(ghost,ev,localGrab);
+      return;
     }
+    if(moved&&next){
+      state=updateDailyBookMeta(state,{...next,z});
+      const currentEl=$('#board-canvas [data-daily-book]');
+      if(currentEl){currentEl.style.left=next.x+'px';currentEl.style.top=next.y+'px';}
+      persist();
+      settleDailyBook(tilt);
+    }
+    setActiveDrawer(drawerBefore,false,false);
   };
+
   const cancel=ev=>{
     if(!bookDrag||(ev?.pointerId!==undefined&&ev.pointerId!==bookDrag.pointerId))return;
-    const finished=bookDrag;bookDrag=null;
-    handle.removeEventListener('pointermove',move);handle.removeEventListener('pointerup',end);handle.removeEventListener('pointercancel',cancel);
-    if(handle.hasPointerCapture(finished.pointerId))handle.releasePointerCapture(finished.pointerId);
-    finished.el.style.left=finished.origX+'px';finished.el.style.top=finished.origY+'px';
+    const {el:element,origX,origY,drawerBefore}=bookDrag;
+    element.style.left=origX+'px';element.style.top=origY+'px';
+    cleanup();
+    setActiveDrawer(drawerBefore,false,false);
   };
-  handle.addEventListener('pointermove',move);handle.addEventListener('pointerup',end);handle.addEventListener('pointercancel',cancel);
+
+  handle.addEventListener('pointermove',move);
+  handle.addEventListener('pointerup',end);
+  handle.addEventListener('pointercancel',cancel);
 }
 function arrangeBoard(){
   const before=state.items.map(i=>({id:i.id,x:i.x,y:i.y,rotation:i.rotation}));let q=0,l=0,f=0;

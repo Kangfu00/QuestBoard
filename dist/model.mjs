@@ -134,9 +134,9 @@ function normalizeStampPosition(value) {
 export function clampPosition(x, y, type = 'quest', bounds = BOARD) {
   number(x, 'ตำแหน่ง x', -1e6, 1e6);
   number(y, 'ตำแหน่ง y', -1e6, 1e6);
-  oneOf(type, ['quest', 'label', 'folder'], 'ชนิดกระดาษ');
-  const width = type === 'label' ? 230 : PAPER.width;
-  const height = type === 'label' ? 70 : type === 'folder' ? 210 : PAPER.height;
+  oneOf(type, ['quest', 'label', 'folder', 'daily-book'], 'ชนิดกระดาษ');
+  const width = type === 'label' ? 230 : type === 'daily-book' ? DAILY_BOOK_SIZE.width : PAPER.width;
+  const height = type === 'label' ? 70 : type === 'folder' ? 210 : type === 'daily-book' ? DAILY_BOOK_SIZE.height : PAPER.height;
   record(bounds, 'ขอบเขตกระดาน');
   const boardWidth = number(bounds.width, 'ความกว้างกระดาน', width, BOARD_LIMIT.width);
   const boardHeight = number(bounds.height, 'ความสูงกระดาน', height, BOARD_LIMIT.height);

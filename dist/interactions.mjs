@@ -1,4 +1,4 @@
-import { BOARD, BOARD_LIMIT } from './model.mjs';
+import { BOARD, BOARD_LIMIT, DAILY_BOOK_SIZE } from './model.mjs';
 import {PAPER} from './paper-format.mjs';
 
 export function dragPosition(start, pointer, scale, boardShift={x:0,y:0}) {
@@ -19,13 +19,14 @@ export function shouldOpenDrawer(reveal, travel) {
 
 export function drawerForDraggedItem(type, current, hovered=null) {
   if(type==='folder')return 'folder-drawer';
+  if(type==='daily-book')return 'quest-drawer';
   if(type!=='quest')return current;
   if(['quest-drawer','folder-drawer'].includes(hovered))return hovered;
   return current==='folder-drawer'?'folder-drawer':'quest-drawer';
 }
 
 export function storageTrayAccepts(type, drawer) {
-  return type==='folder'&&drawer==='folder-drawer'||type==='quest'&&drawer==='quest-drawer';
+  return type==='folder'&&drawer==='folder-drawer'||(type==='quest'||type==='daily-book')&&drawer==='quest-drawer';
 }
 
 export function rotatedOrigin(bounds, width, height, rotation, scale) {
@@ -38,7 +39,8 @@ export function rotatedOrigin(bounds, width, height, rotation, scale) {
 }
 
 function rotatedDimensions(type, rotation) {
-  const width=type==='label'?230:PAPER.width, height=type==='label'?70:type==='folder'?210:PAPER.height;
+  const width=type==='label'?230:type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
+  const height=type==='label'?70:type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
   const angle=rotation*Math.PI/180;
   const cos=Math.abs(Math.cos(angle)), sin=Math.abs(Math.sin(angle));
   return {width,height,halfX:(width*cos+height*sin)/2,halfY:(width*sin+height*cos)/2};

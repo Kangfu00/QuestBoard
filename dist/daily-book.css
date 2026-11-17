@@ -1,15 +1,15 @@
 /* สมุดบันทึกงานประจำวัน (Daily Tally Ledger Book) */
 .board-daily-book {
   position: absolute;
-  width: 256px;
-  height: 320px;
+  width: 320px;
+  height: 448px;
   border-radius: 6px 14px 14px 6px;
   background:
     linear-gradient(90deg, rgba(22, 14, 9, 0.58) 0%, rgba(22, 14, 9, 0.28) 9%, rgba(255, 240, 205, 0.08) 12%, transparent 18%),
     radial-gradient(circle at 62% 32%, rgba(255, 232, 185, 0.14), transparent 68%),
     linear-gradient(145deg, #5d3e28 0%, #432b1b 55%, #2f1d11 100%);
   box-shadow:
-    0 12px 26px rgba(12, 8, 5, 0.46),
+    0 14px 30px rgba(12, 8, 5, 0.48),
     inset 4px 0 8px rgba(0, 0, 0, 0.45),
     inset -3px 0 0 #e6d7b8,
     inset -6px 0 0 #cbb894,
@@ -23,6 +23,17 @@
   transform-origin: center;
   user-select: none;
   transition: box-shadow 0.18s ease;
+}
+
+.board-daily-book.drag-source {
+  opacity: 0.28;
+}
+
+.book-drag-ghost {
+  position: fixed;
+  pointer-events: none;
+  z-index: 10000;
+  box-shadow: 0 24px 50px rgba(12, 8, 5, 0.58), 0 6px 16px rgba(12, 8, 5, 0.42);
 }
 
 .board-daily-book.book-sage {
@@ -83,12 +94,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 4px 8px;
+  padding: 6px 10px;
   border-radius: 6px;
-  background: rgba(20, 12, 7, 0.34);
-  border: 1px solid rgba(232, 198, 136, 0.24);
+  background: rgba(20, 12, 7, 0.38);
+  border: 1px solid rgba(232, 198, 136, 0.28);
   color: #ebd5ad;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   cursor: grab;
 }
 
@@ -96,119 +107,94 @@
   cursor: grabbing;
 }
 
+.daily-book-grip-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.daily-book-rename-btn {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(235, 200, 134, 0.16);
+  border: 1px solid rgba(235, 200, 134, 0.3);
+  color: #f7ead0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.78rem;
+}
+
+.daily-book-rename-btn:hover {
+  background: rgba(235, 200, 134, 0.34);
+}
+
 .daily-book-cover-btn {
   flex: 1;
-  margin: 8px 0;
-  padding: 14px 12px;
-  border-radius: 8px;
-  border: 1px solid rgba(235, 200, 134, 0.34);
+  margin: 12px 0;
+  padding: 24px 16px;
+  border-radius: 10px;
+  border: 1px solid rgba(235, 200, 134, 0.36);
   background:
-    radial-gradient(circle at 50% 25%, rgba(255, 232, 182, 0.1), transparent 70%),
-    rgba(24, 15, 9, 0.28);
+    radial-gradient(circle at 50% 28%, rgba(255, 232, 182, 0.12), transparent 72%),
+    rgba(24, 15, 9, 0.3);
   color: #f7ead0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  gap: 6px;
+  gap: 16px;
   cursor: pointer;
-  transition: transform 0.15s ease, background 0.15s ease;
+  transition: transform 0.16s ease, background 0.16s ease;
 }
 
 .daily-book-cover-btn:hover,
 .daily-book-cover-btn:focus-visible {
-  background: rgba(255, 234, 190, 0.12);
+  background: rgba(255, 234, 190, 0.14);
   transform: translateY(-1px);
 }
 
 .daily-book-emblem {
-  width: 58px;
-  height: 36px;
+  width: 76px;
+  height: 48px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 999px;
-  background: rgba(236, 198, 122, 0.16);
-  border: 1px solid rgba(236, 198, 122, 0.42);
+  background: rgba(236, 198, 122, 0.18);
+  border: 1px solid rgba(236, 198, 122, 0.45);
   color: #f3cf85;
 }
 
 .daily-book-emblem svg {
-  width: 38px;
-  height: 22px;
+  width: 50px;
+  height: 30px;
 }
 
 .daily-book-title {
   font-family: "Noto Serif Thai", Georgia, serif;
-  font-size: 1.08rem;
+  font-size: 1.28rem;
   font-weight: 700;
   color: #fff3da;
-  line-height: 1.3;
-}
-
-.daily-book-subtitle {
-  font-size: 0.78rem;
-  color: rgba(244, 231, 203, 0.8);
   line-height: 1.35;
-}
-
-.daily-book-stats-pill {
-  margin-top: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: rgba(18, 11, 6, 0.48);
-  border: 1px solid rgba(236, 198, 122, 0.32);
-  font-size: 0.76rem;
-  color: #f3cf85;
-}
-
-.daily-book-preview-list {
-  width: 100%;
-  margin-top: 4px;
-  padding-top: 6px;
-  border-top: 1px dashed rgba(236, 198, 122, 0.24);
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 0.74rem;
-  color: rgba(247, 234, 208, 0.88);
-  text-align: left;
-}
-
-.daily-book-preview-row {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.daily-book-preview-row span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.daily-book-preview-row b {
-  color: #f3cf85;
-  font-weight: 600;
 }
 
 .daily-book-footer {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 6px;
 }
 
 .daily-book-footer button {
-  padding: 5px 8px;
+  padding: 5px 10px;
   border-radius: 6px;
-  border: 1px solid rgba(235, 200, 134, 0.25);
+  border: 1px solid rgba(235, 200, 134, 0.28);
   background: rgba(20, 12, 7, 0.38);
   color: #f2dfc0;
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -216,7 +202,7 @@
 }
 
 .daily-book-footer button:hover {
-  background: rgba(235, 200, 134, 0.18);
+  background: rgba(235, 200, 134, 0.2);
 }
 
 /* หน้าต่างสมุดกางสองหน้า (Open Daily Book Spread Window) */
@@ -341,37 +327,41 @@
   gap: 4px;
 }
 
-.daily-book-summary {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
+.daily-book-window.is-unfolding {
+  animation: daily-book-unfold 260ms cubic-bezier(.16, 1, .3, 1) both;
 }
 
-.daily-summary-card {
-  padding: 8px 10px;
-  border-radius: 8px;
-  background: rgba(255, 249, 235, 0.72);
-  border: 1px solid rgba(138, 102, 56, 0.26);
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+@keyframes daily-book-unfold {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(14px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
-.daily-summary-card span {
-  font-size: 0.72rem;
-  color: #6f5537;
+.daily-book-closing-ghost {
+  animation: daily-book-refold 220ms cubic-bezier(.25, .8, .25, 1) both;
 }
 
-.daily-summary-card strong {
-  font-size: 1.05rem;
-  color: #2f1f10;
+@keyframes daily-book-refold {
+  0% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.88) translateY(16px);
+  }
 }
 
 .daily-add-form {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  padding: 10px 12px;
+  padding: 12px;
   border-radius: 8px;
   background: rgba(238, 222, 189, 0.55);
   border: 1px solid rgba(138, 102, 56, 0.28);
@@ -385,50 +375,22 @@
 .daily-add-form input {
   flex: 1;
   min-width: 0;
-  padding: 7px 10px;
+  padding: 8px 12px;
   border-radius: 6px;
   border: 1px solid rgba(122, 88, 46, 0.36);
   background: #fffaf0;
   color: #2b1d11;
-  font-size: 0.86rem;
-}
-
-.daily-presets {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-  align-items: center;
-}
-
-.daily-presets small {
-  font-size: 0.74rem;
-  color: #6e5436;
-  margin-right: 2px;
-}
-
-.daily-preset-chip {
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px dashed rgba(122, 88, 46, 0.45);
-  background: rgba(255, 250, 238, 0.75);
-  color: #4b351e;
-  font-size: 0.74rem;
-  cursor: pointer;
-}
-
-.daily-preset-chip:hover {
-  background: #f3e0b6;
+  font-size: 0.9rem;
 }
 
 .daily-left-tools {
   display: flex;
   align-items: center;
-  gap: 8px;
   margin-top: auto;
-  padding-top: 8px;
+  padding-top: 10px;
   border-top: 1px solid rgba(122, 88, 46, 0.22);
-  flex-wrap: wrap;
-  justify-content: space-between;
+  color: #6e5436;
+  font-size: 0.78rem;
 }
 
 .daily-sheet-header {
@@ -436,7 +398,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 0 4px 10px 34px;
+  padding: 0 4px 10px 10px;
   border-bottom: 2px solid rgba(122, 88, 46, 0.32);
 }
 
@@ -448,7 +410,7 @@
 
 .daily-sheet-header strong {
   font-family: "Noto Serif Thai", Georgia, serif;
-  font-size: 1.02rem;
+  font-size: 1.06rem;
   color: #332213;
 }
 
@@ -467,10 +429,11 @@
 
 .daily-task-row {
   display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 10px 8px 10px 34px;
-  border-bottom: 1px solid rgba(132, 98, 56, 0.24);
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-bottom: 1px solid rgba(132, 98, 56, 0.22);
   position: relative;
   transition: background 0.15s ease;
 }
@@ -479,100 +442,90 @@
   background: rgba(235, 214, 173, 0.32);
 }
 
-.daily-task-row-number {
-  position: absolute;
-  left: 2px;
-  top: 12px;
-  width: 24px;
-  text-align: right;
-  font-family: "Cinzel", Georgia, serif;
-  font-size: 0.76rem;
-  color: #8c4b3e;
+.daily-task-name-btn {
+  flex: 1;
+  min-width: 120px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
   font-weight: 600;
-}
-
-.daily-task-top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.daily-task-title-group {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-
-.daily-task-title {
-  font-weight: 700;
-  font-size: 0.96rem;
-  color: #281a0e;
-}
-
-.daily-task-note {
-  font-size: 0.78rem;
-  color: #6e5436;
-}
-
-.daily-task-badges {
+  color: #2a1b0e;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.75rem;
+  transition: background 0.12s ease;
 }
 
-.daily-count-badge {
-  padding: 2px 8px;
-  border-radius: 999px;
-  background: rgba(79, 109, 77, 0.16);
-  border: 1px solid rgba(79, 109, 77, 0.4);
-  color: #2f472e;
-  font-weight: 700;
+.daily-task-name-btn:hover {
+  background: rgba(238, 222, 189, 0.65);
 }
 
-.daily-total-badge {
-  color: #6f5537;
-}
-
-.daily-today-dot {
-  color: #4f6d4d;
-  font-weight: 600;
-}
-
-.daily-tally-canvas {
-  min-height: 40px;
-  padding: 6px 10px;
-  border-radius: 7px;
-  border: 1px dashed rgba(122, 88, 46, 0.34);
-  background: rgba(255, 251, 240, 0.66);
+.daily-task-tally {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 6px;
   cursor: pointer;
-  text-align: left;
-  width: 100%;
+  padding: 4px 8px;
+  border-radius: 6px;
+  min-height: 32px;
+  min-width: 80px;
+  border: 1px dashed rgba(122, 88, 46, 0.28);
+  background: rgba(255, 251, 240, 0.55);
   transition: background 0.14s ease, border-color 0.14s ease;
 }
 
-.daily-tally-canvas:hover,
-.daily-tally-canvas:focus-visible {
-  background: rgba(255, 246, 222, 0.95);
+.daily-task-tally:hover {
+  background: rgba(255, 246, 222, 0.9);
   border-color: #7c582e;
 }
 
+.daily-task-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+}
+
+.daily-task-action-btn {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  border: 1px solid rgba(122, 88, 46, 0.3);
+  background: rgba(255, 250, 240, 0.85);
+  color: #4b351e;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease;
+}
+
+.daily-task-action-btn:hover {
+  background: #f3e0b6;
+  border-color: #8c5d2c;
+}
+
+.daily-task-action-btn.delete-action:hover {
+  background: #f8d7d4;
+  color: #8c2820;
+  border-color: #c95246;
+}
+
 .daily-tally-empty {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   color: #846949;
   font-style: italic;
 }
 
 .tally-bundle {
-  width: 44px;
-  height: 28px;
+  width: 40px;
+  height: 26px;
   overflow: visible;
   color: #2b1d10;
 }
@@ -604,28 +557,13 @@
   }
 }
 
-.daily-task-controls {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 6px;
-  flex-wrap: wrap;
-}
-
-.daily-task-controls-left,
-.daily-task-controls-right {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-}
-
 .daily-btn {
-  padding: 4px 9px;
+  padding: 5px 12px;
   border-radius: 6px;
   border: 1px solid rgba(122, 88, 46, 0.36);
   background: #fffaf0;
   color: #362415;
-  font-size: 0.76rem;
+  font-size: 0.82rem;
   font-weight: 600;
   display: inline-flex;
   align-items: center;

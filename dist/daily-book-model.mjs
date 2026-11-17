@@ -1,4 +1,4 @@
-export const DAILY_BOOK_SIZE = Object.freeze({ width: 256, height: 320 });
+export const DAILY_BOOK_SIZE = Object.freeze({ width: 320, height: 448 });
 export const MAX_DAILY_TASKS = 80;
 export const MAX_DAILY_TALLY = 9999;
 export const DAILY_BOOK_COLORS = Object.freeze(['gold', 'sage', 'red', 'navy']);

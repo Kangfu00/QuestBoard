@@ -1,5 +1,6 @@
 import {BOARD_LIMIT} from './model.mjs';
 import {PAPER} from './paper-format.mjs';
+import {DAILY_BOOK_SIZE} from './daily-book-model.mjs';
 
 export const TRAY_SCALE=.62;
 export const TRAY_WIDTH=1600;
@@ -11,10 +12,11 @@ export function trayPosition(item,index=0){
   return item.storagePosition??{x:34+(index%4+Math.floor(index/bandSize)*4)*(PAPER.width+80),y:30+Math.floor(index%bandSize/4)*rowHeight};
 }
 export function trayDrop(pointer,origin,grab={x:PAPER.width/2,y:28},scale=TRAY_SCALE,rotation=0,type='quest'){
-  const height=type==='folder'?210:PAPER.height;
-  const angle=rotation*Math.PI/180,cx=PAPER.width/2,cy=height/2;
+  const width=type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
+  const height=type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
+  const angle=rotation*Math.PI/180,cx=width/2,cy=height/2;
   const dx=grab.x-cx,dy=grab.y-cy;
-  return {x:clamp((pointer.x-origin.left)/scale-cx-dx*Math.cos(angle)+dy*Math.sin(angle),0,BOARD_LIMIT.width-PAPER.width),y:clamp((pointer.y-origin.top)/scale-cy-dx*Math.sin(angle)-dy*Math.cos(angle),0,BOARD_LIMIT.height-height)};
+  return {x:clamp((pointer.x-origin.left)/scale-cx-dx*Math.cos(angle)+dy*Math.sin(angle),0,BOARD_LIMIT.width-width),y:clamp((pointer.y-origin.top)/scale-cy-dx*Math.sin(angle)-dy*Math.cos(angle),0,BOARD_LIMIT.height-height)};
 }
 export function trayItems(state,search=''){
   const term=search.trim().toLocaleLowerCase();

@@ -13,8 +13,10 @@ import {
   tallyDailyTask,
   resetDailyTaskCount,
   resetAllDailyTaskCounts,
+  DAILY_BOOK_SIZE,
   splitTallyBundles,
 } from '../dist/model.mjs';
+import { storageTrayAccepts } from '../dist/interactions.mjs';
 import { renderTallyMarks, renderDailyBookCover, createDailyBookWindow } from '../dist/daily-book.mjs';
 
 const dataKey = name => name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -212,7 +214,9 @@ test('renderDailyBookCover and updateDailyBookMeta render book cover and validat
   const html = renderDailyBookCover(state.dailyBook, { icon: () => '<svg></svg>' });
   assert.match(html, /สมุดงานบ้าน/);
   assert.match(html, /book-sage/);
-  assert.match(html, /ล้างจาน/);
+  assert.match(html, /data-edit-daily-book/);
+  assert.match(html, /data-open-daily-book/);
+  assert.doesNotMatch(html, /ล้างจาน/);
 
   assert.throws(() => validateState({ ...state, dailyBook: { ...state.dailyBook, color: 'invalid' } }));
 });
@@ -285,4 +289,57 @@ test('createDailyBookWindow open and close lifecycle: closes via close button an
   assert.equal(bookWindow.isOpen, false, 'Book window is closed after onEscape');
   assert.equal(panel.hidden, true);
   assert.equal(panel.style.display, 'none');
+});
+
+test('daily book size is equal or larger than quest paper and accepted by quest storage drawer', () => {
+  assert.ok(DAILY_BOOK_SIZE.width >= 300, 'Daily book width is equal or larger than paper width (300)');
+  assert.ok(DAILY_BOOK_SIZE.height >= 424, 'Daily book height is equal or larger than paper height (424.29)');
+  assert.equal(storageTrayAccepts('daily-book', 'quest-drawer'), true, 'Storage tray accepts daily-book');
+  assert.equal(storageTrayAccepts('daily-book', 'folder-drawer'), false, 'Folder drawer does not accept daily-book');
+});
+
+test('daily task row interactions: left click increments tally, right click decrements tally, edit and delete callbacks fire', () => {
+  const doc = createTestDom();
+  let state = ensureDailyBook(createInitialState());
+  let editedTaskId = null;
+  let deletedTaskId = null;
+
+  const bookWindow = createDailyBookWindow({
+    document: doc,
+    windows: { register() { return { raise() {}, cancelDrag() {} }; } },
+    getState: () => state,
+    onCommit: next => { state = next; },
+    onEditTask: id => { editedTaskId = id; },
+    onDeleteTask: id => { deletedTaskId = id; },
+    icon: () => '<svg></svg>',
+    reducedMotion: () => true,
+  });
+
+  const panel = bookWindow.open({ focus: false });
+  const firstTask = state.dailyBook.tasks[0];
+  assert.ok(firstTask, 'Initial task exists');
+  const initialCount = firstTask.count;
+
+  // 1. Left click on task row step button increases tally (+1)
+  const stepBtn = panel.querySelector('[data-tally-step]');
+  assert.ok(stepBtn, 'Tally step button exists');
+  stepBtn.fire('click');
+  assert.equal(state.dailyBook.tasks[0].count, initialCount + 1, 'Count increased by 1 on left click');
+
+  // 2. Right click (contextmenu) on task row step button decreases tally (-1) and prevents default
+  const ctxEvent = stepBtn.fire('contextmenu');
+  assert.equal(ctxEvent.defaultPrevented, true, 'contextmenu was prevented');
+  assert.equal(state.dailyBook.tasks[0].count, initialCount, 'Count decreased by 1 on right click');
+
+  // 3. Edit pencil button fires onEditTask
+  const editBtn = panel.querySelector(`[data-tally-edit="${firstTask.id}"]`);
+  assert.ok(editBtn, 'Edit button exists');
+  editBtn.fire('click');
+  assert.equal(editedTaskId, firstTask.id, 'onEditTask fired with correct task ID');
+
+  // 4. Delete cross button fires onDeleteTask
+  const deleteBtn = panel.querySelector(`[data-tally-delete="${firstTask.id}"]`);
+  assert.ok(deleteBtn, 'Delete button exists');
+  deleteBtn.fire('click');
+  assert.equal(deletedTaskId, firstTask.id, 'onDeleteTask fired with correct task ID');
 });
