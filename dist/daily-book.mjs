@@ -52,17 +52,18 @@ export function renderTallyMarks(count, { fresh = false } = {}) {
 }
 
 export function renderDailyBookCover(book, { icon }) {
-  return `<article class="board-daily-book board-item book-${esc(book.color)}" data-daily-book="1" ${book.archived ? 'data-storage-id="daily-book"' : ''} style="left:${book.x}px;top:${book.y}px;--rotation:${book.rotation}deg;z-index:${book.z}" aria-label="สมุดงานประจำวัน ${esc(book.title)}">
-    <div class="daily-book-grip drag-handle" role="button" tabindex="0" data-daily-book-drag="1" aria-label="ลากสมุด ${esc(book.title)} หรือกด Enter เพื่อเปิดอ่าน">
-      <span class="daily-book-grip-label">${icon('grip')} สมุดบันทึก</span>
-      <button type="button" class="daily-book-rename-btn" data-edit-daily-book="1" title="เปลี่ยนชื่อสมุด" aria-label="เปลี่ยนชื่อสมุด">${icon('edit')}</button>
-    </div>
-    <button type="button" class="daily-book-cover-btn" data-open-daily-book="1" aria-label="เปิดสมุด ${esc(book.title)}">
-      <span class="daily-book-emblem">${tallyEmblemSvg()}</span>
-      <strong class="daily-book-title">${esc(book.title)}</strong>
-    </button>
-    <div class="daily-book-footer">
-      <button type="button" class="daily-book-archive-btn" data-toggle-daily-book-archive="1" aria-label="${book.archived ? 'นำสมุดวางบนโต๊ะ' : 'เก็บสมุดเข้าลิ้นชัก'}">${icon(book.archived ? 'restore' : 'archive')}${book.archived ? 'วางบนโต๊ะ' : 'เก็บเข้าลิ้นชัก'}</button>
+  return `<article class="board-daily-book board-item book-${esc(book.color)}" data-daily-book="1" ${book.archived ? 'data-storage-id="daily-book"' : ''} style="left:${book.x}px;top:${book.y}px;--rotation:${book.rotation}deg;z-index:${book.z}" tabindex="0" role="button" data-daily-book-drag="1" data-open-daily-book="1" aria-label="สมุดงานประจำวัน ${esc(book.title)}">
+    <div class="daily-book-pages-edge" aria-hidden="true"></div>
+    <div class="daily-book-front">
+      <div class="daily-book-cover-frame" aria-hidden="true"></div>
+      <div class="daily-book-cover-content">
+        <span class="daily-book-emblem" aria-hidden="true">${tallyEmblemSvg()}</span>
+        <strong class="daily-book-title">${esc(book.title)}</strong>
+      </div>
+      <div class="daily-book-footer">
+        <button type="button" class="daily-book-action-icon-btn" data-edit-daily-book="1" title="เปลี่ยนชื่อและสีปกสมุด" aria-label="เปลี่ยนชื่อสมุด">${icon('edit')}</button>
+        <button type="button" class="daily-book-action-icon-btn" data-toggle-daily-book-archive="1" title="${book.archived ? 'นำสมุดวางบนโต๊ะ' : 'เก็บสมุดเข้าลิ้นชัก'}" aria-label="${book.archived ? 'นำสมุดวางบนโต๊ะ' : 'เก็บสมุดเข้าลิ้นชัก'}">${icon(book.archived ? 'restore' : 'archive')}</button>
+      </div>
     </div>
   </article>`;
 }
@@ -272,10 +273,11 @@ export function createDailyBookWindow({
     }
     handle?.raise();
     if (!wasOpen) {
-      try { onCue('folderOpen'); } catch {}
+      try { onCue('cordUntie'); } catch {}
+      try { onCue('folderOpen', { delay: 160 }); } catch {}
       if (!reducedMotion()) {
         el.classList.add('is-unfolding');
-        setTimeout(() => el.classList.remove('is-unfolding'), 280);
+        setTimeout(() => el.classList.remove('is-unfolding'), 560);
       }
     }
     if (focus) {
@@ -295,6 +297,7 @@ export function createDailyBookWindow({
     handle?.cancelDrag();
     if (animate && !reducedMotion() && typeof panel.animate === 'function' && document?.body) {
       try { onCue('folderClose'); } catch {}
+      try { onCue('cordTie', { delay: 140 }); } catch {}
       const rect = panel.getBoundingClientRect();
       const ghost = panel.cloneNode(true);
       ghost.inert = true;
@@ -312,7 +315,7 @@ export function createDailyBookWindow({
         zIndex: '9999',
       });
       document.body.append(ghost);
-      setTimeout(() => ghost.remove(), 240);
+      setTimeout(() => ghost.remove(), 420);
     } else if (animate) {
       try { onCue('folderClose'); } catch {}
     }

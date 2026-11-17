@@ -1171,6 +1171,7 @@ function restoreDailyBook(){
 function startDailyBookDrag(e){
   const handle=e.target.closest('[data-daily-book-drag]');
   if(!handle||heldStamp||questPhotos?.editing||photoViewer?.isOpen||e.button!==0||drag||storedDrag||bookDrag)return;
+  if(e.target.closest('[data-toggle-daily-book-archive],[data-edit-daily-book]'))return;
   const el=handle.closest('[data-daily-book]');
   if(!el||el.closest('#drawer-list, .quest-drawer'))return;
   e.preventDefault();e.stopPropagation();window.getSelection()?.removeAllRanges();
@@ -1250,6 +1251,9 @@ function startDailyBookDrag(e){
       if(currentEl){currentEl.style.left=next.x+'px';currentEl.style.top=next.y+'px';}
       persist();
       settleDailyBook(tilt);
+    }
+    if(!moved){
+      openDailyBook();
     }
     setActiveDrawer(drawerBefore,false,false);
   };
