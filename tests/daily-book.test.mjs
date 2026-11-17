@@ -16,7 +16,7 @@ import {
   DAILY_BOOK_SIZE,
   splitTallyBundles,
 } from '../dist/model.mjs';
-import { storageTrayAccepts } from '../dist/interactions.mjs';
+import { storageTrayAccepts, drawerForDraggedItem } from '../dist/interactions.mjs';
 import { renderTallyMarks, renderDailyBookCover, createDailyBookWindow } from '../dist/daily-book.mjs';
 
 const dataKey = name => name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
@@ -296,6 +296,31 @@ test('daily book size is equal or larger than quest paper and accepted by quest 
   assert.ok(DAILY_BOOK_SIZE.height >= 424, 'Daily book height is equal or larger than paper height (424.29)');
   assert.equal(storageTrayAccepts('daily-book', 'quest-drawer'), true, 'Storage tray accepts daily-book');
   assert.equal(storageTrayAccepts('daily-book', 'folder-drawer'), false, 'Folder drawer does not accept daily-book');
+  assert.equal(drawerForDraggedItem('daily-book', 'quest-drawer'), 'quest-drawer', 'drawerForDraggedItem routes daily-book to quest-drawer');
+});
+
+test('daily book window contains 3D swinging cover with outer and inner faces for folio-like opening animation', () => {
+  const doc = createTestDom();
+  const state = ensureDailyBook(createInitialState());
+  const bookWindow = createDailyBookWindow({
+    document: doc,
+    windows: { register() { return { raise() {}, cancelDrag() {} }; } },
+    getState: () => state,
+    onCommit() {},
+    icon: () => '<svg></svg>',
+    reducedMotion: () => true,
+  });
+
+  const panel = bookWindow.open({ focus: false });
+  const cover = panel.querySelector('.daily-book-window-cover');
+  assert.ok(cover, '3D window cover exists inside open panel');
+  const outer = cover.querySelector('.daily-book-cover-outer');
+  assert.ok(outer, 'Cover has outer face for 3D unfold/refold');
+  const inner = cover.querySelector('.daily-book-cover-inner');
+  assert.ok(inner, 'Cover has inner face for 3D backface');
+  const unfoldingTitle = cover.querySelector('#daily-book-unfolding-title');
+  assert.ok(unfoldingTitle, 'Unfolding title exists on outer cover face');
+  assert.equal(unfoldingTitle.textContent, state.dailyBook.title, 'Unfolding title matches book title');
 });
 
 test('daily task row interactions: left click increments tally, right click decrements tally, edit and delete callbacks fire', () => {

@@ -98,6 +98,16 @@ export function createDailyBookWindow({
     panel.className = 'daily-book-window';
     panel.setAttribute('aria-label', 'สมุดบันทึกงานประจำวัน');
     panel.innerHTML = `
+      <div class="daily-book-window-cover" aria-hidden="true">
+        <div class="daily-book-cover-outer">
+          <div class="daily-book-cover-frame"></div>
+          <div class="daily-book-cover-content">
+            <span class="daily-book-emblem">${tallyEmblemSvg()}</span>
+            <strong class="daily-book-title" id="daily-book-unfolding-title"></strong>
+          </div>
+        </div>
+        <div class="daily-book-cover-inner"></div>
+      </div>
       <section class="daily-book-page daily-book-left">
         <header class="daily-book-header">
           <div class="daily-book-heading">
@@ -221,6 +231,8 @@ export function createDailyBookWindow({
     panel.classList.add(colorClass);
 
     panel.querySelector('#daily-book-window-title').textContent = book.title;
+    const unfoldingTitle = panel.querySelector('#daily-book-unfolding-title');
+    if (unfoldingTitle) unfoldingTitle.textContent = book.title;
 
     const archiveBtn = panel.querySelector('#daily-book-archive-btn');
     if (archiveBtn) {
@@ -274,10 +286,10 @@ export function createDailyBookWindow({
     handle?.raise();
     if (!wasOpen) {
       try { onCue('cordUntie'); } catch {}
-      try { onCue('folderOpen', { delay: 160 }); } catch {}
+      try { onCue('folderOpen', { delay: 180 }); } catch {}
       if (!reducedMotion()) {
         el.classList.add('is-unfolding');
-        setTimeout(() => el.classList.remove('is-unfolding'), 560);
+        setTimeout(() => el.classList.remove('is-unfolding'), 740);
       }
     }
     if (focus) {
@@ -297,7 +309,7 @@ export function createDailyBookWindow({
     handle?.cancelDrag();
     if (animate && !reducedMotion() && typeof panel.animate === 'function' && document?.body) {
       try { onCue('folderClose'); } catch {}
-      try { onCue('cordTie', { delay: 140 }); } catch {}
+      try { onCue('cordTie', { delay: 480 }); } catch {}
       const rect = panel.getBoundingClientRect();
       const ghost = panel.cloneNode(true);
       ghost.inert = true;
@@ -315,7 +327,7 @@ export function createDailyBookWindow({
         zIndex: '9999',
       });
       document.body.append(ghost);
-      setTimeout(() => ghost.remove(), 420);
+      setTimeout(() => ghost.remove(), 700);
     } else if (animate) {
       try { onCue('folderClose'); } catch {}
     }

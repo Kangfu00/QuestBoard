@@ -348,8 +348,17 @@ function setupQuestBundles(){
 }
 function highlightFolder(id){document.querySelectorAll('[data-folder-target]').forEach(el=>el.classList.toggle('folder-drop-ready',el.dataset.folderTarget===id));}
 function overStorageTray(e,type){
-  const id=document.elementFromPoint(e.clientX,e.clientY)?.closest('.drawer-dropzone')?.closest('.quest-drawer')?.id;
-  return id==='quest-drawer'&&drawerOpen&&['quest','folder'].includes(type)?id:null;
+  if(!['quest','folder','daily-book'].includes(type)||!drawerOpen)return null;
+  const hit=document.elementFromPoint(e.clientX,e.clientY);
+  if(hit?.closest('.drawer-dropzone,#drawer-list,#quest-drawer'))return 'quest-drawer';
+  const drawerEl=$('#quest-drawer');
+  if(drawerEl){
+    const r=drawerEl.getBoundingClientRect();
+    if(r.width>60&&e.clientX>=r.left&&e.clientX<=r.right&&e.clientY>=r.top&&e.clientY<=r.bottom){
+      return 'quest-drawer';
+    }
+  }
+  return null;
 }
 function highlightStorageTray(id){
   for(const key of ['quest-drawer','folder-drawer'])$('#'+key).classList.toggle('drop-ready',key===id);
@@ -364,7 +373,8 @@ function activateStorageDrawer(id){
 function followStorageHandle(e,type){
   if(!['quest','folder','daily-book'].includes(type))return;
   const hovered=document.elementFromPoint(e.clientX,e.clientY)?.closest('.drawer-handle')?.closest('.quest-drawer')?.id;
-  if(['quest-drawer','folder-drawer'].includes(hovered))activateStorageDrawer(drawerForDraggedItem(type,activeDrawerId(),hovered));
+  const nearEdge=e.clientX>=window.innerWidth-55;
+  if(['quest-drawer','folder-drawer'].includes(hovered)||nearEdge)activateStorageDrawer(drawerForDraggedItem(type,activeDrawerId(),hovered??'quest-drawer'));
 }
 function updateHeldGhost(d,e){
   const now=performance.now();

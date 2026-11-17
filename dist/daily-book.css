@@ -214,25 +214,31 @@
 }
 
 .daily-book-action-icon-btn {
-  width: 32px;
-  height: 32px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border-radius: 6px;
-  border: 1px solid rgba(235, 200, 134, 0.24);
-  background: rgba(18, 11, 6, 0.42);
-  color: #ebd5ad;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: rgba(240, 215, 172, 0.55);
   cursor: pointer;
-  transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+  transition: color 0.18s ease, transform 0.18s ease, filter 0.18s ease;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.7));
 }
 
 .daily-book-action-icon-btn:hover {
-  background: rgba(235, 200, 134, 0.25);
-  border-color: rgba(235, 200, 134, 0.5);
-  color: #fff4db;
-  transform: translateY(-1px);
+  background: transparent;
+  border: none;
+  color: #fff4dc;
+  transform: translateY(-1px) scale(1.15);
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.8)) drop-shadow(0 0 6px rgba(245, 215, 145, 0.6));
+}
+
+.daily-book-action-icon-btn:active {
+  transform: translateY(0) scale(0.96);
 }
 
 /* หน้าต่างสมุดกางสองหน้า (Open Daily Book Spread Window) */
@@ -253,10 +259,11 @@
     0 0 0 2px rgba(230, 193, 122, 0.35),
     inset 0 2px 6px rgba(255, 232, 185, 0.22);
   display: grid;
-  grid-template-columns: minmax(290px, 0.92fr) minmax(360px, 1.28fr);
+  grid-template-columns: 1fr 1fr;
   gap: 16px;
   color: #2d2116;
   z-index: 250;
+  perspective: 1600px;
 }
 
 .daily-book-window.book-sage {
@@ -276,12 +283,108 @@
   position: absolute;
   top: 10px;
   bottom: 10px;
-  left: calc(41.8% - 7px);
+  left: calc(50% - 7px);
   width: 14px;
   background: linear-gradient(90deg, rgba(18, 11, 6, 0.55), rgba(255, 238, 205, 0.15) 50%, rgba(18, 11, 6, 0.55));
   border-radius: 4px;
   pointer-events: none;
   z-index: 2;
+}
+
+/* ฝาปกหน้า 3D สำหรับอนิเมชั่นง้างเปิดและพับปิดสมุด (เหมือนแฟ้ม) */
+.daily-book-window > .daily-book-window-cover {
+  position: absolute;
+  z-index: 30;
+  inset: 0 0 0 50%;
+  width: auto;
+  border-radius: 2px 14px 14px 2px;
+  background: none;
+  box-shadow: none;
+  transform-origin: 0 50%;
+  transform: translateZ(12px) rotateY(-180deg);
+  transform-style: preserve-3d;
+  backface-visibility: visible;
+  visibility: hidden;
+  opacity: 1;
+  pointer-events: none;
+}
+
+.daily-book-window .daily-book-cover-outer,
+.daily-book-window .daily-book-cover-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: 0 12px 28px rgba(10, 6, 4, 0.46), inset 3px 0 6px rgba(0, 0, 0, 0.5);
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.daily-book-window .daily-book-cover-outer {
+  transform: translateZ(1px);
+  background:
+    linear-gradient(90deg, rgba(22, 14, 9, 0.65) 0%, rgba(22, 14, 9, 0.25) 9%, rgba(255, 240, 205, 0.07) 12%, transparent 18%),
+    radial-gradient(circle at 50% 38%, rgba(255, 235, 190, 0.08), transparent 70%),
+    linear-gradient(145deg, #5c3c26 0%, #432b1b 55%, #2e1c10 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 24px 20px 16px 28px;
+}
+
+.daily-book-window.book-sage .daily-book-cover-outer {
+  background:
+    linear-gradient(90deg, rgba(12, 20, 14, 0.68) 0%, rgba(12, 20, 14, 0.25) 9%, rgba(230, 248, 225, 0.07) 12%, transparent 18%),
+    radial-gradient(circle at 50% 38%, rgba(215, 242, 205, 0.08), transparent 70%),
+    linear-gradient(145deg, #354c39 0%, #263829 55%, #19271c 100%);
+}
+
+.daily-book-window.book-red .daily-book-cover-outer {
+  background:
+    linear-gradient(90deg, rgba(24, 9, 9, 0.68) 0%, rgba(24, 9, 9, 0.25) 9%, rgba(255, 220, 210, 0.07) 12%, transparent 18%),
+    radial-gradient(circle at 50% 38%, rgba(255, 210, 195, 0.08), transparent 70%),
+    linear-gradient(145deg, #642c27 0%, #481e1b 55%, #301210 100%);
+}
+
+.daily-book-window.book-navy .daily-book-cover-outer {
+  background:
+    linear-gradient(90deg, rgba(9, 14, 26, 0.7) 0%, rgba(9, 14, 26, 0.25) 9%, rgba(210, 228, 255, 0.07) 12%, transparent 18%),
+    radial-gradient(circle at 50% 38%, rgba(200, 222, 255, 0.08), transparent 70%),
+    linear-gradient(145deg, #2b3c57 0%, #1e2a3f 55%, #131c2b 100%);
+}
+
+.daily-book-window .daily-book-cover-inner {
+  transform: rotateY(180deg) translateZ(1px);
+  border-radius: 14px 2px 2px 14px;
+  background:
+    linear-gradient(270deg, rgba(22, 14, 9, 0.65) 0%, rgba(22, 14, 9, 0.25) 9%, rgba(255, 240, 205, 0.07) 12%, transparent 18%),
+    linear-gradient(135deg, #432b1b 0%, #352114 60%, #25160d 100%);
+}
+
+.daily-book-window.book-sage .daily-book-cover-inner {
+  background:
+    linear-gradient(270deg, rgba(12, 20, 14, 0.68) 0%, rgba(12, 20, 14, 0.25) 9%, rgba(230, 248, 225, 0.07) 12%, transparent 18%),
+    linear-gradient(135deg, #2a3d2e 0%, #1e2c21 60%, #141f17 100%);
+}
+
+.daily-book-window.book-red .daily-book-cover-inner {
+  background:
+    linear-gradient(270deg, rgba(24, 9, 9, 0.68) 0%, rgba(24, 9, 9, 0.25) 9%, rgba(255, 220, 210, 0.07) 12%, transparent 18%),
+    linear-gradient(135deg, #4e1f1c 0%, #3a1513 60%, #250b0a 100%);
+}
+
+.daily-book-window.book-navy .daily-book-cover-inner {
+  background:
+    linear-gradient(270deg, rgba(9, 14, 26, 0.7) 0%, rgba(9, 14, 26, 0.25) 9%, rgba(210, 228, 255, 0.07) 12%, transparent 18%),
+    linear-gradient(135deg, #223048 0%, #172233 60%, #0d1420 100%);
+}
+
+.daily-book-window .daily-book-cover-inner::before {
+  content: "";
+  position: absolute;
+  inset: 12px;
+  border: 1px dashed rgba(235, 202, 138, 0.24);
+  border-radius: 8px 3px 3px 8px;
 }
 
 .daily-book-page {
@@ -358,115 +461,115 @@
 }
 
 .daily-book-window.is-unfolding {
-  animation: daily-book-spread-lift 520ms cubic-bezier(.16, 1, .3, 1) both;
+  animation: daily-book-spread-lift 720ms cubic-bezier(.2, .8, .25, 1) both;
+}
+
+.daily-book-window.is-unfolding > .daily-book-window-cover {
+  visibility: visible;
+  animation: daily-book-cover-unfold 680ms 40ms cubic-bezier(.25, .75, .2, 1) both;
 }
 
 .daily-book-window.is-unfolding .daily-book-page.daily-book-left {
-  animation: daily-book-left-reveal 520ms cubic-bezier(.2, .8, .25, 1) both;
+  animation: daily-book-left-reveal 720ms cubic-bezier(.2, .8, .25, 1) both;
 }
 
 .daily-book-window.is-unfolding .daily-book-page.daily-book-right {
-  animation: daily-book-right-settle 520ms cubic-bezier(.2, .8, .25, 1) both;
+  animation: daily-book-right-reveal 720ms cubic-bezier(.2, .8, .25, 1) both;
 }
 
 @keyframes daily-book-spread-lift {
   0% {
-    opacity: 0.3;
-    transform: perspective(1200px) rotateX(10deg) translateY(28px) scale(0.92);
+    opacity: 0.35;
+    transform: perspective(1600px) translateY(18px) scale(0.96);
   }
-  55% {
-    opacity: 0.95;
-    transform: perspective(1200px) rotateX(-2deg) translateY(-4px) scale(1.01);
+  60% {
+    opacity: 0.98;
+    transform: perspective(1600px) translateY(-3px) scale(1.008);
   }
   100% {
     opacity: 1;
-    transform: perspective(1200px) rotateX(0deg) translateY(0) scale(1);
+    transform: perspective(1600px) translateY(0) scale(1);
+  }
+}
+
+@keyframes daily-book-cover-unfold {
+  0% {
+    transform: translateZ(12px) rotateY(0deg);
+    visibility: visible;
+  }
+  99% {
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(12px) rotateY(-180deg);
+    visibility: hidden;
   }
 }
 
 @keyframes daily-book-left-reveal {
-  0% {
+  0%, 70% {
     opacity: 0;
-    transform: perspective(1000px) rotateY(42deg);
-    transform-origin: right center;
-  }
-  65% {
-    opacity: 0.9;
-    transform: perspective(1000px) rotateY(-3deg);
-    transform-origin: right center;
   }
   100% {
     opacity: 1;
-    transform: perspective(1000px) rotateY(0deg);
-    transform-origin: right center;
   }
 }
 
-@keyframes daily-book-right-settle {
+@keyframes daily-book-right-reveal {
   0% {
-    opacity: 0.2;
-    transform: perspective(1000px) rotateY(-22deg);
-    transform-origin: left center;
-  }
-  65% {
-    opacity: 0.92;
-    transform: perspective(1000px) rotateY(3deg);
-    transform-origin: left center;
+    opacity: 0.6;
   }
   100% {
     opacity: 1;
-    transform: perspective(1000px) rotateY(0deg);
-    transform-origin: left center;
   }
 }
 
 .daily-book-closing-ghost {
-  animation: daily-book-spread-close 380ms cubic-bezier(.25, .8, .25, 1) both;
+  animation: daily-book-spread-depart 680ms cubic-bezier(.25, .8, .25, 1) both;
   transform-origin: center center;
+  pointer-events: none;
+}
+
+.daily-book-closing-ghost > .daily-book-window-cover {
+  visibility: visible;
+  animation: daily-book-cover-refold 580ms 40ms cubic-bezier(.35, .05, .35, 1) both;
 }
 
 .daily-book-closing-ghost .daily-book-page.daily-book-left {
-  animation: daily-book-left-fold 380ms cubic-bezier(.25, .8, .25, 1) both;
+  animation: daily-book-left-retire 180ms ease both;
 }
 
-.daily-book-closing-ghost .daily-book-page.daily-book-right {
-  animation: daily-book-right-fold 380ms cubic-bezier(.25, .8, .25, 1) both;
+@keyframes daily-book-cover-refold {
+  0% {
+    transform: translateZ(12px) rotateY(-180deg);
+    visibility: visible;
+  }
+  100% {
+    transform: translateZ(12px) rotateY(0deg);
+    visibility: visible;
+  }
 }
 
-@keyframes daily-book-spread-close {
+@keyframes daily-book-left-retire {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes daily-book-spread-depart {
   0% {
     opacity: 1;
     transform: scale(1);
   }
-  100% {
-    opacity: 0;
-    transform: scale(0.85) translateY(20px);
-  }
-}
-
-@keyframes daily-book-left-fold {
-  0% {
-    transform: perspective(1000px) rotateY(0deg);
-    transform-origin: right center;
+  80% {
     opacity: 1;
   }
   100% {
-    transform: perspective(1000px) rotateY(55deg);
-    transform-origin: right center;
     opacity: 0;
-  }
-}
-
-@keyframes daily-book-right-fold {
-  0% {
-    transform: perspective(1000px) rotateY(0deg);
-    transform-origin: left center;
-    opacity: 1;
-  }
-  100% {
-    transform: perspective(1000px) rotateY(-40deg);
-    transform-origin: left center;
-    opacity: 0;
+    transform: scale(0.95) translateY(16px);
   }
 }
 
