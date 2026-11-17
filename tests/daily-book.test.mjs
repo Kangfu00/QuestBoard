@@ -15,7 +15,118 @@ import {
   resetAllDailyTaskCounts,
   splitTallyBundles,
 } from '../dist/model.mjs';
-import { renderTallyMarks, renderDailyBookCover } from '../dist/daily-book.mjs';
+import { renderTallyMarks, renderDailyBookCover, createDailyBookWindow } from '../dist/daily-book.mjs';
+
+const dataKey = name => name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
+class TestElement {
+  constructor(tagName = 'div', document) {
+    this.tagName = tagName;
+    this.ownerDocument = document;
+    this.children = [];
+    this.parentNode = null;
+    this.attrs = new Map();
+    this.dataset = {};
+    this.listeners = new Map();
+    this.style = { display: '' };
+    this.hidden = false;
+    this.classList = {
+      contains: name => (this.attrs.get('class') ?? '').split(/\s+/).includes(name),
+      add: (...names) => {
+        const cur = (this.attrs.get('class') ?? '').split(/\s+/).filter(Boolean);
+        this.attrs.set('class', [...new Set([...cur, ...names])].join(' '));
+      },
+      remove: (...names) => {
+        const cur = (this.attrs.get('class') ?? '').split(/\s+/).filter(Boolean);
+        this.attrs.set('class', cur.filter(n => !names.includes(n)).join(' '));
+      },
+    };
+  }
+  get className() { return this.attrs.get('class') ?? ''; }
+  set className(value) { this.attrs.set('class', value); }
+  get id() { return this.attrs.get('id') ?? ''; }
+  set id(value) { this.attrs.set('id', value); }
+  get isConnected() { return this === this.ownerDocument?.body || Boolean(this.parentNode?.isConnected); }
+  setAttribute(name, value) {
+    this.attrs.set(name, String(value));
+    if (name.startsWith('data-')) this.dataset[dataKey(name)] = String(value);
+    if (name === 'hidden') this.hidden = true;
+  }
+  getAttribute(name) {
+    if (name.startsWith('data-')) return this.dataset[dataKey(name)] ?? null;
+    return this.attrs.get(name) ?? null;
+  }
+  removeAttribute(name) {
+    this.attrs.delete(name);
+    if (name.startsWith('data-')) delete this.dataset[dataKey(name)];
+    if (name === 'hidden') this.hidden = false;
+  }
+  matches(selector) {
+    if (selector.includes(',')) return selector.split(',').some(p => this.matches(p.trim()));
+    const tag = selector.match(/^[a-z]+/i)?.[0];
+    if (tag && tag !== this.tagName) return false;
+    for (const name of selector.matchAll(/\.([\w-]+)/g)) if (!this.className.split(/\s+/).includes(name[1])) return false;
+    const id = selector.match(/#([\w-]+)/)?.[1];
+    if (id && this.id !== id) return false;
+    for (const [, name, value] of selector.matchAll(/\[([\w-]+)(?:="([^"]*)")?\]/g)) {
+      if (value === undefined ? this.getAttribute(name) === null : this.getAttribute(name) !== value) return false;
+    }
+    return true;
+  }
+  closest(selector) { return this.matches(selector) ? this : this.parentNode?.closest(selector) ?? null; }
+  querySelectorAll(selector) {
+    const all = this.children.flatMap(child => [child, ...child.querySelectorAll('*')]);
+    return selector === '*' ? all : all.filter(child => child.matches(selector));
+  }
+  querySelector(selector) { return this.querySelectorAll(selector)[0] ?? null; }
+  append(child) { child.remove(); this.children.push(child); child.parentNode = this; }
+  remove() {
+    if (this.parentNode) this.parentNode.children = this.parentNode.children.filter(c => c !== this);
+    this.parentNode = null;
+  }
+  replaceChildren(...children) {
+    for (const child of this.children) child.parentNode = null;
+    this.children = [];
+    for (const child of children) this.append(child);
+  }
+  set innerHTML(html) {
+    this.html = html;
+    this.replaceChildren();
+    const stack = [this], voids = new Set(['input', 'img', 'br', 'hr']);
+    for (const match of html.matchAll(/<\/?([a-z][\w-]*)([^>]*)>/gi)) {
+      if (match[0][1] === '/') { if (stack.length > 1) stack.pop(); continue; }
+      const node = new TestElement(match[1], this.ownerDocument);
+      for (const [, name, , value] of match[2].matchAll(/([\w:-]+)(?:=(['"])(.*?)\2)?/g)) node.setAttribute(name, value ?? '');
+      stack.at(-1).append(node);
+      if (!voids.has(node.tagName) && !match[0].endsWith('/>')) stack.push(node);
+    }
+  }
+  get innerHTML() { return this.html ?? ''; }
+  addEventListener(name, fn) {
+    if (!this.listeners.has(name)) this.listeners.set(name, new Set());
+    this.listeners.get(name).add(fn);
+  }
+  removeEventListener(name, fn) { this.listeners.get(name)?.delete(fn); }
+  fire(name, extra = {}) {
+    const event = { target: this, preventDefault() { this.defaultPrevented = true; }, stopPropagation() { this.stopped = true; }, ...extra };
+    for (let node = this; node; node = node.parentNode) {
+      for (const fn of node.listeners.get(name) ?? []) fn(event);
+      if (event.stopped) break;
+    }
+    return event;
+  }
+  focus() { this.ownerDocument.activeElement = this; }
+  getBoundingClientRect() { return { left: 50, top: 50, width: 900, height: 600 }; }
+}
+
+function createTestDom() {
+  const doc = {
+    createElement: tag => new TestElement(tag, doc),
+    querySelector: sel => doc.body.querySelector(sel),
+    activeElement: null,
+  };
+  doc.body = new TestElement('body', doc);
+  return doc;
+}
 
 test('ensureDailyBook initializes one default ledger book with starter daily tasks and round-trips through backup JSON', () => {
   const initial = createInitialState();
@@ -104,4 +215,74 @@ test('renderDailyBookCover and updateDailyBookMeta render book cover and validat
   assert.match(html, /ล้างจาน/);
 
   assert.throws(() => validateState({ ...state, dailyBook: { ...state.dailyBook, color: 'invalid' } }));
+});
+
+test('createDailyBookWindow open and close lifecycle: closes via close button and escape, toggling visibility correctly', () => {
+  const doc = createTestDom();
+  let state = ensureDailyBook(createInitialState());
+  let cues = [];
+  let registeredEscape = null;
+  const windows = {
+    register(panel, { onEscape }) {
+      registeredEscape = onEscape;
+      return {
+        raise() {},
+        cancelDrag() {},
+      };
+    },
+  };
+
+  const bookWindow = createDailyBookWindow({
+    document: doc,
+    windows,
+    getState: () => state,
+    onCommit: next => { state = next; },
+    icon: () => '<svg></svg>',
+    onCue: name => cues.push(name),
+    reducedMotion: () => true,
+  });
+
+  assert.equal(bookWindow.isOpen, false);
+
+  // 1. Open the window
+  const panel = bookWindow.open({ focus: false });
+  assert.equal(bookWindow.isOpen, true);
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.style.display, '');
+
+  // 2. Close via left header close button
+  const leftCloseBtn = panel.querySelector('[data-daily-action="close"]');
+  assert.ok(leftCloseBtn, 'Left header close button exists');
+  leftCloseBtn.fire('click');
+
+  assert.equal(bookWindow.isOpen, false, 'Book window is closed after clicking left close button');
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.style.display, 'none');
+  assert.ok(cues.includes('folderClose'));
+
+  // 3. Reopen
+  bookWindow.open({ focus: false });
+  assert.equal(bookWindow.isOpen, true);
+  assert.equal(panel.hidden, false);
+  assert.equal(panel.style.display, '');
+
+  // 4. Close via right sheet header close button
+  const allCloseBtns = panel.querySelectorAll('[data-daily-action="close"]');
+  assert.equal(allCloseBtns.length, 2, 'Two close buttons exist (left and right headers)');
+  const rightCloseBtn = allCloseBtns[1];
+  rightCloseBtn.fire('click');
+
+  assert.equal(bookWindow.isOpen, false, 'Book window is closed after clicking right close button');
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.style.display, 'none');
+
+  // 5. Reopen and close via escape
+  bookWindow.open({ focus: false });
+  assert.equal(bookWindow.isOpen, true);
+  assert.ok(registeredEscape, 'onEscape callback was registered');
+  registeredEscape();
+
+  assert.equal(bookWindow.isOpen, false, 'Book window is closed after onEscape');
+  assert.equal(panel.hidden, true);
+  assert.equal(panel.style.display, 'none');
 });

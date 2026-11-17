@@ -220,6 +220,10 @@
 }
 
 /* หน้าต่างสมุดกางสองหน้า (Open Daily Book Spread Window) */
+.daily-book-window[hidden] {
+  display: none !important;
+}
+
 .daily-book-window {
   position: fixed;
   width: min(940px, calc(100vw - 28px));
@@ -434,6 +438,12 @@
   gap: 10px;
   padding: 0 4px 10px 34px;
   border-bottom: 2px solid rgba(122, 88, 46, 0.32);
+}
+
+.daily-sheet-header-title {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .daily-sheet-header strong {

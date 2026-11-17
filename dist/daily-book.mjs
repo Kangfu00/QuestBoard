@@ -108,13 +108,14 @@ export function createDailyBookWindow({
   let colorClass = null;
 
   function isOpen() {
-    return !!panel && !panel.hidden && panel.isConnected !== false;
+    return !!panel && !panel.hidden && panel.style.display !== 'none' && panel.isConnected !== false;
   }
 
   function ensurePanel() {
     if (panel) return panel;
     panel = document.createElement('section');
     panel.hidden = true;
+    panel.style.display = 'none';
     panel.className = 'daily-book-window';
     panel.setAttribute('aria-label', 'สมุดบันทึกงานประจำวัน');
     panel.innerHTML = `
@@ -128,7 +129,7 @@ export function createDailyBookWindow({
           <div class="daily-book-header-actions">
             <button type="button" class="icon-button" data-daily-action="edit-meta" title="แก้ไขชื่อและสีปกสมุด" aria-label="แก้ไขปกสมุด">${icon('edit')}</button>
             <button type="button" class="icon-button" data-daily-action="toggle-archive" id="daily-book-archive-btn" title="สลับที่เก็บสมุด" aria-label="เก็บหรือวางสมุดบนโต๊ะ">${icon('archive')}</button>
-            <button type="button" class="icon-button" data-daily-action="close" title="ปิดสมุด (Esc)" aria-label="ปิดสมุด">${icon('cross')}</button>
+            <button type="button" class="icon-button" data-daily-action="close" data-action="close-daily-book" title="ปิดสมุด (Esc)" aria-label="ปิดสมุด">${icon('cross')}</button>
           </div>
         </header>
         <div class="daily-book-summary">
@@ -154,8 +155,11 @@ export function createDailyBookWindow({
       </section>
       <section class="daily-book-page daily-book-right" aria-label="หน้ากระดาษขีดนับงานประจำ">
         <div class="daily-sheet-header">
-          <strong>รายการขีดนับงานประจำวัน</strong>
-          <small id="daily-sheet-count">0 รายการ</small>
+          <div class="daily-sheet-header-title">
+            <strong>รายการขีดนับงานประจำวัน</strong>
+            <small id="daily-sheet-count">0 รายการ</small>
+          </div>
+          <button type="button" class="icon-button" data-daily-action="close" data-action="close-daily-book" title="ปิดสมุด (Esc)" aria-label="ปิดสมุด">${icon('cross')}</button>
         </div>
         <div class="daily-task-list" id="daily-task-list"></div>
       </section>
@@ -347,6 +351,7 @@ export function createDailyBookWindow({
     const el = ensurePanel();
     const wasOpen = isOpen();
     el.hidden = false;
+    el.style.display = '';
     render();
     if (!handle) {
       handle = windows?.register(el, {
@@ -376,9 +381,16 @@ export function createDailyBookWindow({
   }
 
   function close({ animate = false, returnFocus = false } = {}) {
-    if (!isOpen()) return false;
+    if (!isOpen()) {
+      if (panel) {
+        panel.hidden = true;
+        panel.style.display = 'none';
+      }
+      return false;
+    }
     handle?.cancelDrag();
     panel.hidden = true;
+    panel.style.display = 'none';
     if (animate) {
       try { onCue('folderClose'); } catch {}
     }
