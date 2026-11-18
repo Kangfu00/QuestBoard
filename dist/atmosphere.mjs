@@ -20,7 +20,7 @@ function normalize(patch, previous = DEFAULTS) {
 export function createDeskAtmosphere({document = globalThis.document, window = globalThis.window, storage, now = () => new Date(), reducedMotion, onAudioChange = () => {}, onPhaseChange = () => {}} = {}) {
   let localStorage = storage, settings = {...DEFAULTS}, layer = null, dustLayer = null, litDustLayer = null, controls = null, phaseHint = null, soundscapeHint = null, timer = null, destroyed = false;
   const fields = new Map(), outputs = new Map(), statusHints = new Map(), audioStatus = {}, controlCleanup = [];
-  let media = null;
+  let media = null, paintObserver = null;
   try { if (localStorage === undefined) localStorage = window?.localStorage; } catch {}
   try { settings = normalize(JSON.parse(localStorage?.getItem(STORAGE_KEY) ?? 'null')); } catch {}
   try { media = window?.matchMedia?.('(prefers-reduced-motion: reduce)'); } catch {}
@@ -171,6 +171,19 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
     notifyAudio();
     return getSettings();
   }
+  function unobservePaint() {
+    paintObserver?.disconnect();
+    paintObserver = null;
+    layer?.parentElement?.style.removeProperty?.('--desk-paint-height');
+  }
+  function syncPaintHeight() {
+    const surface = layer?.parentElement;
+    if (!surface || !Number.isFinite(surface.clientHeight)) return;
+    const height = `${surface.clientHeight}px`;
+    if (surface.style.getPropertyValue('--desk-paint-height') !== height) {
+      surface.style.setProperty('--desk-paint-height', height);
+    }
+  }
   function mount(parent = document?.body) {
     if (destroyed || !parent) return null;
     // Keep paint inside the desk viewport. CSS layers it over normal board
@@ -186,7 +199,15 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
       const cloud = decorative('desk-atmosphere-cloud'), farCloud = decorative('desk-atmosphere-cloud desk-atmosphere-cloud-far');
       layer.append(morning, day, evening, night, dustLayer, litDustLayer, cloud, farCloud);
     }
-    if (layer.parentElement !== surface) surface.insertBefore(layer, surface.firstChild);
+    if (layer.parentElement !== surface) {
+      unobservePaint();
+      surface.insertBefore(layer, surface.firstChild);
+      if (typeof window?.ResizeObserver === 'function') {
+        paintObserver = new window.ResizeObserver(syncPaintHeight);
+        paintObserver.observe(surface);
+      }
+    }
+    syncPaintHeight();
     sync();
     return layer;
   }
@@ -255,7 +276,7 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
   notifyAudio();
   return {mount, mountControls, getSettings, setSettings, setAudioStatus, destroy() {
     if (destroyed) return;
-    destroyed = true; clearTimer(); removeControls(); layer?.remove(); layer = null; dustLayer = null; litDustLayer = null;
+    destroyed = true; clearTimer(); removeControls(); unobservePaint(); layer?.remove(); layer = null; dustLayer = null; litDustLayer = null;
     document?.removeEventListener?.('visibilitychange', onVisibility);
     if (media?.removeEventListener) media.removeEventListener('change', onMotion);
     else media?.removeListener?.(onMotion);

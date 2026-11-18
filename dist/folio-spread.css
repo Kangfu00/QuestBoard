@@ -104,9 +104,9 @@
   border-bottom: 1px solid #d4b27b38;
 }
 .folio-spread .folder-window-header h2 {
-  color: #f3e2bf;
+  color: var(--leather-ink);
   font: 500 18px/1.65 var(--serif);
-  text-shadow: 0 1px 1px #20120c;
+  text-shadow: var(--leather-title-shadow);
 }
 .folio-spread .folder-window-header > div:first-child {
   display: grid;
@@ -117,8 +117,8 @@
 .folio-spread .folder-window-header > div:first-child > :is(h2, small) { grid-column: 2; }
 .folio-spread .folder-window-header p { font-size: 9px; line-height: 1.8; }
 .folio-spread .folder-window-header > div:last-child:not(:first-child) { gap: 1px; }
-.folio-spread .folder-window-header button { width: 27px; height: 28px; color: #e5cd9f; }
-.folio-spread .folder-window-header button:hover { background: #eed19a20; color: #fff1cd; }
+.folio-spread .folder-window-header button { width: 27px; height: 28px; color: var(--leather-muted); }
+.folio-spread .folder-window-header button:hover { background: #6a4d251c; color: var(--leather-ink); }
 .folio-spread button:focus-visible,
 .folio-spread [tabindex]:focus-visible { outline: 2px solid #ead19d; outline-offset: 3px; }
 
@@ -305,9 +305,9 @@
   border-radius: 2px 2px 4px 4px;
   pointer-events: none;
 }
-.folio-spread .folder-window-drop > .icon { width: 19px; height: 19px; color: #d5b887; }
-.folio-spread .folder-window-drop :is(h3, strong) { color: #efdbb6; font: 500 12px/1.65 var(--serif); }
-.folio-spread .folder-window-drop :is(p, small) { color: #ceb58b; font-size: 9px; line-height: 1.7; }
+.folio-spread .folder-window-drop > .icon { width: 19px; height: 19px; color: var(--leather-metal); }
+.folio-spread .folder-window-drop :is(h3, strong) { color: var(--leather-ink); font: 500 12px/1.65 var(--serif); }
+.folio-spread .folder-window-drop :is(p, small) { color: var(--leather-muted); font-size: 9px; line-height: 1.7; }
 .folder-window.folio-spread.folder-drop-ready { box-shadow: none; }
 .folio-spread.folder-drop-ready .folder-window-drop,
 .folio-spread .folder-window-drop.folder-drop-ready {
@@ -324,13 +324,13 @@
   min-height: 29px;
   border-bottom: 1px solid #d4b27b38;
   padding-bottom: 8px;
-  color: #dec8a0;
+  color: var(--leather-muted);
   font-size: 9px;
   line-height: 1.7;
 }
-.folio-spread .folio-preview-heading strong { color: #edd8af; font-weight: 500; }
+.folio-spread .folio-preview-heading strong { color: var(--leather-ink); font-weight: 500; }
 .folio-spread .folio-preview-heading > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.folio-spread .folio-preview-heading > small { flex: 0 0 auto; font-size: 8px; color: #bfa882; }
+.folio-spread .folio-preview-heading > small { flex: 0 0 auto; font-size: 8px; color: var(--leather-muted); }
 .folio-spread .folio-preview-heading > .icon { width: 15px; height: 15px; }
 .folio-spread .folio-paper-viewport {
   position: relative;
@@ -400,14 +400,14 @@
   padding: 5px 8px;
   border: 1px solid #d1b17a40;
   border-radius: 3px;
-  color: #ead4ab;
-  background: #1e110b29;
+  color: var(--leather-ink);
+  background: #6a4d251c;
   font-size: 9px;
   line-height: 1.65;
 }
 .folio-spread .folio-paper-actions button .icon { width: 13px; height: 13px; }
-.folio-spread .folio-paper-actions button:hover { border-color: #d1b17a80; color: #fff0cd; background: #e4c28b13; }
-.folio-spread .folder-window-footnote { margin: 0; color: #bfa882; font-size: 8px; line-height: 1.8; text-align: center; }
+.folio-spread .folio-paper-actions button:hover { border-color: var(--leather-edge); color: var(--leather-ink); background: #6a4d252e; }
+.folio-spread .folder-window-footnote { margin: 0; color: var(--leather-muted); font-size: 8px; line-height: 1.8; text-align: center; }
 .folio-spread .folio-paper-viewport > :is(.folder-empty, .folio-preview-empty) {
   display: grid;
   place-items: center;
@@ -416,12 +416,12 @@
   min-height: 160px;
   max-width: 240px;
   padding: 20px 8px;
-  color: #d6bd95;
+  color: var(--leather-muted);
   font-size: 11px;
   line-height: 1.9;
   text-align: center;
 }
-.folio-spread .folio-preview-empty > .icon { width: 33px; height: 33px; color: #bfa47b; }
+.folio-spread .folio-preview-empty > .icon { width: 33px; height: 33px; color: var(--leather-metal); }
 
 /* Only this moving copy crosses the spine. Both faces stay opaque; the
    permanent left leather wing and its functional index remain after it rests. */

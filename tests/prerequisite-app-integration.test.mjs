@@ -11,7 +11,7 @@ function section(start,end){const a=source.indexOf(start),b=source.indexOf(end,a
 test('commit compares old and next quests and plays unlocks after rendering and persistence',()=>{
   const before={items:[{id:'a',status:'active'},{id:'b',prerequisiteIds:['a']}]},next={items:[{id:'a',status:'done'},before.items[1]]};
   const calls=[],comparisons=[];
-  const context={state:before,ensureTrayPositions:value=>value,
+  const context={state:before,dailyBookWindow:null,ensureTrayPositions:value=>value,
     newlyUnlockedQuestIds:(oldItems,newItems)=>{comparisons.push([oldItems,newItems]);return ['b']},
     questUnlockEffects:{cancelAll:()=>calls.push('cancel'),play:ids=>calls.push(['play',ids])},
     renderBoard:()=>calls.push('board'),renderCounts:()=>calls.push('counts'),renderFolderWindow:()=>calls.push('folio'),paperReader:{refresh:()=>calls.push('reader')},persist:()=>calls.push('persist'),showToast:()=>calls.push('toast')};
@@ -23,7 +23,7 @@ test('commit compares old and next quests and plays unlocks after rendering and 
 
 test('import commits suppress unlock flourishes while still rendering and persisting',()=>{
   let comparisons=0,played=0,saved=0;
-  const context={state:{items:[]},ensureTrayPositions:value=>value,newlyUnlockedQuestIds:()=>{comparisons++;return ['b']},questUnlockEffects:{cancelAll(){},play(){played++}},renderBoard(){},renderCounts(){},renderFolderWindow(){},paperReader:{refresh(){}},persist(){saved++},showToast(){}};
+  const context={state:{items:[]},dailyBookWindow:null,ensureTrayPositions:value=>value,newlyUnlockedQuestIds:()=>{comparisons++;return ['b']},questUnlockEffects:{cancelAll(){},play(){played++}},renderBoard(){},renderCounts(){},renderFolderWindow(){},paperReader:{refresh(){}},persist(){saved++},showToast(){}};
   vm.createContext(context);vm.runInContext(section('function commit(','const questItems='),context);context.commit({items:[]},'นำเข้าแล้ว',{animateUnlock:false});
   assert.equal(saved,1);assert.equal(comparisons,0);assert.equal(played,0);
 });

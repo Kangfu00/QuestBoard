@@ -1,7 +1,9 @@
+import {LEATHER_COLOR_IDS, validateLeatherColor} from './leather-colors.mjs';
+
 export const DAILY_BOOK_SIZE = Object.freeze({ width: 320, height: 448 });
 export const MAX_DAILY_TASKS = 80;
 export const MAX_DAILY_TALLY = 9999;
-export const DAILY_BOOK_COLORS = Object.freeze(['gold', 'sage', 'red', 'navy']);
+export const DAILY_BOOK_COLORS = LEATHER_COLOR_IDS;
 
 const DEFAULT_TASKS = Object.freeze([
   { id: 'daily-dishes', title: 'ล้างจาน', note: 'หลังมื้ออาหาร', count: 0, totalCount: 0, lastTalliedAt: '' },
@@ -72,8 +74,7 @@ export function normalizeDailyTask(raw) {
 
 export function normalizeDailyBook(raw, boardLimit = { width: 20000, height: 20000 }) {
   record(raw, 'สมุดงานประจำวัน');
-  const color = raw.color ?? 'gold';
-  if (!DAILY_BOOK_COLORS.includes(color)) throw new Error('สีปกสมุดไม่ถูกต้อง');
+  const color = validateLeatherColor(raw.color ?? 'gold', 'สีปกสมุด');
   const maxX = Math.max(0, boardLimit.width - DAILY_BOOK_SIZE.width);
   const maxY = Math.max(0, boardLimit.height - DAILY_BOOK_SIZE.height);
   const x = Math.max(0, Math.min(maxX, number(raw.x ?? 855, 'ตำแหน่งสมุด x', -1e6, 1e6)));

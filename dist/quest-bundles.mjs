@@ -32,7 +32,10 @@ export function createQuestBundles({document=globalThis.document,window=globalTh
   const selected=new Set(),registrations=[];
   let gesture=null,destroyed=false,observer=null,suppressUntil=0,lastCue=null,refreshing=false;
   const now=()=>window.performance?.now?.()??Date.now();
-  const stateQuests=()=>new Set(getState().items.filter(item=>item.type==='quest').map(item=>item.id));
+  const stateQuests=()=>{
+    const {items,paperweight}=getState();
+    return new Set(items.filter(item=>item.type==='quest'&&item.id!==paperweight?.questId).map(item=>item.id));
+  };
   const listen=(target,type,fn)=>{target.addEventListener(type,fn,true);registrations.push(()=>target.removeEventListener(type,fn,true));};
   const bar=document.createElement('div');bar.className='quest-bundle-selection';bar.hidden=true;bar.setAttribute('role','group');bar.setAttribute('aria-label','เควสที่เลือก');
   const count=document.createElement('span');count.setAttribute('role','status');count.setAttribute('aria-live','polite');

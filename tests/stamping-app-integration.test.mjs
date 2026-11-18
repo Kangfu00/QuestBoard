@@ -252,21 +252,42 @@ test('the actual app registers stamp pointer, click and keyboard handlers in cap
   }
 });
 
-test('hover marks the resolved expanded copy, and returning the tool clears its cursor and target',()=>{
-  const cursor={classList:classes(),style:{}},stale=paper(),expanded=paper(),menu={open:false},under={},
-    host={style:{zIndex:'640'}},surface={id:'q',kind:'reader',paper:expanded,host};
-  stale.classList.add('stamp-target');const bodyClasses=classes();bodyClasses.add('is-stamping');
+test('held cursor moves above expanded windows without rescanning the desk or marking the same paper again',()=>{
+  const cursor={classList:classes(),style:{}},expanded=paper(),other=paper(),menu={open:false};
+  const bodyClasses=classes();bodyClasses.add('is-stamping');
+  let hits=0,marks=0,scans=0,nextFrame=0;
+  const frames=new Map();
+  const add=expanded.classList.add;
+  expanded.classList.add=(...args)=>{marks++;add(...args);};
   const context={heldStamp:chooseStampTool('done'),dialog:{open:false},stampPointer:{x:5,y:8},stampPressTimer:null,
-    $:selector=>selector==='#stamp-cursor'?cursor:menu,heldStampSurface:target=>target===under?surface:null,
-    document:{body:{classList:bodyClasses},elementFromPoint:()=>under,
-      querySelectorAll:selector=>selector==='[data-desk-window]'?[host]:[stale,expanded]},
-    clearTimeout(){},refreshToolOptions(){}};
+    stampPointerFrame:null,stampTargetPaper:null,deskWindows:{topZ:640},
+    $:selector=>selector==='#stamp-cursor'?cursor:menu,heldStampSurface:target=>({id:'q',kind:'reader',paper:target}),
+    document:{body:{classList:bodyClasses},elementFromPoint:x=>{hits++;return x<260?expanded:other;},
+      querySelectorAll:selector=>{scans++;return selector==='[data-desk-window]'?[{style:{zIndex:'640'}}]:[expanded,other];}},
+    requestAnimationFrame(callback){frames.set(++nextFrame,callback);return nextFrame;},
+    cancelAnimationFrame(id){frames.delete(id);},clearTimeout(){},refreshStampToolButtons(){}};
   context.questPhotos??=null;context.photoViewer??=null;vm.createContext(context);vm.runInContext(section('function updateStampPointer(','function heldStampSurface('),context);
   context.updateStampPointer({clientX:232,clientY:410});
-  assert.equal(expanded.classList.contains('stamp-target'),true);assert.equal(stale.classList.contains('stamp-target'),false);
+  context.updateStampPointer({clientX:240,clientY:415});
+  assert.equal(scans,0,'moving the cursor uses no document-wide selector');
+  assert.equal(marks,1,'an unchanged target is marked once');
+  assert.equal(hits,2);
+  assert.equal(expanded.classList.contains('stamp-target'),true);
   assert.equal(cursor.classList.contains('is-visible'),true);assert.ok(Number(cursor.style.zIndex)>640);
+  assert.equal(cursor.style.translate,'240px 415px');assert.equal(cursor.style.left,undefined);assert.equal(cursor.style.top,undefined);
+  for(let x=241;x<=275;x++)context.queueStampPointer({clientX:x,clientY:415});
+  assert.equal(frames.size,1,'a burst queues one frame');
+  assert.equal(hits,2,'a burst does no synchronous hit testing');
+  const [id,render]=frames.entries().next().value;
+  frames.delete(id);render();
+  assert.equal(hits,3,'the frame hit-tests once');
+  assert.equal(cursor.style.translate,'275px 415px','the frame paints the newest pointer position');
+  assert.equal(expanded.classList.contains('stamp-target'),false);
+  assert.equal(other.classList.contains('stamp-target'),true);
+  context.queueStampPointer({clientX:240,clientY:415});
   context.returnStamp(false);assert.equal(context.heldStamp,null);assert.equal(bodyClasses.contains('is-stamping'),false);
-  assert.equal(cursor.classList.contains('is-visible'),false);assert.equal(expanded.classList.contains('stamp-target'),false);
+  assert.equal(frames.size,0,'returning the stamp cancels the pending cursor update');
+  assert.equal(cursor.classList.contains('is-visible'),false);assert.equal(other.classList.contains('stamp-target'),false);
 });
 
 test('stamp impact reacquires the clicked copy after commit and preserves expanded paper transforms',()=>{

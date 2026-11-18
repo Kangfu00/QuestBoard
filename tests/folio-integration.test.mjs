@@ -20,9 +20,10 @@ test('archiving a different folio closes that exact document without affecting f
   assert.deepEqual(h.captured,[{id:'archived-folder',animate:false,returnFocus:false}]);
   assert.equal(h.context.folioWindows.activeId,'front-folder');
 });
-test('refresh delegates all open folios to the multi-document controller',()=>{
-  const items=[{id:'a'},{id:'b'}];let rendered;
-  const context={state:{items},bundleControl:null,folioWindows:{render(value){rendered=value;}}};
+test('refresh reaches both open folios and notebooks',()=>{
+  const items=[{id:'a'},{id:'b'}];let rendered,notebooksRefreshed=0;
+  const context={state:{items},bundleControl:null,folioWindows:{render(value){rendered=value;}},
+    notebookWindows:{refresh(){notebooksRefreshed++;}}};
   vm.createContext(context);vm.runInContext(source.slice(source.indexOf('function renderFolderWindow('),source.indexOf('function folderTargetAt(')),context);
-  context.renderFolderWindow();assert.equal(rendered,items);
+  context.renderFolderWindow();assert.equal(rendered,items);assert.equal(notebooksRefreshed,1);
 });

@@ -26,15 +26,33 @@ test('quest title opens a readable document while its separate toolbar can still
 });
 
 test('import retires old document buffers before replacing data and refuses replacement on save failure',()=>{
-  for(const saved of [true,false]){
+  for(const [saved,photoSaved,notebookSaved] of [[true,true,true],[false,true,true],[true,false,true],[true,true,false]]){
     const nodes=new Map(),events=[],incoming=createInitialState();
     const context={openDialog(){},esc:String,icon:()=>'',downloadBackup(){},closeDialog(){events.push('dialog');},
       paperReader:{close(){events.push('readers');return saved;}},folioWindows:{closeAll(){events.push('folios');}},
+      photoSheetReader:{closeAll(){events.push('photos');return photoSaved;}},
+      notebookWindows:{closeAll(){events.push('notebooks');return notebookSaved;}},
+      ensureNotebook:value=>value,
       $:selector=>{if(!nodes.has(selector))nodes.set(selector,{});return nodes.get(selector);},
       commit(value){assert.equal(value,incoming);events.push('commit');},filters:{},showToast(){}};
     context.questPhotos??=null;context.photoViewer??=null;vm.createContext(context);vm.runInContext(section('function confirmImport(','function openHelp('),context);
     context.confirmImport(incoming);nodes.get('#confirm-import').onclick();
-    assert.equal(events[0],'readers');assert.equal(events.includes('commit'),saved);
-    if(saved)assert.ok(events.indexOf('folios')<events.indexOf('commit'));
+    assert.equal(events[0],'readers');assert.equal(events.includes('commit'),saved&&photoSaved&&notebookSaved);
+    if(saved&&photoSaved&&notebookSaved){assert.ok(events.indexOf('photos')<events.indexOf('commit'));assert.ok(events.indexOf('folios')<events.indexOf('commit'));assert.ok(events.indexOf('notebooks')<events.indexOf('commit'));}
+  }
+});
+
+test('export flushes photograph and notebook writing before serializing or refuses an unsaved draft',()=>{
+  for(const [saved,notebookSaved] of [[true,true],[true,false],[false,true]]){
+    let notes='',notebookPage='',exports=0;
+    const context={state:{},paperReader:{flush:()=>true},
+      photoSheetReader:{flush(){if(saved)notes='Latest notes';return saved;}},
+      notebookWindows:{flush(){if(notebookSaved)notebookPage='Notebook writing';return notebookSaved;}},
+      serializeState(){assert.equal(notes,'Latest notes');assert.equal(notebookPage,'Notebook writing');return notes;},
+      Blob:class {},URL:{createObjectURL:()=> 'blob:photo',revokeObjectURL(){}},
+      document:{createElement:()=>({click(){exports++;}})},setTimeout(){},showToast(){}};
+    vm.createContext(context);vm.runInContext(section('function downloadBackup(','function openSettings('),context);
+    context.downloadBackup();
+    assert.equal(exports,saved&&notebookSaved?1:0);
   }
 });

@@ -145,6 +145,22 @@ test('motion never changes live panel visibility, content, ids or app routing da
   assert.equal(h.panel.hidden,true);assert.equal(h.ghosts().length,0);assert.equal(h.timers.size,0);
 });
 
+test('the refolding cover retains its wheel color while drop and action attributes are removed',()=>{
+  const h=fixture();
+  h.panel.classList.add('folder-dye-235-pearl');
+  h.panel.setAttribute('data-leather-tone','pearl');
+  h.panel.style['--leather-hue']='235';
+
+  h.motion.close(h.panel);
+
+  const [ghost]=h.ghosts();
+  assert.equal(ghost.getAttribute('data-leather-tone'),'pearl');
+  assert.equal(ghost.style['--leather-hue'],'235');
+  assert.equal(ghost.getAttribute('data-folder-target'),null);
+  assert.ok(ghost.querySelectorAll('*').every(node=>node.getAttribute('data-action')===null));
+  assert.equal(ghost.inert,true);
+});
+
 test('closing preserves the visible scrolled rows after attaching the copy without moving the live list',()=>{
   const h=fixture(),list=h.list;list.scrollTop=145;list.scrollLeft=7;
   h.motion.close(h.panel);const copiedList=h.ghosts()[0].querySelectorAll('*').find(node=>node.className==='folder-window-list');

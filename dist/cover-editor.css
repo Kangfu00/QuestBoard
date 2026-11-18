@@ -1,0 +1,64 @@
+.cover-editor-dialog {
+  width: min(790px, calc(100vw - 32px));
+}
+
+.cover-editor-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(225px, .62fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.cover-editor-fields { min-width: 0; }
+
+.cover-editor-preview {
+  position: sticky;
+  top: 8px;
+  margin: 0;
+  min-height: 286px;
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 16px;
+  padding: 14px 10px 24px;
+  border: 1px solid #94734870;
+  border-radius: 5px;
+  color: #ead4af;
+  background:
+    repeating-linear-gradient(2deg, transparent 0 4px, #27170e24 5px, transparent 6px 9px),
+    linear-gradient(135deg, #604831, #39281e);
+  box-shadow: inset 0 1px 0 #d0a77725, inset 0 0 24px #24140c4a;
+}
+
+.cover-editor-preview figcaption { font: 500 13px/1.5 var(--serif); }
+
+.cover-editor-stage {
+  --cover-scale: .64;
+  position: relative;
+  width: calc(var(--cover-width) * var(--cover-scale));
+  height: calc(var(--cover-height) * var(--cover-scale));
+  pointer-events: none;
+}
+
+.cover-editor-stage > .board-item {
+  transform: scale(var(--cover-scale));
+  transform-origin: top left;
+}
+
+.cover-editor-stage .folder-actions,
+.cover-editor-stage .daily-book-footer { visibility: hidden; }
+
+@media (max-width: 650px) {
+  .cover-editor-grid { grid-template-columns: minmax(0, 1fr); gap: 14px; }
+  .cover-editor-preview {
+    grid-row: 1;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    align-items: center;
+    gap: 8px;
+    top: 0;
+    z-index: 1;
+    min-height: 0;
+    padding: 8px 12px 12px;
+  }
+  .cover-editor-stage { --cover-scale: .32; }
+}

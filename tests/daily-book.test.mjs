@@ -2,6 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   createInitialState,
+  createFolder,
+  updateItem,
   validateState,
   serializeState,
   parseState,
@@ -18,6 +20,25 @@ import {
 } from '../dist/model.mjs';
 import { storageTrayAccepts, drawerForDraggedItem } from '../dist/interactions.mjs';
 import { renderTallyMarks, renderDailyBookCover, createDailyBookWindow } from '../dist/daily-book.mjs';
+
+test('folios and books remember the same muted leather colors through backup and restore', () => {
+  const colors = ['gold', 'sage', 'red', 'navy', 'plum', 'charcoal', 'ivory', 'bone', 'dye-0-deep', 'dye-164-faded', 'dye-359-pearl'];
+  let state = ensureDailyBook(createInitialState());
+  const folder = createFolder({ name: 'Guild folio', color: 'navy' }, state);
+  state = { ...state, items: [...state.items, folder] };
+
+  for (const color of colors) {
+    state = updateItem(state, folder.id, { color });
+    state = updateDailyBookMeta(state, { color });
+    const restored = parseState(serializeState(state));
+    assert.equal(restored.items.find(item => item.id === folder.id).color, color);
+    assert.equal(restored.dailyBook.color, color);
+  }
+  for (const color of ['#ffffff', 'dye-360-pearl', 'dye-030-deep', 'dye-240-neon']) {
+    assert.throws(() => updateItem(state, folder.id, { color }), /สีแฟ้ม/);
+    assert.throws(() => updateDailyBookMeta(state, { color }), /สีปกสมุด/);
+  }
+});
 
 const dataKey = name => name.slice(5).replace(/-([a-z])/g, (_, letter) => letter.toUpperCase());
 class TestElement {

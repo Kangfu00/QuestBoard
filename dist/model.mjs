@@ -1,5 +1,6 @@
-import {PAPER,STAMP_SPACE} from './paper-format.mjs';
+import {PAPER,STAMP_SPACE,NOTEBOOK_SIZE,photoSheetSize,PHOTO_SHEET_SCALE} from './paper-format.mjs';
 import {normalizePhotoLayout} from './photo-layout.mjs';
+import {validateLeatherColor} from './leather-colors.mjs';
 import {normalizePrerequisiteIds,validateDependencies,dependencyInfo} from './quest-dependencies.mjs';
 import {
   DAILY_BOOK_SIZE,
@@ -43,6 +44,9 @@ export {
 
 export const BOARD = Object.freeze({ width: 1180, height: 1000 });
 export const BOARD_LIMIT = Object.freeze({ width: 20000, height: 20000 });
+export const PAPERWEIGHT_SIZE = 62;
+export const PAPERWEIGHT_EMBLEMS = Object.freeze({shield:'โล่กิลด์', swords:'ดาบไขว้', star:'ดาวนำทาง', feather:'ขนนก'});
+export const DEFAULT_PAPERWEIGHT = Object.freeze({x:1103,y:496,questId:null,corner:null,emblem:'shield',imageDataUrl:null});
 export const STATUS = Object.freeze({
   active: { label: 'กำลังทำ', en: 'IN PROGRESS', color: '#8b713e' },
   done: { label: 'สำเร็จแล้ว', en: 'COMPLETED', color: '#4f6d4d' },
@@ -53,6 +57,8 @@ export const CATEGORIES = Object.freeze(['งานหลัก', 'ชีวิ�
 export const MAX_BACKUP_BYTES = 90_000_000;
 export const MAX_SUBQUESTS=80;
 export const MAX_QUEST_NOTES=8000;
+export const MAX_NOTEBOOK_PAGES=120;
+export const MAX_NOTEBOOK_PAGE_TEXT=10000;
 
 export function normalizeQuestBack(raw){
   record(raw,'บันทึกด้านหลัง');
@@ -131,12 +137,13 @@ function normalizeStampPosition(value) {
   };
 }
 
-export function clampPosition(x, y, type = 'quest', bounds = BOARD) {
+export function clampPosition(x, y, type = 'quest', bounds = BOARD, aspect, photoScale) {
   number(x, 'ตำแหน่ง x', -1e6, 1e6);
   number(y, 'ตำแหน่ง y', -1e6, 1e6);
-  oneOf(type, ['quest', 'label', 'folder', 'daily-book'], 'ชนิดกระดาษ');
-  const width = type === 'label' ? 230 : type === 'daily-book' ? DAILY_BOOK_SIZE.width : PAPER.width;
-  const height = type === 'label' ? 70 : type === 'folder' ? 210 : type === 'daily-book' ? DAILY_BOOK_SIZE.height : PAPER.height;
+  oneOf(type, ['quest', 'label', 'folder', 'daily-book', 'photo', 'notebook'], 'ชนิดกระดาษ');
+  const sizedSheet = type === 'photo' ? photoSheetSize(aspect,photoScale) : type === 'notebook' ? NOTEBOOK_SIZE : null;
+  const width = sizedSheet?.width ?? (type === 'label' ? 230 : type === 'daily-book' ? DAILY_BOOK_SIZE.width : PAPER.width);
+  const height = sizedSheet?.height ?? (type === 'label' ? 70 : type === 'folder' ? 210 : type === 'daily-book' ? DAILY_BOOK_SIZE.height : PAPER.height);
   record(bounds, 'ขอบเขตกระดาน');
   const boardWidth = number(bounds.width, 'ความกว้างกระดาน', width, BOARD_LIMIT.width);
   const boardHeight = number(bounds.height, 'ความสูงกระดาน', height, BOARD_LIMIT.height);
@@ -145,11 +152,14 @@ export function clampPosition(x, y, type = 'quest', bounds = BOARD) {
 
 function normalizeItem(raw) {
   record(raw, 'รายการ');
-  const type = oneOf(raw.type, ['quest', 'label', 'folder'], 'ชนิดรายการ');
+  const type = oneOf(raw.type, ['quest', 'label', 'folder', 'photo', 'notebook'], 'ชนิดรายการ');
+  const aspect = type === 'photo' ? number(raw.aspect, 'สัดส่วนภาพ', 1/1000, 1000) : undefined;
+  const photoScale = type === 'photo' && raw.photoScale !== undefined
+    ? number(raw.photoScale,'ขนาดรูปบนโต๊ะ',PHOTO_SHEET_SCALE.min,PHOTO_SHEET_SCALE.max) : undefined;
   let storagePosition;
   if(raw.storagePosition!=null){
     record(raw.storagePosition,'ตำแหน่งในลิ้นชัก');
-    const max=clampPosition(BOARD_LIMIT.width,BOARD_LIMIT.height,type,BOARD_LIMIT);
+    const max=clampPosition(BOARD_LIMIT.width,BOARD_LIMIT.height,type,BOARD_LIMIT,aspect,photoScale);
     // Version-one trays allowed the former quest footprint all the way to
     // their edge. Accept that range, then fit each current item to its size.
     storagePosition={
@@ -159,18 +169,42 @@ function normalizeItem(raw) {
   }
   const common = {
     id: identifier(raw.id), type,
-    ...clampPosition(raw.x, raw.y, type, BOARD_LIMIT),
+    ...clampPosition(raw.x, raw.y, type, BOARD_LIMIT, aspect,photoScale),
     rotation: number(raw.rotation, 'มุมเอียง', -180, 180),
     z: number(raw.z, 'ลำดับชั้น', 0, 1e6, true),
     ...(storagePosition===undefined?{}:{storagePosition}),
   };
   if (type === 'label') return { ...common, text: text(raw.text, 'ข้อความหัวข้อ', 60), color: oneOf(raw.color, ['gold', 'sage', 'red'], 'สีหัวข้อ') };
+  if (type === 'photo') return {
+    ...common, aspect,
+    ...(photoScale===undefined?{}:{photoScale}),
+    title:text(raw.title,'ชื่อภาพ',120),
+    imageDataUrl:normalizeRaster(raw.imageDataUrl,'รูปถ่ายบนโต๊ะ'),
+    tone:oneOf(raw.tone ?? 'gold',['gold','original'],'โทนภาพ'),
+    notes:normalizeQuestBack({notes:raw.notes}).notes,
+    archived:boolean(raw.archived ?? false,'การเก็บเข้าลิ้นชัก'),
+  };
   if (type === 'folder') return {
     ...common,
     name: text(raw.name, 'ชื่อแฟ้ม', 60),
-    color: oneOf(raw.color, ['gold', 'sage', 'red'], 'สีแฟ้ม'),
+    color: validateLeatherColor(raw.color, 'สีแฟ้ม'),
     archived: boolean(raw.archived === undefined ? true : raw.archived, 'การเก็บเข้าลิ้นชัก'),
   };
+  if (type === 'notebook') {
+    if (!Array.isArray(raw.pages) || raw.pages.length < 2 || raw.pages.length > MAX_NOTEBOOK_PAGES || raw.pages.length % 2) {
+      throw new Error(`สมุดโน้ตต้องมีหน้ากระดาษเป็นคู่ และมีได้สูงสุด ${MAX_NOTEBOOK_PAGES} หน้า`);
+    }
+    const pages = Array.from(raw.pages, page => {
+      if (typeof page !== 'string' || page.length > MAX_NOTEBOOK_PAGE_TEXT) throw new Error(`ข้อความในสมุดโน้ตยาวได้ไม่เกิน ${MAX_NOTEBOOK_PAGE_TEXT} ตัวอักษรต่อหน้า`);
+      return page;
+    });
+    return {
+      ...common, pages,
+      title:text(raw.title,'ชื่อสมุดโน้ต',60),
+      color:validateLeatherColor(raw.color,'สีปกสมุดโน้ต'),
+      archived:boolean(raw.archived ?? false,'การเก็บสมุดโน้ตเข้าลิ้นชัก'),
+    };
+  }
   const status = oneOf(raw.status, Object.keys(STATUS), 'สถานะ');
   const stampId = raw.stampId === null ? null : identifier(raw.stampId);
   const stampPosition = normalizeStampPosition(raw.stampPosition);
@@ -208,6 +242,24 @@ function placement(input, state, type) {
     y: input.y ?? (type === 'label' ? 25 : 85) + offset * 18,
     rotation: input.rotation ?? 0, z,
   };
+}
+
+export function createPhotoSheet(input,state) {
+  record(input,'รูปถ่ายบนโต๊ะ');
+  const photo=normalizeItem({...input,...placement(input,state,'photo')});
+  checkBackupBudget({...state,items:[...state.items,photo]});
+  return photo;
+}
+
+export function ensureNotebook(state) {
+  if (state.items.length >= MAX_ITEMS || state.items.some(item => item.type === 'notebook')) return state;
+  const notebook = normalizeItem({
+    ...placement({x:875,y:489,rotation:2},state,'notebook'),
+    title:'สมุดโน้ต',color:'navy',pages:['',''],
+  });
+  const next = {...state,items:[...state.items,notebook]};
+  try { checkBackupBudget(next); } catch { return state; }
+  return next;
 }
 
 export function createQuest(input, state) {
@@ -282,14 +334,15 @@ export function updateItem(state, id, patch) {
     throw new Error('ไม่สามารถเปลี่ยนรหัสหรือชนิดรายการ');
   }
   const imageChanged=old.type==='quest'&&Object.hasOwn(patch,'imageDataUrl')&&patch.imageDataUrl!==old.imageDataUrl;
-  const updated = normalizeItem({ ...old, ...patch, ...(imageChanged&&patch.photoLayout===undefined&&old.photoLayout!==undefined?{photoLayout:null}:{}) });
+  const fixedPosition = state.paperweight?.questId===id ? {x:old.x,y:old.y,rotation:old.rotation} : {};
+  const updated = normalizeItem({ ...old, ...patch, ...fixedPosition, ...(imageChanged&&patch.photoLayout===undefined&&old.photoLayout!==undefined?{photoLayout:null}:{}) });
   checkStampReference(updated, state.stamps);
   checkFolderReference(updated, state.items);
   const items = state.items.slice();
   items[index] = updated;
   validateDependencies(items);
   if(old.status!=='done')checkCompletionPrerequisites(updated,items);
-  const next = { ...state, items };
+  const next = releaseUnavailablePaperweight({ ...state, items });
   checkBackupBudget(next);
   return next;
 }
@@ -303,7 +356,7 @@ export function deleteItem(state, id) {
     return updated;
   });
   validateDependencies(items);
-  const next = { ...state, items };
+  const next = releaseUnavailablePaperweight({ ...state, items });
   checkBackupBudget(next);
   return next;
 }
@@ -321,7 +374,7 @@ export function setItemStatus(state, id, status, stampId = null, stampStyle = 's
 export function setArchived(state, id, archived) {
   boolean(archived, 'การเก็บเข้าลิ้นชัก');
   const item = state.items.find(item => item.id === id);
-  if (!item || !['quest', 'folder'].includes(item.type)) throw new Error('ไม่พบภารกิจหรือแฟ้มนี้');
+  if (!item || !['quest', 'folder', 'photo', 'notebook'].includes(item.type)) throw new Error('ไม่พบรายการนี้');
   return updateItem(state, id, item.type === 'quest' ? { archived, folderId: null } : { archived });
 }
 
@@ -370,10 +423,43 @@ function normalizeStamp(raw) {
   };
 }
 
+function isDeskQuest(item, id) {
+  return item.id===id && item.type==='quest' && !item.archived && !item.folderId;
+}
+
+function releaseUnavailablePaperweight(state) {
+  const weight = state.paperweight;
+  if (!weight?.questId || state.items.some(item => isDeskQuest(item, weight.questId))) return state;
+  return {...state,paperweight:{...weight,questId:null,corner:null}};
+}
+
+function normalizePaperweight(raw, items) {
+  record(raw, 'ที่ทับกระดาษ');
+  const id = raw.questId == null ? null : identifier(raw.questId);
+  const corner = id === null ? null : oneOf(raw.corner, ['top-left','top-right','bottom-left','bottom-right'], 'มุมกระดาษ');
+  const questId = id && items.some(item => isDeskQuest(item,id)) ? id : null;
+  const emblem = oneOf(raw.emblem, [...Object.keys(PAPERWEIGHT_EMBLEMS),'custom'], 'ตราที่ทับกระดาษ');
+  return {
+    x: number(raw.x, 'ตำแหน่งที่ทับกระดาษ x', 0, BOARD_LIMIT.width-PAPERWEIGHT_SIZE),
+    y: number(raw.y, 'ตำแหน่งที่ทับกระดาษ y', 0, BOARD_LIMIT.height-PAPERWEIGHT_SIZE),
+    questId, corner:questId ? corner : null, emblem,
+    imageDataUrl:emblem==='custom' ? normalizeRaster(raw.imageDataUrl,'รูปตราที่ทับกระดาษ') : null,
+  };
+}
+
+export function updatePaperweight(state, patch) {
+  record(patch, 'ข้อมูลที่ทับกระดาษ');
+  const previous = state.paperweight ?? DEFAULT_PAPERWEIGHT;
+  const paperweight = normalizePaperweight({...previous,...patch}, state.items);
+  const next = {...state,paperweight};
+  checkBackupBudget(next);
+  return next;
+}
+
 function checkBackupBudget(state) {
   let imageBytes = 0;
   const items = state.items.map(item => {
-    if (item.type !== 'quest' || !item.imageDataUrl) return item;
+    if (!item.imageDataUrl) return item;
     imageBytes += item.imageDataUrl.length;
     return { ...item, imageDataUrl: '' };
   });
@@ -383,7 +469,9 @@ function checkBackupBudget(state) {
   });
   // Validated data URLs are ASCII without JSON escapes. Count their exact bytes
   // separately to avoid allocating a huge backup string on every board edit.
-  const metadata = JSON.stringify({ ...state, items, stamps }, null, 2);
+  const weight = state.paperweight;
+  if (weight?.imageDataUrl) imageBytes += weight.imageDataUrl.length;
+  const metadata = JSON.stringify({ ...state, items, stamps, ...(weight?.imageDataUrl ? {paperweight:{...weight,imageDataUrl:''}} : {}) }, null, 2);
   const metadataBytes = new TextEncoder().encode(metadata).byteLength;
   if (imageBytes + metadataBytes > MAX_BACKUP_BYTES) {
     throw new Error('ข้อมูลกระดานมีขนาดเกิน 90 MB กรุณาลบรูปภาพหรือตราประทับบางส่วน');
@@ -424,12 +512,14 @@ export function validateState(raw) {
   for (const item of items) checkFolderReference(item, items);
   validateDependencies(items);
   const dailyBook = raw.dailyBook === undefined ? undefined : normalizeDailyBook(raw.dailyBook, BOARD_LIMIT);
+  const paperweight = raw.paperweight === undefined ? undefined : normalizePaperweight(raw.paperweight, items);
   const normalized = {
     version: 1,
     items,
     stamps,
     settings,
     ...(dailyBook === undefined ? {} : { dailyBook }),
+    ...(paperweight === undefined ? {} : { paperweight }),
   };
   checkBackupBudget(normalized);
   return normalized;

@@ -77,7 +77,8 @@ export function createFolioMotion({
       // exposing the copy to delegated actions and folder drop targeting.
       for(const node of copies){
         for(const {name} of [...node.attributes]){
-          if(name==='id'||name==='autofocus'||name.startsWith('data-'))node.removeAttribute(name);
+          const keepsCoverTone=node===ghost&&name==='data-leather-tone';
+          if(name==='id'||name==='autofocus'||(name.startsWith('data-')&&!keepsCoverTone))node.removeAttribute(name);
         }
       }
       ghost.inert=true;ghost.setAttribute('inert','');

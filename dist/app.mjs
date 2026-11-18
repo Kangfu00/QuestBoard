@@ -1,5 +1,5 @@
-import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask } from './model.mjs';
-import {PAPER,toPaperStampPosition} from './paper-format.mjs';
+import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSheet, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask, DEFAULT_PAPERWEIGHT, PAPERWEIGHT_EMBLEMS, updatePaperweight, ensureNotebook } from './model.mjs';
+import {NOTEBOOK_SIZE,PAPER,toPaperStampPosition,photoSheetSize} from './paper-format.mjs';
 import { chooseStampTool, applyHeldStamp } from './stamp-tools.mjs';
 import { dragPosition, containsPoint, drawerReveal, shouldOpenDrawer, rotatedOrigin, canvasLayout, rotatedClampPosition, storedDropPosition, drawerForDraggedItem, storageTrayAccepts } from './interactions.mjs';
 import { grabPoint, ghostPose, dragTilt, animateTransient, cancelMotion } from './desk-motion.mjs';
@@ -9,6 +9,7 @@ import {createDeskWindows} from './desk-windows.mjs';
 import { createPaperEffects } from './paper-effects.mjs';
 import { TRAY_SCALE, TRAY_WIDTH, trayPosition, trayDrop, trayItems, ensureTrayPositions, bindStorageDrawer, undockedFitWidth } from './storage-tray.mjs';
 import {bindToolRail,undockedFitHeight} from './tool-rail.mjs';
+import {bindDeskShutter} from './desk-shutter.mjs';
 import {createPaperReader} from './paper-reader.mjs';
 import { stampPoint } from './stamp-placement.mjs';
 import {resolveStampSurface,refreshStampSurface,stampSurfacePoint} from './stamp-surfaces.mjs';
@@ -25,6 +26,11 @@ import {dependencyInfo,newlyUnlockedQuestIds} from './quest-dependencies.mjs';
 import {dependencyMarkup,createPrerequisitePicker} from './quest-dependency-view.mjs';
 import {createQuestUnlockEffects} from './quest-unlock.mjs';
 import {renderDailyBookCover,createDailyBookWindow} from './daily-book.mjs';
+import {leatherDyeMarkup,renderLeatherColorPicker} from './leather-colors.mjs';
+import {bindCoverEditor,renderCoverEditorFields} from './cover-editor.mjs';
+import {createPaperweight,paperweightFace} from './paperweight.mjs';
+import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './photo-sheet.mjs';
+import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -80,10 +86,15 @@ let canvasBounds={...BOARD};
 let observer, saveUnavailable=false, drag=null;
 let drawerOpen=false, toolsOpen=false, folderDrawerOpen=false, archiveSearch='',folderDrawerSearch='';
 let storageDrawerControl=null,toolRailControl=null;
+let deskShutter=null;
 let storedDrag=null,suppressClickUntil=0,folioWindows=null,dailyBookWindow=null,bookDrag=null;
+let notebookWindows=null;
 let heldStamp=null, stampPointer={x:0,y:0}, stampPressTimer;
+let stampPointerFrame=null, stampTargetPaper=null;
 let bundleControl=null,atmosphere=null,questPhotos=null,photoViewer=null;
 let questUnlockEffects=null,prerequisitePicker=null;
+let paperweightControl=null;
+let photoResizeControl=null;
 const stampCues=new Map();
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const onSoundCue=(name,options)=>sound.play(name,options);
@@ -99,13 +110,16 @@ ambience.setSettings(atmosphere.getSettings());
 daypartAmbience.setSettings(atmosphere.getSettings());
 atmosphere.setAudioStatus(ambience.getStatus());
 atmosphere.setAudioStatus(daypartAmbience.getStatus());
-const deskWindows=createDeskWindows({document,window,canHandleEscape:()=>!drag&&!storedDrag&&!heldStamp&&!questPhotos?.editing&&!photoViewer?.isOpen&&!bundleControl?.dragging&&!bundleControl?.selectedIds.length});
+const deskWindows=createDeskWindows({document,window,canHandleEscape:()=>!drag&&!storedDrag&&!heldStamp&&!questPhotos?.editing&&!photoViewer?.isOpen&&!bundleControl?.dragging&&!bundleControl?.selectedIds.length&&!paperweightControl?.dragging&&!photoResizeControl?.active&&!deskShutter?.pulling&&!deskShutter?.closed});
 const paperEffects=createPaperEffects({document,window,reducedMotion,requestAnimationFrame,cancelAnimationFrame,onCue:onSoundCue});
 const paperReader=createPaperReader({document,window,windows:deskWindows,reducedMotion,onCue:onSoundCue,
   getQuest:id=>state.items.find(item=>item.id===id),renderFront:quest=>renderQuest(quest,0),
   onSave:(id,patch)=>{state=updateItem(state,id,patch);persist();renderCounts();},
   onEdit:id=>openQuest(id),
   onClose:id=>{renderBoard();renderCounts();renderFolderWindow();($(`[data-id="${id}"] [data-read-back]`)||$(`[data-storage-id="${id}"] [data-read-back]`)||$(`[data-read-back="${id}"]`))?.focus({preventScroll:true});},
+});
+const photoSheetReader=createPhotoSheetReader({document,window,windows:deskWindows,reducedMotion,icon,onCue:onSoundCue,
+  getPhoto:id=>state.items.find(item=>item.id===id),onSave:savePhotoSheet,onStore:storePhotoSheet,onDelete:id=>confirmDelete(id,'รูปนี้'),onError:showToast,
 });
 const dialog=$('#dialog');
 let startup,loadError,lastBackupWarning='';
@@ -147,19 +161,22 @@ function statCount(status){return questItems().filter(q=>q.status===status).leng
 
 function shell(){
   $('#app').innerHTML=`
+  <div id="desk-workspace">
   <main class="main quiet-desk">
     <div class="page-content desk-content">
       <section class="board-frame desk-board" aria-label="โต๊ะเควสที่จัดวางได้อิสระ">
-        <div class="board-scroll" id="board-scroll"><div class="canvas-size" id="canvas-size"><div class="board-canvas" id="board-canvas"></div></div></div>
-        <div class="empty-board" id="empty-board" hidden>${icon('feather')}<p id="empty-description">หยิบปากกาจากรางด้านบน เพื่อเริ่มเรื่องราวใหม่</p><button class="button ghost" data-action="empty-action"><span id="empty-action-text">เปิดรางเครื่องมือ</span></button></div>
+        <div class="desk-surface" id="desk-surface">
+          <div class="board-scroll" id="board-scroll"><div class="canvas-size" id="canvas-size"><div class="board-canvas" id="board-canvas"></div></div></div>
+          <div class="empty-board" id="empty-board" hidden>${icon('feather')}<p id="empty-description">หยิบปากกาจากรางด้านบน เพื่อเริ่มเรื่องราวใหม่</p><button class="button ghost" data-action="empty-action"><span id="empty-action-text">เปิดรางเครื่องมือ</span></button></div>
+        </div>
       </section>
     </div>
   </main>
   <aside class="quest-drawer side-storage" id="quest-drawer" aria-label="ลิ้นชักเก็บกระดาษและแฟ้ม" style="--drawer-reveal:0px">
     <button class="drawer-handle" id="drawer-handle" aria-label="ดึงไปทางซ้ายหรือคลิกเพื่อเปิดลิ้นชักเก็บของด้านขวา" aria-expanded="false" aria-controls="drawer-content">${icon('archive')}<span>ลิ้นชักเก็บของ</span><b id="drawer-badge">0</b>${icon('grip')}</button>
     <div class="drawer-body" id="drawer-content" inert>
-      <div class="tray-toolbar"><div><span class="eyebrow">THE GUILD'S KEEPSAKES</span><h2>ลิ้นชักเก็บของ</h2></div><label class="drawer-search">${icon('search')}<input id="archive-search" type="search" placeholder="ค้นหาเควส แฟ้ม หรือเควสข้างใน…" aria-label="ค้นหาของในลิ้นชัก"></label><button class="button ghost small" data-action="new-folder">${icon('plus')}สร้างแฟ้ม</button><button class="icon-button" data-action="close-drawer" aria-label="ปิดลิ้นชัก">${icon('cross')}</button></div>
-      <div class="storage-viewport drawer-dropzone" id="drawer-dropzone"><div id="drawer-list" class="storage-plane"></div><p class="tray-empty" id="tray-empty">ลากกระดาษหรือแฟ้มมาวางที่นี่<br><small>จัดตำแหน่งได้เหมือนบนโต๊ะ · ลากออกไปวางบนโต๊ะเพื่อนำกลับ</small></p></div>
+      <div class="tray-toolbar"><div><span class="eyebrow">THE GUILD'S KEEPSAKES</span><h2>ลิ้นชักเก็บของ</h2></div><label class="drawer-search">${icon('search')}<input id="archive-search" type="search" placeholder="ค้นหาเควส แฟ้ม หรือรูป…" aria-label="ค้นหาของในลิ้นชัก"></label><button class="button ghost small" data-action="new-folder">${icon('plus')}สร้างแฟ้ม</button><button class="icon-button" data-action="close-drawer" aria-label="ปิดลิ้นชัก">${icon('cross')}</button></div>
+      <div class="storage-viewport drawer-dropzone" id="drawer-dropzone"><div id="drawer-list" class="storage-plane"></div><p class="tray-empty" id="tray-empty">ลากกระดาษ แฟ้ม หรือรูปมาวางที่นี่<br><small>จัดตำแหน่งได้เหมือนบนโต๊ะ · ลากออกไปวางบนโต๊ะเพื่อนำกลับ</small></p></div>
       <p class="tray-hint">ลากหัวกระดาษหรือสันแฟ้มเพื่อจัดวาง · คลิกชื่อเพื่อเปิดอ่าน · เลื่อนดูของในถาดได้</p>
     </div>
   </aside>
@@ -168,7 +185,7 @@ function shell(){
     <button class="drawer-handle" id="tool-drawer-handle" aria-label="ดึงลงหรือคลิกเพื่อเปิดรางเครื่องมือด้านบน" aria-expanded="false" aria-controls="tool-drawer-content">${icon('feather')}<span>เครื่องเขียนของกิลด์</span>${icon('grip')}</button>
     <div class="drawer-body" id="tool-drawer-content" inert>
       <button class="pen-tool" data-action="new-quest"><span class="quill-illustration">${icon('feather')}</span><span><strong>เขียนเควสใหม่</strong><small>หยิบปากกา แล้วเริ่มเรื่องราว</small></span></button>
-      <button class="pen-tool ledger-rail-tool" data-action="open-daily-book"><span class="quill-illustration">${icon('scroll')}</span><span><strong>สมุดงานประจำวัน</strong><small>ขีดนับงานที่ทำซ้ำทุกวัน</small></span></button>
+      <button class="pen-tool" data-action="new-photo-sheet"><span class="quill-illustration">${icon('photo')}</span><span><strong>วางรูปบนโต๊ะ</strong></span></button>
       <div class="stamp-rack" role="group" aria-label="หยิบตราประทับ">${['done','failed','paused'].map(status=>`<button class="stamp-pick" data-pick-stamp="${status}" style="--tool-ink:${STATUS[status].color}" aria-pressed="false" aria-label="หยิบตรา${STATUS[status].label}"><span class="mini-stamper">${icon(status==='done'?'check':status==='failed'?'cross':'pause')}</span><strong>${STATUS[status].label}</strong><small>${STATUS[status].en}</small></button>`).join('')}</div>
       <p class="tool-help">หยิบตรา → คลิกกระดาษเพื่อปั๊ม<br>คลิกขวาหรือกด Esc เพื่อเก็บตราคืน</p>
       <button class="button ghost small" data-action="return-stamp" id="return-stamp" hidden>${icon('stamp')}เก็บตราคืนลิ้นชัก</button>
@@ -176,6 +193,7 @@ function shell(){
       <button class="icon-button rail-close" data-action="close-tools" aria-label="พับเก็บรางเครื่องมือ">${icon('cross')}</button>
     </div>
   </aside>
+  </div>
   <dialog id="tool-menu-dialog" class="tool-menu-dialog" aria-labelledby="tool-menu-title">
       <header class="tool-menu-header"><div><span class="eyebrow">THE ADVENTURER'S DESK</span><h2 id="tool-menu-title">เครื่องมือของกิลด์</h2></div><button class="icon-button" data-action="close-tool-menu" aria-label="ปิดเครื่องมืออื่น ๆ">${icon('cross')}</button></header>
       <section class="drawer-menu">
@@ -183,7 +201,7 @@ function shell(){
         <label class="tool-custom-select">ตราของฉัน<select id="tool-custom-stamp" aria-label="เลือกตราที่อัปโหลด"></select></label>
         <label class="drawer-search">${icon('search')}<input id="search" type="search" aria-label="ค้นหาเควสบนโต๊ะ" placeholder="ค้นหาเควสบนโต๊ะ…" autocomplete="off"></label>
         <div class="drawer-filters" role="group" aria-label="กรองสถานะ"><button data-filter="all">ทั้งหมด <span id="all-badge"></span></button>${['active','done','failed','paused'].map(status=>`<button data-filter="${status}">${STATUS[status].label}</button>`).join('')}</div>
-        <div class="drawer-menu-grid"><button data-action="open-daily-book">${icon('scroll')}สมุดงานประจำวัน</button><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
+        <div class="drawer-menu-grid"><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
         <div class="sound-controls"><button id="sound-toggle" class="button ghost small" aria-pressed="false">${icon('volume')}<span></span></button><label>เสียงหยิบจับ<input id="sound-volume" type="range" min="0" max="100" aria-label="ความดังเสียงหยิบจับ"></label><button class="button ghost small" id="sound-preview">ลองฟัง</button></div>
         <div id="atmosphere-controls"></div>
         <div class="canvas-controls"><button class="zoom-button" data-action="zoom-out" aria-label="ย่อโต๊ะ">${icon('minus')}</button><button class="zoom-percent" data-action="zoom-reset" title="คืนขนาดเริ่มต้น">100%</button><button class="zoom-button" data-action="zoom-in" aria-label="ขยายโต๊ะ">${icon('plus')}</button></div>
@@ -191,6 +209,15 @@ function shell(){
         <span id="save-indicator"><span class="save-dot"></span>บันทึกแล้วในเบราว์เซอร์</span>
       </section>
   </dialog>
+  <div class="desk-shutter" id="desk-shutter">
+    <div class="desk-shutter-veil" aria-hidden="true"></div>
+    <div class="desk-shutter-panel">
+      <div class="desk-shutter-light" aria-hidden="true"></div>
+      <button class="desk-shutter-handle" id="desk-shutter-handle" type="button" aria-controls="desk-workspace"><span aria-hidden="true">✧</span></button>
+      <span class="desk-shutter-star" aria-hidden="true">✧</span>
+    </div>
+  </div>
+  <input id="photo-sheet-file" type="file" accept="image/png,image/jpeg,image/webp" hidden>
   <div id="stamp-cursor" class="stamp-cursor" aria-hidden="true"></div>`;
   $('#search').addEventListener('input',e=>{filters.search=e.target.value;renderBoard();});
   $('#tool-stamp-style').addEventListener('change',e=>{returnStamp(false);state={...state,settings:{...state.settings,stampStyle:e.target.value}};persist();});
@@ -199,16 +226,59 @@ function shell(){
   $('#board-canvas').addEventListener('pointerdown',startDailyBookDrag);
   $('#board-canvas').addEventListener('pointerdown',startDrag);
   $('#board-canvas').addEventListener('keydown',moveWithKeyboard);
+  $('#drawer-list').addEventListener('keydown',event=>{if(event.target.matches('[data-photo-drag],[data-notebook-drag]'))moveWithKeyboard(event);});
+  $('#photo-sheet-file').addEventListener('change',event=>{
+    const file=event.target.files[0];event.target.value='';if(file)addPhotoSheet(file);
+  });
+  $('#board-scroll').addEventListener('dragover',event=>{
+    if(event.dataTransfer?.types.includes('Files')){event.preventDefault();event.dataTransfer.dropEffect='copy';}
+  });
+  $('#board-scroll').addEventListener('drop',event=>{
+    const file=event.dataTransfer?.files[0];if(!file)return;
+    event.preventDefault();addPhotoSheet(file,{x:event.clientX,y:event.clientY});
+  });
   setupDrawer();
+  const coveredWindows=new Set();
+  deskShutter=bindDeskShutter({window,shutter:$('#desk-shutter'),panel:$('.desk-shutter-panel'),
+    handle:$('#desk-shutter-handle'),surface:$('#desk-workspace'),
+    canUse:()=>!(drag||storedDrag||bookDrag||bundleControl?.dragging||photoResizeControl?.active||paperweightControl?.dragging||dialog.open||$('#tool-menu-dialog').open),
+    onChange:closed=>{
+      if(closed){
+        returnStamp(false);
+        for(const panel of document.querySelectorAll('[data-desk-window],.quest-bundle-selection,#toast')){
+          if(panel.inert)continue;
+          panel.inert=true;coveredWindows.add(panel);
+        }
+      }else{
+        for(const panel of coveredWindows)panel.inert=false;
+        coveredWindows.clear();
+      }
+      sound.play(closed?'drawerClose':'drawerOpen');
+    },
+  });
   folioWindows=createFolioWindows({document,window,windows:deskWindows,renderQuest,icon,binding:folioBindingMarkup,reducedMotion,onCue:onSoundCue,
     onRead:id=>{returnStamp(false);closeToolMenu();paperReader.open(id,{back:false});},
   });
   dailyBookWindow=createDailyBookWindow({document,window,windows:deskWindows,getState:()=>state,onCommit:(next,msg)=>commit(next,msg),
     onEditMeta:openDailyBookMetaEditor,onEditTask:openDailyTaskEditor,onDeleteTask:confirmDeleteDailyTask,icon,onCue:onSoundCue,reducedMotion,
   });
+  notebookWindows=createNotebookWindows({document,window,windows:deskWindows,getBook:findNotebook,icon,onCue:onSoundCue,reducedMotion,
+    writePages:(id,pages)=>{state=updateItem(state,id,{pages});persist();},
+    editCover:openNotebookEditor,store:toggleNotebookStorage,
+  });
   atmosphere.mount($('#board-scroll'));atmosphere.mountControls($('#atmosphere-controls'));
   setupQuestBundles();
   setupQuestPhotos();
+  paperweightControl=createPaperweight({canvas:$('#board-canvas'),viewport:$('#board-scroll'),getState:()=>state,
+    getLayout:()=>({bounds:canvasBounds,scale:currentScale}),save:savePaperweight,onEdit:openPaperweightEditor,icon,
+    onCue:onSoundCue,onError:showToast,reducedMotion,
+    isBlocked:()=>!!(drag||storedDrag||bookDrag||heldStamp||bundleControl?.dragging||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open),
+  });
+  photoResizeControl=bindPhotoSheetResizing({document,window,getPhoto:id=>state.items.find(item=>item.id===id),
+    getPlaneScale:card=>card.parentElement?.id==='drawer-list'?TRAY_SCALE:card.parentElement?.id==='board-canvas'?currentScale:0,
+    save:savePhotoSheetSize,onStart:cancelMotion,onError:showToast,
+    isBlocked:()=>!!(drag||storedDrag||bookDrag||heldStamp||paperweightControl?.dragging||bundleControl?.dragging||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open),
+  });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
@@ -290,17 +360,27 @@ function folioBindingMarkup(){
   return '<span class="folio-binding" aria-hidden="true"><span class="folio-cord folio-cord-left"></span><span class="folio-cord folio-cord-right"></span><span class="folio-knot"><i></i><i></i></span><span class="folio-cord-tail folio-tail-left"></span><span class="folio-cord-tail folio-tail-right"></span><span class="folio-eyelet"></span></span>';
 }
 function renderFolder(folder){
-  return `<article class="board-folder board-item folder-${folder.color}" data-id="${folder.id}" data-folder-target="${folder.id}" style="left:${folder.x}px;top:${folder.y}px;--rotation:${folder.rotation}deg;z-index:${folder.z}" aria-label="แฟ้มหนัง ${esc(folder.name)}">
+  const dye=leatherDyeMarkup(folder.color);
+  return `<article class="board-folder board-item folder-${folder.color}" data-id="${folder.id}" data-folder-target="${folder.id}"${dye.attributes} style="left:${folder.x}px;top:${folder.y}px;${dye.style}--rotation:${folder.rotation}deg;z-index:${folder.z}" aria-label="แฟ้มหนัง ${esc(folder.name)}">
     <div class="folder-tab drag-handle" role="button" tabindex="0" aria-label="ลากแฟ้ม ${esc(folder.name)} หรือใช้ปุ่มลูกศร">${icon('grip')}<span>${esc(folder.name)}</span></div>
     <button class="folder-cover" data-open-folder="${folder.id}">${icon('shield')}<strong class="folder-title">${esc(folder.name)}</strong><span>${folderMembers(folder.id).length} เควส</span><small>คลายเชือกเปิดอ่าน · ลากเควสมาวางเพื่อเก็บ</small></button>
     ${folioBindingMarkup()}
-    <div class="folder-actions"><button data-edit-folder="${folder.id}" aria-label="แก้ไขแฟ้ม ${esc(folder.name)}">${icon('edit')}</button><button data-store-folder="${folder.id}" aria-label="เก็บแฟ้ม ${esc(folder.name)} เข้าลิ้นชัก">${icon('archive')}</button></div>
+    <div class="folder-actions"><button data-edit-folder="${folder.id}" title="แก้ไขชื่อและสีแฟ้ม" aria-label="แก้ไขชื่อและสีแฟ้ม ${esc(folder.name)}">${icon('edit')}</button><button data-store-folder="${folder.id}" aria-label="เก็บแฟ้ม ${esc(folder.name)} เข้าลิ้นชัก">${icon('archive')}</button></div>
   </article>`;
 }
 function openFolderEditor(id){
   const folder=state.items.find(i=>i.id===id&&i.type==='folder');
-  openDialog(folder?'จัดแฟ้มหนัง':'สร้างแฟ้มหนังใหม่','รวมเควสที่เกี่ยวข้องไว้ด้วยกัน หยิบมาดูได้ทุกเมื่อ',`<form class="dialog-body" id="folder-form"><label class="field">ชื่อแฟ้ม<input name="name" maxlength="60" required autofocus value="${esc(folder?.name||'')}" placeholder="เช่น งานเขียน / เควสประจำสัปดาห์"></label><label class="field">สีแฟ้ม<select name="color">${[['gold','หนังสีน้ำตาล'],['sage','หนังเขียวมอส'],['red','หนังแดงไวน์']].map(([value,label])=>`<option value="${value}" ${folder?.color===value?'selected':''}>${label}</option>`).join('')}</select></label><p id="form-error" class="form-error" hidden></p><footer class="dialog-footer">${folder?`<button class="button danger-ghost" type="button" id="delete-folder">${icon('trash')}นำแฟ้มออก</button>`:'<span></span>'}<div><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('folder')}${folder?'บันทึกแฟ้ม':'สร้างแฟ้มในลิ้นชัก'}</button></div></footer></form>`,'small-dialog');
-  $('#folder-form').onsubmit=e=>{e.preventDefault();try{const values=Object.fromEntries(new FormData(e.target));let next;if(folder)next=updateItem(state,id,values);else next={...state,items:[...state.items,createFolder(values,state)]};if(!folder){folderDrawerSearch='';$('#folder-drawer-search').value='';}closeDialog();sound.play(folder?'pen':'folderDrop');commit(next,folder?'บันทึกแฟ้มแล้ว':'สร้างแฟ้มในลิ้นชักแฟ้มแล้ว');if(!folder)setFolderDrawerOpen(true);}catch(err){formError(err.message);}};
+  const fields=`<label class="field">ชื่อแฟ้ม<input name="name" maxlength="60" required autofocus value="${esc(folder?.name||'')}" placeholder="เช่น งานเขียน / เควสประจำสัปดาห์"></label>
+    ${renderLeatherColorPicker('สีหนังแฟ้ม',folder?.color)}`;
+  const cover=renderFolder(folder??{id:'',name:'แฟ้มหนัง',color:'gold',x:0,y:0,rotation:0,z:0});
+  openDialog(folder?'จัดแฟ้มหนัง':'สร้างแฟ้มหนังใหม่','รวมเควสที่เกี่ยวข้องไว้ด้วยกัน หยิบมาดูได้ทุกเมื่อ',`<form class="dialog-body" id="folder-form">
+    ${renderCoverEditorFields(fields,cover,{width:PAPER.width,height:210})}
+    <p id="form-error" class="form-error" hidden></p>
+    <footer class="dialog-footer">${folder?`<button class="button danger-ghost" type="button" id="delete-folder">${icon('trash')}นำแฟ้มออก</button>`:'<span></span>'}<div><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('folder')}${folder?'บันทึกแฟ้ม':'สร้างแฟ้มในลิ้นชัก'}</button></div></footer>
+  </form>`,'cover-editor-dialog');
+  const form=$('#folder-form');
+  bindCoverEditor(form);
+  form.onsubmit=e=>{e.preventDefault();try{const values=Object.fromEntries(new FormData(e.target));let next;if(folder)next=updateItem(state,id,values);else next={...state,items:[...state.items,createFolder(values,state)]};if(!folder){folderDrawerSearch='';$('#folder-drawer-search').value='';}closeDialog();sound.play(folder?'pen':'folderDrop');commit(next,folder?'บันทึกแฟ้มแล้ว':'สร้างแฟ้มในลิ้นชักแฟ้มแล้ว');if(!folder)setFolderDrawerOpen(true);}catch(err){formError(err.message);}};
   if(folder)$('#delete-folder').onclick=()=>confirmDelete(id,'แฟ้มนี้ (เควสข้างในจะกลับไปอยู่ในลิ้นชัก)');
 }
 function finishFolderOpening(panel){folioWindows?.finishOpening(panel);}
@@ -316,6 +396,7 @@ function closeFolderWindow(animate=false,id=folioWindows?.activeId){
 function renderFolderWindow(){
   folioWindows?.render(state.items);
   if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.render?.();
+  notebookWindows?.refresh();
   bundleControl?.refresh();
 }
 function folderTargetAt(e,questId){
@@ -331,7 +412,7 @@ function bundleTargetAt(e,ids){
   const folder=hit.closest('[data-folder-target]');
   if(folder&&!folder.hidden&&state.items.some(item=>item.id===folder.dataset.folderTarget&&item.type==='folder'))return {type:'folder',id:folder.dataset.folderTarget,element:folder,drawer:!!folder.closest('.quest-drawer')};
   if(overStorageTray(e,'quest'))return {type:'tray',element:$('#drawer-dropzone'),origin:$('#drawer-list').getBoundingClientRect(),scale:TRAY_SCALE};
-  if(hit.closest('[data-desk-window],.quest-drawer,dialog'))return null;
+  if(hit.closest('[data-desk-window],.quest-drawer,.desk-shutter,dialog'))return null;
   const viewport=$('#board-scroll').getBoundingClientRect();
   if(!containsPoint({x:e.clientX,y:e.clientY},viewport))return null;
   return {type:'board',element:$('#board-canvas'),origin:$('#board-canvas').getBoundingClientRect(),scale:currentScale,bounds:canvasBounds};
@@ -340,7 +421,7 @@ function setupQuestBundles(){
   bundleControl?.destroy();let drawerBefore=null,dropTarget=null;
   bundleControl=createQuestBundles({document,window,getState:()=>state,commit:next=>{if(dropTarget?.type==='board'){filters={status:'all',category:'all',search:''};$('#search').value='';}commit(next);},renderQuest,reducedMotion,
     getDropTarget:bundleTargetAt,onAssist:e=>followStorageHandle(e,'quest'),onCue:onSoundCue,
-    isBlocked:()=>!!(drag||storedDrag||heldStamp||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open||document.querySelector('.is-window-dragging')),
+    isBlocked:()=>!!(drag||storedDrag||heldStamp||deskShutter?.closed||deskShutter?.pulling||paperweightControl?.dragging||photoResizeControl?.active||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open||document.querySelector('.is-window-dragging')),
     onTarget:target=>{dropTarget=target;highlightFolder(target?.type==='folder'?target.id:null);highlightStorageTray(target?.type==='tray'?'quest-drawer':null);},
     onStart:({ids,source})=>{drawerBefore=activeDrawerId();paperEffects.cancelAll();storageDrawerControl?.rest();for(const id of ids){stampCues.get(id)?.abort();stampCues.delete(id);}const panel=source?.closest?.('.folder-window');if(panel)finishFolderOpening(panel);},
     onEnd:({committed,target})=>{clearStorageFeedback();highlightFolder(null);setActiveDrawer(committed&&(target?.type==='tray'||target?.drawer)?'quest-drawer':drawerBefore,false,false);},
@@ -348,7 +429,7 @@ function setupQuestBundles(){
 }
 function highlightFolder(id){document.querySelectorAll('[data-folder-target]').forEach(el=>el.classList.toggle('folder-drop-ready',el.dataset.folderTarget===id));}
 function overStorageTray(e,type){
-  if(!['quest','folder','daily-book'].includes(type)||!drawerOpen)return null;
+  if(!['quest','folder','daily-book','photo','notebook'].includes(type)||!drawerOpen)return null;
   const hit=document.elementFromPoint(e.clientX,e.clientY);
   if(hit?.closest('.drawer-dropzone,#drawer-list,#quest-drawer'))return 'quest-drawer';
   const drawerEl=$('#quest-drawer');
@@ -371,7 +452,7 @@ function activateStorageDrawer(id){
   clearStorageFeedback();$('#quest-drawer').classList.add('receiving');setActiveDrawer('quest-drawer',false,false);
 }
 function followStorageHandle(e,type){
-  if(!['quest','folder','daily-book'].includes(type))return;
+  if(!['quest','folder','daily-book','photo','notebook'].includes(type))return;
   const hovered=document.elementFromPoint(e.clientX,e.clientY)?.closest('.drawer-handle')?.closest('.quest-drawer')?.id;
   const nearEdge=e.clientX>=window.innerWidth-55;
   if(['quest-drawer','folder-drawer'].includes(hovered)||nearEdge)activateStorageDrawer(drawerForDraggedItem(type,activeDrawerId(),hovered??'quest-drawer'));
@@ -405,7 +486,7 @@ function stopHeldMotion(d){if(d.motionFrame)cancelAnimationFrame(d.motionFrame);
 function settlePaper(id,tilt=0){
   const item=state.items.find(i=>i.id===id),el=$(`[data-id="${id}"]`);
   if(!item||!el||item.type==='label')return;
-  queueContactSound(id,item.type==='folder'?'folderDrop':'paperDrop',typeof el.animate==='function'?166:0);
+  queueContactSound(id,['folder','notebook'].includes(item.type)?'folderDrop':'paperDrop',typeof el.animate==='function'?166:0);
   if(reducedMotion())return;
   const rotation=item.rotation;
   animateTransient(el,[{transform:`rotate(${rotation+tilt*.35}deg) scale(1.025)`,boxShadow:'4px 12px 17px #170e0a60',easing:'cubic-bezier(.2,.7,.3,1)'},
@@ -440,18 +521,18 @@ function storeInFolder(questId,folderId,ghost=null,surface='board-folder'){
   if(animated)cue.signal.addEventListener('abort',()=>{cancelMotion(ghost);ghost.remove();},{once:true});
 }
 function startStoredDrag(e){
-  const grip=e.target.closest('[data-quest-drag],[data-folder-drag],[data-daily-book-drag]');if(!grip||e.button!==0||drag||storedDrag||heldStamp||questPhotos?.editing||photoViewer?.isOpen||dialog.open)return;
+  const grip=e.target.closest('[data-quest-drag],[data-folder-drag],[data-daily-book-drag],[data-photo-drag],[data-notebook-drag]');if(!grip||e.button!==0||drag||storedDrag||heldStamp||questPhotos?.editing||photoViewer?.isOpen||dialog.open)return;
   const isBook=Boolean(grip.matches('[data-daily-book-drag]'));
   const surface=grip.closest('[data-storage-id]');
-  if(isBook&&!surface)return;
-  const id=isBook?'daily-book':(grip.dataset.questDrag||grip.dataset.folderDrag);
+  if(isBook&&(!surface||e.target.closest('button')))return;
+  const id=isBook?'daily-book':(grip.dataset.questDrag||grip.dataset.folderDrag||grip.dataset.photoDrag||grip.dataset.notebookDrag);
   const item=isBook?{...ensureDailyBook(state).dailyBook,id:'daily-book',type:'daily-book'}:state.items.find(i=>i.id===id);if(!item)return;
   stampCues.get(id)?.abort();stampCues.delete(id);
   storageDrawerControl?.rest();
   e.preventDefault();window.getSelection()?.removeAllRanges();
   const preview=grip.closest('[data-folio-paper]');
   let localGrab={x:item.type==='daily-book'?DAILY_BOOK_SIZE.width/2:150,y:28};
-  if(surface){const transform=getComputedStyle(surface).transform;const matrix=transform==='none'?{a:1,b:0,c:0,d:1}:new DOMMatrix(transform);localGrab=stampPoint({x:e.clientX,y:e.clientY},surface.getBoundingClientRect(),matrix,TRAY_SCALE,{width:item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width,height:item.type==='folder'?210:item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height});}
+  if(surface){const transform=getComputedStyle(surface).transform;const matrix=transform==='none'?{a:1,b:0,c:0,d:1}:new DOMMatrix(transform);const size=item.type==='notebook'?NOTEBOOK_SIZE:item.type==='photo'?photoSheetSize(item.aspect,item.photoScale):{width:item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width,height:item.type==='folder'?210:item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height};localGrab=stampPoint({x:e.clientX,y:e.clientY},surface.getBoundingClientRect(),matrix,TRAY_SCALE,size);}
   let scale=surface?TRAY_SCALE:currentScale;
   if(preview){
     // Capture the actual curved/lifted presentation before settling it. Each
@@ -474,18 +555,27 @@ function startStoredDrag(e){
 function moveStoredDrag(e){
   const d=storedDrag;if(!d||e.pointerId!==d.pointerId)return;
   if(!d.moved&&Math.abs(e.clientX-d.startX)+Math.abs(e.clientY-d.startY)>5){
-    d.moved=true;sound.play(d.item.type==='folder'||d.item.type==='daily-book'?'folderPick':'paperPick');
+    d.moved=true;sound.play(['folder','daily-book','notebook'].includes(d.item.type)?'folderPick':'paperPick');
     const container=document.createElement('div');
-    if(d.item.type==='daily-book'){
+    if(d.item.type==='photo'){
+      container.innerHTML=renderPhotoSheet(d.item);
+    }else if(d.item.type==='daily-book'){
       container.innerHTML=renderDailyBookCover(d.item,{icon});
+    }else if(d.item.type==='notebook'){
+      container.innerHTML=renderNotebookCover(d.item,{icon});
     }else{
       container.innerHTML=d.item.type==='folder'?renderFolder(d.item):renderQuest(d.item,0);
     }
     const ghost=container.firstElementChild;ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('data-daily-book');ghost.setAttribute('aria-hidden','true');ghost.inert=true;
-    ghost.classList.add(d.item.type==='daily-book'?'book-drag-ghost':d.item.type==='folder'?'folder-drag-ghost':'quest-drag-ghost');
-    const ghostW=d.item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
-    const ghostH=d.item.type==='folder'?210:d.item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
-    ghost.style.cssText=`position:fixed;width:${ghostW}px;height:${ghostH}px;z-index:10000;pointer-events:none;transform:scale(${d.scale}) rotate(${d.rotation}deg);transform-origin:center;`;
+    ghost.classList.add(['daily-book','notebook'].includes(d.item.type)?'book-drag-ghost':d.item.type==='folder'?'folder-drag-ghost':'quest-drag-ghost');
+    const sheet=d.item.type==='notebook'?NOTEBOOK_SIZE:d.item.type==='photo'?photoSheetSize(d.item.aspect,d.item.photoScale):null;
+    const ghostW=sheet?.width??(d.item.type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width);
+    const ghostH=sheet?.height??(d.item.type==='folder'?210:d.item.type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height);
+    // Keep the cover's rendered leather color while adding drag geometry.
+    Object.assign(ghost.style,{
+      position:'fixed',width:`${ghostW}px`,height:`${ghostH}px`,zIndex:'10000',pointerEvents:'none',
+      transform:`scale(${d.scale}) rotate(${d.rotation}deg)`,transformOrigin:'center',
+    });
     ghost.classList.add('paper-in-hand');document.body.append(ghost);d.ghost=ghost;
     d.surface?.classList.add('storage-source');
     activateStorageDrawer('quest-drawer');
@@ -508,10 +598,16 @@ function cleanupStoredDrag(keepGhost=false){
 function endStoredDrag(e){
   if(!storedDrag||e.pointerId!==storedDrag.pointerId)return;moveStoredDrag(e);const d=storedDrag;
   const viewport=$('#board-scroll').getBoundingClientRect(),origin=$('#board-canvas').getBoundingClientRect();
-  const overBoard=containsPoint({x:e.clientX,y:e.clientY},viewport)&&!document.elementFromPoint(e.clientX,e.clientY)?.closest('.quest-drawer,[data-desk-window]');
+  const overBoard=containsPoint({x:e.clientX,y:e.clientY},viewport)&&!document.elementFromPoint(e.clientX,e.clientY)?.closest('.quest-drawer,[data-desk-window],.desk-shutter');
   cleanupStoredDrag(!!d.folderTarget||!!d.overTray);
   try{
-    if(!d.moved){renderFolderWindow();return;}
+    if(!d.moved){
+      if(d.item.type==='daily-book')openDailyBook();
+      else if(d.item.type==='photo')openPhotoSheet(d.id);
+      else if(d.item.type==='notebook')openNotebook(d.id);
+      else renderFolderWindow();
+      return;
+    }
     if(d.item.type==='daily-book'){
       if(d.overTray){
         const pos=trayDrop({x:e.clientX,y:e.clientY},$('#drawer-list').getBoundingClientRect(),d.grab,TRAY_SCALE,d.item.rotation,'daily-book');
@@ -531,8 +627,9 @@ function endStoredDrag(e){
       if(d.folderTarget){storeInFolder(d.id,d.folderTarget,d.ghost,d.folderSurface);renderFolderWindow();return;}
       if(d.overTray){storeAtTray(d.id,e,d.grab);settleTrayItem(d.id,d.ghost,d.grab);renderFolderWindow();return;}
       if(overBoard){
-        const angle=d.item.rotation*Math.PI/180,cx=PAPER.width/2,cy=d.item.type==='folder'?105:PAPER.height/2,gx=d.grab.x-cx,gy=d.grab.y-cy;
-        const pos=rotatedClampPosition((e.clientX-origin.left)/currentScale-cx-gx*Math.cos(angle)+gy*Math.sin(angle),(e.clientY-origin.top)/currentScale-cy-gx*Math.sin(angle)-gy*Math.cos(angle),d.item.type,d.item.rotation,canvasBounds);
+        const size=d.item.type==='notebook'?NOTEBOOK_SIZE:d.item.type==='photo'?photoSheetSize(d.item.aspect,d.item.photoScale):{width:PAPER.width,height:d.item.type==='folder'?210:PAPER.height};
+        const angle=d.item.rotation*Math.PI/180,cx=size.width/2,cy=size.height/2,gx=d.grab.x-cx,gy=d.grab.y-cy;
+        const pos=rotatedClampPosition((e.clientX-origin.left)/currentScale-cx-gx*Math.cos(angle)+gy*Math.sin(angle),(e.clientY-origin.top)/currentScale-cy-gx*Math.sin(angle)-gy*Math.cos(angle),d.item.type,d.item.rotation,canvasBounds,d.item.aspect,d.item.photoScale);
         const next=updateItem(setArchived(state,d.id,false),d.id,{...pos,z:Math.max(...state.items.map(i=>i.z),0)+1});
         filters={status:'all',category:'all',search:''};$('#search').value='';
         setActiveDrawer(null,false,false);commit(next,'วางบนโต๊ะแล้ว');settlePaper(d.id,d.tilt);return;
@@ -549,15 +646,20 @@ function renderBoard(){
   const quests=filterQuests(state.items,filters);
   const filtered=filters.status!=='all'||filters.search||filters.category!=='all';
   const bookHtml=typeof renderDailyBookCover==='function'&&state.dailyBook&&!state.dailyBook.archived?renderDailyBookCover(state.dailyBook,{icon}):'';
-  $('#board-canvas').innerHTML=state.items.filter(i=>i.type==='label').map(renderLabel).join('')+state.items.filter(i=>i.type==='folder'&&!i.archived).map(renderFolder).join('')+bookHtml+quests.map(renderQuest).join('');
+  const notebooks=state.items.filter(item=>item.type==='notebook'&&!item.archived);
+  const search=filters.search.trim().toLocaleLowerCase('th');
+  const photos=state.items.filter(item=>item.type==='photo'&&!item.archived&&(!search||`${item.title}\n${item.notes}`.toLocaleLowerCase('th').includes(search)));
+  $('#board-canvas').innerHTML=state.items.filter(i=>i.type==='label').map(renderLabel).join('')+state.items.filter(i=>i.type==='folder'&&!i.archived).map(renderFolder).join('')+bookHtml+notebooks.map(book=>renderNotebookCover(book,{icon})).join('')+quests.map(renderQuest).join('')+photos.map(photo=>renderPhotoSheet(photo)).join('');
   $('#board-name').textContent=state.settings.boardName;
   $('.board-frame').dataset.theme=state.settings.theme;
-  $('#empty-board').hidden=quests.length>0||(!filtered&&(Boolean(bookHtml)||state.items.some(i=>i.type==='label'||(i.type==='folder'&&!i.archived))));
+  $('#empty-board').hidden=quests.length>0||photos.length>0||(!filtered&&(Boolean(bookHtml)||notebooks.length>0||state.items.some(i=>i.type==='label'||(i.type==='folder'&&!i.archived))));
   $('#empty-description').textContent=filtered?'ไม่พบเควสที่ตรงกับการค้นหาหรือตัวกรอง':'หยิบปากกาจากรางด้านบน เพื่อเริ่มเรื่องราวใหม่';
   $('#empty-action-text').textContent=filtered?'แสดงเควสทั้งหมด':'เปิดรางเครื่องมือ';
   document.querySelectorAll('[data-filter]').forEach(b=>b.classList.toggle('active',b.dataset.filter===filters.status));
   document.querySelectorAll('[data-nav]').forEach(b=>b.classList.toggle('active',b.dataset.nav===filters.status));
   resizeBoard();
+  paperweightControl?.render();
+  photoSheetReader.refreshStorage();
   bundleControl?.refresh();
   questPhotos?.refresh();
 }
@@ -577,10 +679,13 @@ function resizeBoard(){
   // viewport gets narrower, but papers retain their scale during cross-desk drags.
   const fitWidth=undockedFitWidth(rect.width-parseFloat(css.borderLeftWidth)-parseFloat(css.borderRightWidth),parseFloat(pageCSS.paddingLeft),parseFloat(pageCSS.paddingRight));
   const fitHeight=undockedFitHeight(rect.height-parseFloat(css.borderTopWidth)-parseFloat(css.borderBottomWidth),parseFloat(pageCSS.paddingTop),parseFloat(pageCSS.paddingBottom));
-  const layout=canvasLayout({width:viewport.clientWidth,height:viewport.clientHeight,fitWidth,fitHeight},state.items,zoom,window.innerWidth<=760);
+  const items=state.paperweight ? [...state.items,{...state.paperweight,type:'paperweight',rotation:0}] : state.items;
+  const layout=canvasLayout({width:viewport.clientWidth,height:viewport.clientHeight,fitWidth,fitHeight},items,zoom,window.innerWidth<=760);
   if(Math.abs(layout.scale-currentScale)<.001)layout.scale=currentScale;
   if(drag&&layout.scale!==currentScale)cancelDrag();
   if(storedDrag&&layout.scale!==currentScale)cancelStoredDrag();
+  if(layout.scale!==currentScale)paperweightControl?.cancel();
+  if(layout.scale!==currentScale)photoResizeControl?.cancel();
   currentScale=layout.scale;canvasBounds={width:layout.width,height:layout.height};
   $('#board-canvas').style.width=layout.width+'px';$('#board-canvas').style.height=layout.height+'px';$('#board-canvas').style.transform=`scale(${currentScale})`;
   $('#canvas-size').style.width=layout.width*currentScale+'px';$('#canvas-size').style.height=layout.height*currentScale+'px';
@@ -647,6 +752,9 @@ function refreshToolOptions(){
   $('#tool-stamp-style').value=state.settings.stampStyle;
   $('#tool-custom-stamp').innerHTML=`<option value="">${state.stamps.length?'เลือกตราที่อัปโหลด…':'เพิ่มรูปตราได้ที่คลังตรา'}</option>`+state.stamps.map(s=>`<option value="${esc(s.id)}">${esc(s.name)} · ${STATUS[s.status].label}</option>`).join('');
   $('#tool-custom-stamp').disabled=!state.stamps.length;
+  refreshStampToolButtons();
+}
+function refreshStampToolButtons(){
   document.querySelectorAll('[data-pick-stamp]').forEach(b=>{const selected=heldStamp?.status===b.dataset.pickStamp&&!heldStamp.stampId;b.classList.toggle('is-selected',selected);b.setAttribute('aria-pressed',String(selected));});
   $('#return-stamp').hidden=!heldStamp;
 }
@@ -658,7 +766,7 @@ function pickStamp(status,event,custom=null){
   const symbol=status==='done'?'check':status==='failed'?'cross':'pause';
   const cursor=$('#stamp-cursor');cursor.style.setProperty('--tool-ink',STATUS[status].color);
   cursor.innerHTML=`<span class="cursor-stamper">${custom?`<img class="cursor-stamp-image" src="${esc(custom.dataUrl)}" alt="">`:icon(symbol)}</span><span class="cursor-caption">${esc(heldStamp.name)}</span>`;
-  sound.play('stampPick');document.body.classList.add('is-stamping');refreshToolOptions();setToolsOpen(false,false);updateStampPointer();
+  sound.play('stampPick');document.body.classList.add('is-stamping');refreshStampToolButtons();setToolsOpen(false,false);queueStampPointer();
   if(event?.detail===0){
     const top=deskWindows.top;
     (top?.querySelector('.paper-reader-scene[data-side="front"]')||top?.querySelector('.folio-paper-stage .quest-top')||$('#board-canvas .quest-paper .drag-handle'))?.focus({preventScroll:true});
@@ -668,24 +776,46 @@ function pickStamp(status,event,custom=null){
 function updateStampPointer(event){
   if(event)stampPointer={x:event.clientX,y:event.clientY};
   const cursor=$('#stamp-cursor');if(!cursor)return;
-  cursor.style.left=stampPointer.x+'px';cursor.style.top=stampPointer.y+'px';
   const under=document.elementFromPoint(stampPointer.x,stampPointer.y);
   const surface=heldStampSurface(under);
-  const visible=!!heldStamp&&!dialog.open&&!$('#tool-menu-dialog')?.open&&(!!surface||!!under?.closest('.desk-board'));
+  const visible=!!heldStamp&&!dialog.open&&!$('#tool-menu-dialog')?.open&&(!!surface||!!under?.closest('.desk-surface'));
+  const zIndex=String(deskWindows.topZ+2);
+  if(cursor.style.zIndex!==zIndex)cursor.style.zIndex=zIndex;
+  cursor.style.translate=`${stampPointer.x}px ${stampPointer.y}px`;
   cursor.classList.toggle('is-visible',visible);
-  cursor.style.zIndex=String([...document.querySelectorAll('[data-desk-window]')].reduce((z,panel)=>panel.hidden?z:Math.max(z,Number(panel.style.zIndex)||0),220)+2);
-  document.querySelectorAll('.stamp-target').forEach(el=>el.classList.remove('stamp-target'));
-  surface?.paper.classList.add('stamp-target');
+  setStampTarget(surface?.paper ?? null);
+}
+function setStampTarget(paper){
+  if(stampTargetPaper===paper)return;
+  stampTargetPaper?.classList.remove('stamp-target');
+  stampTargetPaper=paper;
+  paper?.classList.add('stamp-target');
+}
+function queueStampPointer(event){
+  if(!heldStamp)return;
+  if(event)stampPointer={x:event.clientX,y:event.clientY};
+  if(stampPointerFrame!==null)return;
+  stampPointerFrame=requestAnimationFrame(()=>{
+    stampPointerFrame=null;
+    if(heldStamp)updateStampPointer();
+  });
+}
+function hideStampPointer(){
+  if(stampPointerFrame!==null)cancelAnimationFrame(stampPointerFrame);
+  stampPointerFrame=null;
+  $('#stamp-cursor')?.classList.remove('is-visible');
+  setStampTarget(null);
 }
 function returnStamp(animate=true){
   if(!heldStamp)return;
   const cursor=$('#stamp-cursor');
   if(animate&&!reducedMotion()&&cursor?.classList.contains('is-visible')){
     const ghost=cursor.cloneNode(true),handle=$('#tool-drawer-handle').getBoundingClientRect();ghost.removeAttribute('id');document.body.append(ghost);
-    ghost.animate([{opacity:1},{left:(handle.left+handle.width/2)+'px',top:(handle.top+handle.height/2)+'px',transform:'translate(-50%,-50%) scale(.12)',opacity:0}],{duration:320,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{}).then(()=>ghost.remove());
+    const destination=`${handle.left+handle.width/2}px ${handle.top+handle.height/2}px`;
+    ghost.animate([{translate:cursor.style.translate,opacity:1},{translate:destination,transform:'translate(-50%,-50%) scale(.12)',opacity:0}],{duration:320,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{}).then(()=>ghost.remove());
   }
-  heldStamp=null;clearTimeout(stampPressTimer);document.body.classList.remove('is-stamping');cursor?.classList.remove('is-visible','is-pressing');
-  document.querySelectorAll('.stamp-target').forEach(el=>el.classList.remove('stamp-target'));refreshToolOptions();
+  heldStamp=null;clearTimeout(stampPressTimer);document.body.classList.remove('is-stamping');cursor?.classList.remove('is-pressing');
+  hideStampPointer();refreshStampToolButtons();
   if(animate){sound.play('stampReturn');showToast('เก็บตราคืนลิ้นชักแล้ว');}
 }
 function heldStampSurface(target){
@@ -749,6 +879,15 @@ function renderDrawer(){
   }
   plane.innerHTML=bookMarkup+found.map(item=>{
     const index=all.findIndex(i=>i.id===item.id),position=trayPosition(item,index);
+    if(item.type==='notebook'){
+      width=Math.max(width,position.x+NOTEBOOK_SIZE.width+40);height=Math.max(height,position.y+NOTEBOOK_SIZE.height+40);
+      return renderNotebookCover(item,{icon,storage:true,position});
+    }
+    if(item.type==='photo'){
+      const size=photoSheetSize(item.aspect,item.photoScale);
+      width=Math.max(width,position.x+size.width+40);height=Math.max(height,position.y+size.height+40);
+      return renderPhotoSheet(item,{storage:true,position});
+    }
     width=Math.max(width,position.x+PAPER.width+40);height=Math.max(height,position.y+(item.type==='folder'?210:PAPER.height)+40);
     let html=item.type==='folder'?renderFolder(item):renderQuest(item,index);
     html=html.replace(`data-id="${item.id}"`,`data-storage-id="${item.id}"`).replace(/left:[^;]+;top:[^;]+;/,`left:${position.x}px;top:${position.y}px;`);
@@ -759,20 +898,21 @@ function renderDrawer(){
   plane.style.width=width+'px';plane.style.height=height+'px';
   plane.parentElement.style.setProperty('--tray-width',width*TRAY_SCALE+'px');
   plane.parentElement.style.setProperty('--tray-height',height*TRAY_SCALE+'px');
-  const empty=$('#tray-empty');empty.hidden=found.length>0||bookInTray;empty.firstChild.textContent=archiveSearch?'ไม่พบเควสหรือแฟ้มที่ค้นหา':'ลากกระดาษหรือแฟ้มมาวางที่นี่';
+  const empty=$('#tray-empty');empty.hidden=found.length>0||bookInTray;empty.firstChild.textContent=archiveSearch?'ไม่พบของที่ค้นหา':'ลากกระดาษ แฟ้ม หรือรูปมาวางที่นี่';
   bundleControl?.refresh();
 }
 function storeAtTray(id,event,grab){
   const item=state.items.find(i=>i.id===id);if(!item)return;
-  const position=event?trayDrop({x:event.clientX,y:event.clientY},$('#drawer-list').getBoundingClientRect(),grab,TRAY_SCALE,item.rotation,item.type):trayPosition(item,trayItems(state).length);
+  const position=event?trayDrop({x:event.clientX,y:event.clientY},$('#drawer-list').getBoundingClientRect(),grab,TRAY_SCALE,item.rotation,item.type,item.aspect,item.photoScale):trayPosition(item,trayItems(state).length);
   commit(updateItem(setArchived(state,id,true),id,{storagePosition:position,z:Math.max(...state.items.map(i=>i.z),0)+1}));
 }
 function settleTrayItem(id,ghost,grab={x:150,y:28}){
   const target=$(`[data-storage-id="${id}"]`),item=state.items.find(i=>i.id===id);
   const animated=target&&ghost&&!reducedMotion()&&typeof ghost.animate==='function';
-  const cue=queueContactSound(id,item?.type==='folder'?'folderDrop':'paperDrop',animated?144:0);
+  const cue=queueContactSound(id,['folder','notebook'].includes(item?.type)?'folderDrop':'paperDrop',animated?144:0);
   if(!animated){ghost?.remove();return;}
-  const rect=target.getBoundingClientRect(),cx=PAPER.width/2,cy=item.type==='folder'?105:PAPER.height/2,angle=item.rotation*Math.PI/180;
+  const size=item.type==='notebook'?NOTEBOOK_SIZE:item.type==='photo'?photoSheetSize(item.aspect,item.photoScale):{width:PAPER.width,height:item.type==='folder'?210:PAPER.height};
+  const rect=target.getBoundingClientRect(),cx=size.width/2,cy=size.height/2,angle=item.rotation*Math.PI/180;
   const dx=grab.x-cx,dy=grab.y-cy;
   const anchor={x:rect.left+rect.width/2+(dx*Math.cos(angle)-dy*Math.sin(angle))*TRAY_SCALE,y:rect.top+rect.height/2+(dx*Math.sin(angle)+dy*Math.cos(angle))*TRAY_SCALE};
   const from={left:ghost.style.left,top:ghost.style.top,transform:ghost.style.transform,transformOrigin:ghost.style.transformOrigin};
@@ -789,7 +929,7 @@ function archiveQuest(id,ghost,event,grab={x:150,y:28}){
   closeFolderWindow(false,id);
   let next;try{next=setArchived(state,id,true);}catch(err){showToast(err.message);ghost?.remove();return;}
   setActiveDrawer('quest-drawer',false,false);archiveSearch='';$('#archive-search').value='';
-  if(event){const item=state.items.find(i=>i.id===id);const position=trayDrop({x:event.clientX,y:event.clientY},$('#drawer-list').getBoundingClientRect(),grab,TRAY_SCALE,item.rotation,item.type);next=updateItem(next,id,{storagePosition:position,z:Math.max(...state.items.map(i=>i.z),0)+1});}
+  if(event){const item=state.items.find(i=>i.id===id);const position=trayDrop({x:event.clientX,y:event.clientY},$('#drawer-list').getBoundingClientRect(),grab,TRAY_SCALE,item.rotation,item.type,item.aspect,item.photoScale);next=updateItem(next,id,{storagePosition:position,z:Math.max(...state.items.map(i=>i.z),0)+1});}
   commit(next);
   settleTrayItem(id,ghost,grab);showToast('เก็บเข้าลิ้นชักแล้ว',{label:'นำกลับ',run:()=>restoreQuest(id)});
 }
@@ -803,6 +943,7 @@ function startDrag(e){
   if(heldStamp||questPhotos?.editing||photoViewer?.isOpen||e.button!==0||!e.target.closest('.drag-handle')||e.target.closest('[data-daily-book]')||drag||storedDrag)return;
   e.preventDefault();window.getSelection()?.removeAllRanges();
   const el=e.target.closest('.board-item');const item=state.items.find(i=>i.id===el.dataset.id);if(!item)return;
+  if(state.paperweight?.questId===item.id){showToast('ยกที่ทับกระดาษออกก่อนย้ายใบเควส');return;}
   stampCues.get(item.id)?.abort();stampCues.delete(item.id);
   const handle=e.target.closest('.drag-handle');handle.focus({preventScroll:true});
   let arrivingGrab=null;
@@ -822,7 +963,7 @@ function startDrag(e){
     el.style.left=position.x+'px';el.style.top=position.y+'px';
   }
   const bounds=rotatedOrigin(el.getBoundingClientRect(),el.offsetWidth,el.offsetHeight,item.rotation,currentScale);
-  drag={id:item.id,type:item.type,rotation:item.rotation,el,handle,startX:e.clientX,startY:e.clientY,...position,originalX:item.x,originalY:item.y,arrivingPickup:!!arrivingGrab,next:arrivingGrab?rotatedClampPosition(position.x,position.y,item.type,item.rotation,canvasBounds):null,moved:false,pointerId:e.pointerId,drawerBefore:activeDrawerId(),ghost:null,grab:arrivingGrab??grabPoint({x:e.clientX,y:e.clientY},bounds,currentScale,item.rotation),bounds,overTray:false,canvasOrigin};
+  drag={id:item.id,type:item.type,aspect:item.aspect,photoScale:item.photoScale,rotation:item.rotation,el,handle,startX:e.clientX,startY:e.clientY,...position,originalX:item.x,originalY:item.y,arrivingPickup:!!arrivingGrab,next:arrivingGrab?rotatedClampPosition(position.x,position.y,item.type,item.rotation,canvasBounds,item.aspect,item.photoScale):null,moved:false,pointerId:e.pointerId,drawerBefore:activeDrawerId(),ghost:null,grab:arrivingGrab??grabPoint({x:e.clientX,y:e.clientY},bounds,currentScale,item.rotation),bounds,overTray:false,canvasOrigin};
   handle.setPointerCapture(e.pointerId);el.classList.add('dragging');el.style.zIndex=Math.max(...state.items.map(i=>i.z),0)+1;
   handle.addEventListener('pointermove',onDrag);handle.addEventListener('pointerup',endDrag);handle.addEventListener('pointercancel',cancelDrag);
 }
@@ -831,16 +972,16 @@ function onDrag(e){
   const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
   if(!drag.moved&&Math.abs(dx)+Math.abs(dy)>4){
     drag.moved=true;
-    sound.play(drag.type==='folder'?'folderPick':'paperPick');
-    if(drag.type==='quest'||drag.type==='folder'){
-      const ghost=drag.el.cloneNode(true);ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('aria-label');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');ghost.classList.add(drag.type==='folder'?'folder-drag-ghost':'quest-drag-ghost','paper-in-hand');ghost.style.setProperty('--drag-scale',currentScale);ghost.style.zIndex='10000';ghost.querySelectorAll('[tabindex],button').forEach(el=>el.setAttribute('tabindex','-1'));document.body.append(ghost);drag.ghost=ghost;drag.el.classList.add('drag-source');
+    sound.play(['folder','notebook'].includes(drag.type)?'folderPick':'paperPick');
+    if(['quest','folder','photo','notebook'].includes(drag.type)){
+      const ghost=drag.el.cloneNode(true);ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('aria-label');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');ghost.classList.add(drag.type==='notebook'?'book-drag-ghost':drag.type==='folder'?'folder-drag-ghost':'quest-drag-ghost','paper-in-hand');ghost.style.setProperty('--drag-scale',currentScale);ghost.style.zIndex='10000';ghost.querySelectorAll('[tabindex],button').forEach(el=>el.setAttribute('tabindex','-1'));document.body.append(ghost);drag.ghost=ghost;drag.el.classList.add('drag-source');
       // Storage opens when its side handle is approached, leaving the desk free.
     }
   }
   if(!drag.moved)return;
   const origin=$('#board-canvas').getBoundingClientRect();
   const raw=dragPosition({x:drag.x,y:drag.y,pointerX:drag.startX,pointerY:drag.startY},{x:e.clientX,y:e.clientY},currentScale,{x:origin.left-drag.canvasOrigin.left,y:origin.top-drag.canvasOrigin.top});
-  const p=rotatedClampPosition(raw.x,raw.y,drag.type,drag.rotation,canvasBounds);drag.next=p;
+  const p=rotatedClampPosition(raw.x,raw.y,drag.type,drag.rotation,canvasBounds,drag.aspect,drag.photoScale);drag.next=p;
   if(drag.ghost)updateHeldGhost(drag,e);
   else {drag.el.style.left=p.x+'px';drag.el.style.top=p.y+'px';}
   followStorageHandle(e,drag.type);
@@ -881,19 +1022,21 @@ function moveWithKeyboard(e){
   const stored=e.target.closest('[data-storage-id]');
   if(stored&&e.target.matches('.drag-handle')){
     const id=stored.dataset.storageId,item=state.items.find(i=>i.id===id);
-    if(['Enter',' '].includes(e.key)){e.preventDefault();if(item.type==='folder')placeFolder(id,true);else openQuest(id);return;}
+    if(['Enter',' '].includes(e.key)){e.preventDefault();if(item.type==='folder')placeFolder(id,true);else if(item.type==='photo')openPhotoSheet(id);else if(item.type==='notebook')openNotebook(id);else openQuest(id);return;}
     if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key)){
       e.preventDefault();const p=trayPosition(item,trayItems(state).findIndex(i=>i.id===id)),step=e.shiftKey?25:5;
-      const position={x:Math.max(0,Math.min(BOARD_LIMIT.width-PAPER.width,p.x+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0))),y:Math.max(0,Math.min(BOARD_LIMIT.height-(item.type==='folder'?210:PAPER.height),p.y+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0)))};
+      const size=item.type==='notebook'?NOTEBOOK_SIZE:item.type==='photo'?photoSheetSize(item.aspect,item.photoScale):{width:PAPER.width,height:item.type==='folder'?210:PAPER.height};
+      const position={x:Math.max(0,Math.min(BOARD_LIMIT.width-size.width,p.x+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0))),y:Math.max(0,Math.min(BOARD_LIMIT.height-size.height,p.y+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0)))};
       commit(updateItem(state,id,{storagePosition:position}));$(`[data-storage-id="${id}"] .drag-handle`)?.focus({preventScroll:true});return;
     }
     return;
   }
-  if(heldStamp){if(['Enter',' '].includes(e.key)&&e.target.matches('.drag-handle')){e.preventDefault();stampPaper(e.target.closest('[data-id]').dataset.id);}return;}
+  if(heldStamp){if(['Enter',' '].includes(e.key)&&e.target.matches('.drag-handle')&&!e.target.matches('[data-read-photo],[data-open-notebook]')){e.preventDefault();stampPaper(e.target.closest('[data-id]').dataset.id);}return;}
   if(!e.target.matches('.drag-handle')||!['ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))return;
   e.preventDefault();const id=e.target.closest('[data-id]').dataset.id;const item=state.items.find(i=>i.id===id);const step=e.shiftKey?25:5;
+  if(state.paperweight?.questId===id){showToast('ยกที่ทับกระดาษออกก่อนย้ายใบเควส');return;}
   const x=item.x+(e.key==='ArrowRight'?step:e.key==='ArrowLeft'?-step:0),y=item.y+(e.key==='ArrowDown'?step:e.key==='ArrowUp'?-step:0);
-  state=updateItem(state,id,{...rotatedClampPosition(x,y,item.type,item.rotation,canvasBounds),z:Math.max(...state.items.map(i=>i.z),0)+1});
+  state=updateItem(state,id,{...rotatedClampPosition(x,y,item.type,item.rotation,canvasBounds,item.aspect,item.photoScale),z:Math.max(...state.items.map(i=>i.z),0)+1});
   const el=e.target.closest('[data-id]');el.style.left=state.items.find(i=>i.id===id).x+'px';el.style.top=state.items.find(i=>i.id===id).y+'px';el.style.zIndex=state.items.find(i=>i.id===id).z;persist();
 }
 
@@ -923,6 +1066,7 @@ function animateNewQuest(id){
 }
 function openQuest(id){
   const q=state.items.find(i=>i.id===id);const editing=!!q;
+  const pinned=editing&&state.paperweight?.questId===id;
   const item=q||{title:'',description:'',category:CATEGORIES[0],priority:'normal',due:'',xp:100,rotation:0};
   let questImage=item.imageDataUrl||null,imageBusy=false,imageVersion=0;
   openDialog(editing?'บันทึกการผจญภัย':'ลงประกาศเควสใหม่',editing?'รายละเอียดเล็ก ๆ ของภารกิจที่ยิ่งใหญ่':'ทุกการผจญภัย เริ่มต้นจากเป้าหมายหนึ่งอย่าง',`
@@ -932,7 +1076,7 @@ function openQuest(id){
     <div class="form-row"><label class="field">หมวดหมู่<select name="category">${CATEGORIES.map(c=>`<option ${c===item.category?'selected':''}>${c}</option>`).join('')}</select></label><label class="field">ระดับความสำคัญ<select name="priority"><option value="normal" ${item.priority==='normal'?'selected':''}>B · เควสทั่วไป</option><option value="high" ${item.priority==='high'?'selected':''}>A · เควสสำคัญ</option><option value="low" ${item.priority==='low'?'selected':''}>C · เควสสบาย ๆ</option></select></label></div>
     <div class="form-row"><label class="field">กำหนดเสร็จ<input type="date" name="due" value="${esc(item.due)}"></label><label class="field">รางวัลประสบการณ์ (XP)<input type="number" name="xp" min="0" max="9999" step="1" value="${item.xp}"></label></div>
     <div id="quest-prerequisite-picker"></div>
-    ${editing?`<details class="position-details"><summary>ตำแหน่งและมุมกระดาษ</summary><div class="form-row three"><label class="field">แนวนอน (X)<input type="number" name="x" min="0" max="${canvasBounds.width-PAPER.width}" step="any" value="${item.x}"></label><label class="field">แนวตั้ง (Y)<input type="number" name="y" min="0" max="${canvasBounds.height-PAPER.height}" step="any" value="${item.y}"></label><label class="field">มุมเอียง (องศา)<input type="number" name="rotation" min="-180" max="180" step="any" value="${item.rotation}"></label></div></details>`:''}
+    ${editing?`<details class="position-details"><summary>ตำแหน่งและมุมกระดาษ</summary>${pinned?'<p class="field-caption">ยกที่ทับกระดาษออกก่อนเปลี่ยนตำแหน่ง</p>':`<div class="form-row three"><label class="field">แนวนอน (X)<input type="number" name="x" min="0" max="${canvasBounds.width-PAPER.width}" step="any" value="${item.x}"></label><label class="field">แนวตั้ง (Y)<input type="number" name="y" min="0" max="${canvasBounds.height-PAPER.height}" step="any" value="${item.y}"></label><label class="field">มุมเอียง (องศา)<input type="number" name="rotation" min="-180" max="180" step="any" value="${item.rotation}"></label></div>`}</details>`:''}
     ${editing?`<div class="quest-storage-action"><span>${item.folderId?'เก็บอยู่ในแฟ้ม “'+esc(state.items.find(i=>i.id===item.folderId)?.name)+'”':item.archived?'เควสนี้เก็บอยู่ในลิ้นชัก':'อยากพักกระดาษใบนี้ไว้ก่อน?'}</span><button class="button ghost small" type="button" id="quest-archive">${icon(item.archived?'restore':'archive')}${item.archived?'นำกลับขึ้นโต๊ะ':'เก็บเข้าลิ้นชัก'}</button><button class="button ghost small" type="button" id="quest-status">${icon('stamp')}ประทับตรา</button></div>`:''}
     <p class="form-error" id="form-error" hidden></p><footer class="dialog-footer">${editing?`<button type="button" class="button danger-ghost" id="delete-quest">${icon('trash')}ลบเควส</button>`:`<span class="form-note">${icon('feather')}เขียนเรื่องราวบทใหม่ของคุณ</span>`}<div><button type="button" class="button ghost" data-close>ยกเลิก</button><button class="button primary" type="submit" id="save-quest">${icon(editing?'check':'plus')}${editing?'บันทึกเควส':'ติดเควสบนโต๊ะ'}</button></div></footer></form>`);
   const form=$('#quest-form'),preview=$('#quest-image-preview'),removeImage=$('#remove-quest-image'),saveButton=$('#save-quest'),fileInput=$('#quest-image-file'),imageLabel=$('#quest-image-label');
@@ -946,13 +1090,18 @@ function openQuest(id){
     finally{if(form.isConnected&&version===imageVersion){imageBusy=false;saveButton.disabled=false;}}
   };
   removeImage.onclick=()=>{imageVersion++;imageBusy=false;questImage=null;fileInput.value='';saveButton.disabled=false;refreshImage();};
+  const setPositionFields=values=>{
+    if(pinned)return;
+    values.rotation=Number(values.rotation);
+    Object.assign(values,rotatedClampPosition(Number(values.x),Number(values.y),'quest',values.rotation,canvasBounds));
+  };
   form.onsubmit=e=>{
     e.preventDefault();if(imageBusy){formError('รอเตรียมรูปภาพสักครู่');return;}const fd=Object.fromEntries(new FormData(e.target));fd.xp=Number(fd.xp);fd.imageDataUrl=questImage;fd.prerequisiteIds=picker.getSelectedIds();
     if(questImage!==(item.imageDataUrl??null))fd.photoLayout=null;
     if(!fd.title.trim()){formError('กรุณาเขียนชื่อเควสก่อน');return;}
     try{
       let createdId=null,next;
-      if(editing){fd.x=Number(fd.x);fd.y=Number(fd.y);fd.rotation=Number(fd.rotation);Object.assign(fd,rotatedClampPosition(fd.x,fd.y,'quest',fd.rotation,canvasBounds));next=updateItem(state,id,fd);}
+      if(editing){setPositionFields(fd);next=updateItem(state,id,fd);}
       else{const created=createVisibleQuest(fd);createdId=created.id;next={...state,items:[...state.items,created]};filters={status:'all',category:'all',search:''};$('#search').value='';}
       closeDialog();commit(next,editing?'บันทึกเรื่องราวเรียบร้อย':'เควสใหม่ติดบนโต๊ะแล้ว ขอให้โชคดี!');
       if(createdId)animateNewQuest(createdId);
@@ -962,7 +1111,7 @@ function openQuest(id){
     $('#delete-quest').onclick=()=>confirmDelete(id,'เควสนี้');
     const saveBeforeAction=()=>{
       if(imageBusy||!form.reportValidity())return false;
-      try{const values=Object.fromEntries(new FormData(form));for(const key of ['xp','x','y','rotation'])values[key]=Number(values[key]);Object.assign(values,rotatedClampPosition(values.x,values.y,'quest',values.rotation,canvasBounds));values.imageDataUrl=questImage;values.prerequisiteIds=picker.getSelectedIds();return updateItem(state,id,values);}catch(err){formError(err.message);return null;}
+      try{const values=Object.fromEntries(new FormData(form));values.xp=Number(values.xp);setPositionFields(values);values.imageDataUrl=questImage;values.prerequisiteIds=picker.getSelectedIds();return updateItem(state,id,values);}catch(err){formError(err.message);return null;}
     };
     $('#quest-archive').onclick=()=>{const next=saveBeforeAction();if(!next)return;commit(next);closeDialog();if(item.archived)restoreQuest(id);else archiveQuest(id);};
     $('#quest-status').onclick=()=>{const next=saveBeforeAction();if(!next)return;commit(next);openStamp(id);};
@@ -1041,13 +1190,104 @@ function playStampImpact(id,usingHeldTool=false,source=null){
   setTimeout(()=>{effect.remove();paper.classList.remove('stamp-hit');},850);
 }
 
-async function prepareImage(file,{maxSizeMB=2,maxDimension=512,format='image/png'}={}){
+async function prepareImage(file,{maxSizeMB=2,maxDimension=512,format='image/png',withSize=false}={}){
   if(!file||!['image/png','image/jpeg','image/webp'].includes(file.type))throw new Error('ใช้รูป PNG, JPG หรือ WebP เท่านั้น');
   if(file.size>maxSizeMB*1024*1024)throw new Error(`รูปต้องมีขนาดไม่เกิน ${maxSizeMB} MB`);
   const bitmap=await createImageBitmap(file).catch(()=>{throw new Error('อ่านรูปนี้ไม่ได้ ลองใช้ไฟล์รูปอื่น');});
   try{if(!bitmap.width||!bitmap.height||bitmap.width*bitmap.height>40000000)throw new Error('รูปมีความละเอียดสูงเกินไป กรุณาย่อรูปก่อน');
-    const ratio=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);const data=canvas.toDataURL(format,.82);if(data.length>2796200)throw new Error('รูปที่ย่อแล้วยังใหญ่เกินไป กรุณาใช้รูปที่เล็กลง');return data;
+    const ratio=Math.min(1,maxDimension/Math.max(bitmap.width,bitmap.height));const canvas=document.createElement('canvas');canvas.width=Math.max(1,Math.round(bitmap.width*ratio));canvas.height=Math.max(1,Math.round(bitmap.height*ratio));canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);const data=canvas.toDataURL(format,.82);if(data.length>2796200)throw new Error('รูปที่ย่อแล้วยังใหญ่เกินไป กรุณาใช้รูปที่เล็กลง');return withSize?{data,aspect:canvas.width/canvas.height}:data;
   }finally{bitmap.close();}
+}
+async function addPhotoSheet(file,point){
+  const canvas=$('#board-canvas'),viewport=$('#board-scroll');
+  if(!canvas||!viewport)return;
+  const origin=canvas.getBoundingClientRect();
+  const dropped=point&&{x:(point.x-origin.left)/currentScale,y:(point.y-origin.top)/currentScale};
+  try{
+    const {data,aspect}=await prepareImage(file,{maxSizeMB:5,maxDimension:960,format:'image/webp',withSize:true});
+    if(!canvas.isConnected)return;
+    const {width,height}=photoSheetSize(aspect);
+    const center=dropped??{x:(viewport.scrollLeft+viewport.clientWidth/2)/currentScale,y:(viewport.scrollTop+viewport.clientHeight/2)/currentScale};
+    const position=rotatedClampPosition(center.x-width/2,center.y-height/2,'photo',0,canvasBounds,aspect);
+    const title=file.name.replace(/\.[^.]+$/,'').trim().slice(0,120)||'รูปถ่าย';
+    const photo=createPhotoSheet({title,imageDataUrl:data,aspect,...position},state);
+    filters.search='';$('#search').value='';
+    commit({...state,items:[...state.items,photo]},'วางรูปบนโต๊ะแล้ว');
+    settlePaper(photo.id);
+  }catch(error){showToast(error.message);}
+}
+function openPhotoSheet(id,back=false){
+  returnStamp(false);closeToolMenu();photoSheetReader.open(id,{back});
+}
+function storePhotoSheet(id){
+  const photo=state.items.find(item=>item.type==='photo'&&item.id===id);
+  if(!photo)return;
+  if(photo.archived){setActiveDrawer(null,false,false);restoreQuest(id);}
+  else archiveQuest(id);
+}
+function savePhotoSheet(id,patch){
+  state=updateItem(state,id,patch);
+  if(patch.tone){
+    const item=$(`.desk-photo-sheet[data-id="${id}"],.desk-photo-sheet[data-storage-id="${id}"]`);
+    item?.querySelector('.photo-sheet-image').classList.toggle('photo-tone-gold',patch.tone==='gold');
+  }
+  persist();
+}
+function savePhotoSheetSize(id,scale){
+  const photo=state.items.find(item=>item.id===id&&item.type==='photo');
+  if(!photo)return;
+  const position=photo.archived?photo.storagePosition??{x:34,y:30}:photo;
+  const fitted=rotatedClampPosition(position.x,position.y,'photo',photo.rotation,BOARD_LIMIT,photo.aspect,scale);
+  const patch=photo.archived?{storagePosition:fitted}:fitted;
+  commit(updateItem(state,id,{...patch,photoScale:scale}));
+  $(`[data-photo-resize="${id}"]`)?.focus({preventScroll:true});
+}
+function savePaperweight(next, options){
+  state=next;
+  paperweightControl.render(options);
+  bundleControl?.refresh();
+  persist();
+}
+function openPaperweightEditor(){
+  const weight = state.paperweight ?? DEFAULT_PAPERWEIGHT;
+  const emblems = [...Object.entries(PAPERWEIGHT_EMBLEMS),['custom','รูปตราของฉัน']];
+  openDialog('เปลี่ยนตราที่ทับกระดาษ','',`<form class="dialog-body paperweight-editor" id="paperweight-form">
+    <span class="paperweight-preview" aria-hidden="true"><span class="paperweight-metal"><span class="paperweight-face"></span></span></span>
+    <label class="field">ตราบนตุ้ม<select name="emblem">${emblems.map(([id,label])=>`<option value="${id}" ${weight.emblem===id?'selected':''}>${label}</option>`).join('')}</select></label>
+    <label class="field">อัปโหลดรูปตรา<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>PNG, JPG หรือ WebP สูงสุด 2 MB</small></label>
+    <p class="form-error" id="form-error" hidden></p>
+    <footer class="dialog-footer end"><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('check')}บันทึกตรา</button></footer>
+  </form>`,'small-dialog');
+  const form = $('#paperweight-form',dialog), select = form.elements.emblem;
+  const preview = $('.paperweight-face',form), errorText = $('#form-error',form), submit = $('button[type="submit"]',form);
+  let imageDataUrl = weight.imageDataUrl, version = 0;
+  const refresh = () => {preview.innerHTML=paperweightFace({emblem:select.value,imageDataUrl},icon);};
+  select.addEventListener('change',()=>{errorText.hidden=true;refresh();});
+  form.elements.image.addEventListener('change',async event=>{
+    const file = event.target.files[0];
+    if (!file) return;
+    const token = ++version;
+    const live = () => token === version && form.isConnected && dialog.open;
+    select.value='custom';errorText.hidden=true;submit.disabled=true;
+    try{
+      const data = await prepareImage(file,{maxDimension:192});
+      if (!live()) return;
+      imageDataUrl=data;refresh();
+    }catch(error){if(live())formError(error.message);}
+    finally{if(live())submit.disabled=false;}
+  });
+  form.addEventListener('submit',event=>{
+    event.preventDefault();
+    if(submit.disabled)return;
+    try{
+      if(select.value==='custom'&&!imageDataUrl)throw new Error('เลือกรูปตราที่ต้องการใช้ก่อนบันทึก');
+      const prop=$('[data-paperweight]');
+      const position=state.paperweight ? {} : {x:parseFloat(prop.style.left),y:parseFloat(prop.style.top)};
+      const next=updatePaperweight(state,{...position,emblem:select.value,imageDataUrl});
+      closeDialog();savePaperweight(next,{focus:true});showToast('เปลี่ยนตราที่ทับกระดาษแล้ว');
+    }catch(error){formError(error.message);}
+  });
+  refresh();
 }
 function openLibrary(){
   openDialog('คลังตราประทับ','ร่องรอยของทุกชัยชนะ ทุกบทเรียน และวันที่อยากพัก',`<div class="dialog-body library-body"><div class="section-heading"><h3>ตราประจำกิลด์</h3><span>3 รูปแบบ · 3 สถานะ</span></div><div class="library-grid">${['seal','rectangle','banner'].map((style,i)=>`<div class="library-card">${stampMarkup(['done','failed','paused'][i],style)}<strong>${['ตรากิลด์','ตราหมึก','ริบบิ้น'][i]}</strong><span>${['ขอบวงกลมคลาสสิก','รอยหมึกบนกระดาษ','แถบประกาศเกียรติคุณ'][i]}</span><button class="button small ${state.settings.stampStyle===style?'selected-button':'ghost'}" data-default-style="${style}">${state.settings.stampStyle===style?icon('check')+'ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button></div>`).join('')}</div><div class="section-heading custom-heading"><h3>ตราประทับของคุณ <span>${state.stamps.length}</span></h3></div><div class="uploaded-stamps">${state.stamps.map(s=>`<div class="uploaded-stamp"><img src="${esc(s.dataUrl)}" alt="${esc(s.name)}"><div><strong>${esc(s.name)}</strong><small>${STATUS[s.status].label}</small></div><button class="icon-button" data-delete-stamp="${esc(s.id)}" aria-label="ลบตรา ${esc(s.name)}">${icon('trash')}</button></div>`).join('')||'<p class="no-custom-stamps">ยังไม่มีตราของตัวเอง เพิ่มเครื่องหมายที่เป็นคุณได้ด้านล่าง</p>'}</div><form id="upload-form" class="upload-panel"><label class="upload-drop" for="stamp-file">${icon('upload')}<strong id="upload-label">เลือกรูปตราประทับของคุณ</strong><span>PNG พื้นหลังโปร่งใสเหมาะที่สุด · JPG / WebP · สูงสุด 2 MB</span><input id="stamp-file" type="file" accept="image/png,image/jpeg,image/webp" required><img id="upload-preview" alt="ตัวอย่างตราที่เลือก" hidden></label><div class="form-row"><label class="field">ชื่อตราประทับ<input name="name" required maxlength="40" placeholder="เช่น ตราแห่งชัยชนะ"></label><label class="field">ใช้กับสถานะ<select name="status"><option value="done">สำเร็จแล้ว</option><option value="failed">ไม่สำเร็จ</option><option value="paused">พักไว้ก่อน</option></select></label></div><p class="form-error" id="form-error" hidden></p><button class="button primary" type="submit">${icon('plus')}เพิ่มเข้าคลังตรา</button></form><footer class="dialog-footer end"><button class="button ghost" data-close>กลับสู่โต๊ะ</button></footer></div>`,'wide-dialog');
@@ -1061,6 +1301,10 @@ function openLibrary(){
   });
 }
 function downloadBackup(){
+  if(!paperReader.flush()||!photoSheetReader.flush()||!notebookWindows.flush()){
+    showToast('ยังบันทึกโน้ตไม่ได้ กรุณาลองบันทึกอีกครั้งก่อนส่งออก');
+    return;
+  }
   const blob=new Blob([serializeState(state)],{type:'application/json'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=`questboard-${new Date().toISOString().slice(0,10)}.json`;a.click();setTimeout(()=>URL.revokeObjectURL(url),5000);showToast('ส่งออกสมุดบันทึกการผจญภัยแล้ว');
 }
 function openSettings(){
@@ -1073,13 +1317,17 @@ function openSettings(){
 }
 function confirmImport(incoming){
   openDialog('แทนที่โต๊ะด้วยไฟล์สำรอง?','แนะนำให้ส่งออกโต๊ะเดิมก่อน เพื่อเก็บการผจญภัยไว้ครบ',`<div class="dialog-body"><div class="import-summary">${icon('scroll')}<div><strong>${esc(incoming.settings.boardName)}</strong><span>${incoming.items.filter(i=>i.type==='quest').length} เควส · ${incoming.items.filter(i=>i.type==='folder').length} แฟ้ม · ${incoming.items.filter(i=>i.type==='label').length} ป้าย · ${incoming.stamps.length} ตราประทับ</span></div></div><footer class="dialog-footer"><button class="button ghost" id="export-before">${icon('download')}สำรองโต๊ะเดิม</button><div><button class="button ghost" data-close>ยกเลิก</button><button class="button primary" id="confirm-import">นำเข้าโต๊ะนี้</button></div></footer></div>`);
-  $('#export-before').onclick=downloadBackup;$('#confirm-import').onclick=()=>{if(!paperReader.close()){showToast('ยังบันทึกโน้ตไม่ได้ กรุณาลองบันทึกอีกครั้งก่อนนำเข้า');return;}folioWindows?.closeAll();if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.close?.();closeDialog();filters={status:'all',category:'all',search:''};$('#search').value='';commit(incoming,'นำเข้าโต๊ะเรียบร้อย',{animateUnlock:false});};
+  $('#export-before').onclick=downloadBackup;$('#confirm-import').onclick=()=>{if(!paperReader.close()||!photoSheetReader.closeAll()||!notebookWindows.closeAll()){showToast('ยังบันทึกโน้ตไม่ได้ กรุณาลองบันทึกอีกครั้งก่อนนำเข้า');return;}folioWindows?.closeAll();if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.close?.();closeDialog();filters={status:'all',category:'all',search:''};$('#search').value='';commit(ensureNotebook(incoming),'นำเข้าโต๊ะเรียบร้อย',{animateUnlock:false});};
 }
 function openHelp(){
   openDialog('ยินดีต้อนรับสู่กิลด์','เปลี่ยนเรื่องที่ต้องทำ ให้กลายเป็นการผจญภัยของคุณ',`<div class="dialog-body"><div class="help-list">${[['scroll','เขียนเควสของคุณ','ดึงรางเครื่องเขียนด้านบนลงมา แล้วคลิกปากกา ใส่เป้าหมาย รายละเอียด กำหนดเสร็จ และ XP ที่อยากให้รางวัลตัวเอง'],['grip','จัดโต๊ะในแบบที่ชอบ','ลากที่หัวกระดาษหรือป้ายเพื่อย้ายตำแหน่ง ใช้ Tab ไปที่หัวกระดาษแล้วกดลูกศรเพื่อย้ายได้เช่นกัน (Shift ย้ายเร็วขึ้น)'],['stamp','ฝากรอยตราของการเดินทาง','หยิบตรา สำเร็จ / ไม่สำเร็จ / พักไว้ก่อน จากรางเครื่องมือ ตราจะตามเมาส์ คลิกซ้ายบนกระดาษเพื่อปั๊มได้หลายใบ คลิกขวาหรือ Esc เพื่อเก็บคืน ใช้ Tab และ Enter เพื่อปั๊มด้วยคีย์บอร์ดได้'],['upload','ใช้ตราที่เป็นคุณ','เปิด “เครื่องมืออื่น ๆ” ในลิ้นชัก แล้วเข้าคลังตราเพื่อเพิ่มรูป PNG, JPG หรือ WebP เลือกตราที่อัปโหลดจากเมนูตราของฉันได้'],['archive','ลิ้นชักแห่งความทรงจำ','ดึงหูจับด้านขวาไปทางซ้าย หรือคลิกเพื่อเปิด ลากกระดาษและแฟ้มมาจัดวางในถาดได้ ค้นหาเควสที่เก็บไว้และกดลูกศรนำกลับได้'],['grip','หยิบหลายเควสเป็นมัด','กด Shift ค้างแล้วคลิกกระดาษ หรือกดช่องเลือกบนแต่ละใบ จากนั้นลากหัวกระดาษที่เลือกเพื่อหยิบทั้งมัด วางบนแฟ้มหรือในลิ้นชักได้พร้อมกัน กด Esc เพื่อยกเลิก'],['sun','บรรยากาศของกิลด์','เปิดเครื่องมืออื่น ๆ แล้วดูบรรยากาศกิลด์ เลือกแสงกลางวันหรือกลางคืน เปิดฝุ่น เสียงฝนและเสียงโรงเตี๊ยมแยกกันได้ ปุ่มปิดเสียงทั้งหมดจะปิดทั้งเสียงบรรยากาศและเสียงหยิบจับ'],['photo','เพิ่มภาพให้การผจญภัย','เปิดแก้ไขเควสแล้วกดเพิ่มรูปภาพ รองรับ PNG, JPG และ WebP สูงสุด 5 MB ระบบย่อภาพก่อนเก็บไว้ในเครื่อง'],['download','เก็บเรื่องราวให้ปลอดภัย','ข้อมูลและรูปตราอยู่ในเบราว์เซอร์นี้ สามารถส่งออกและนำเข้าไฟล์สำรองได้ที่ “จัดแต่งโต๊ะ”']].map(([i,t,d])=>`<div>${icon(i)}<section><h3>${t}</h3><p>${d}</p></section></div>`).join('')}</div><footer class="dialog-footer end"><button class="button primary" data-close>${icon('swords')}พร้อมออกผจญภัย</button></footer></div>`);
   $('.help-list',dialog).insertAdjacentHTML('beforeend',[
     ['folder','แฟ้มสำหรับเรื่องราวเดียวกัน','เปิดลิ้นชักด้านขวาแล้วกดสร้างแฟ้ม ค้นหาได้ทั้งชื่อแฟ้มและเควสข้างใน ลากแฟ้มออกมาวางบนโต๊ะหรือเก็บคืนถาดเดิมได้ ลากเควสลงบนแฟ้มเพื่อจัดเก็บ เมื่อเปิดแฟ้มจะมีสารบัญและที่คั่นใบที่อ่านค้าง การลบแฟ้มจะเก็บเควสข้างในไว้ในลิ้นชัก'],
-    ['scroll','สมุดงานประจำวันแบบขีดนับ','เปิดสมุดงานประจำวันบนโต๊ะหรือจากรางเครื่องเขียนด้านบน เพื่อจดงานที่ต้องทำซ้ำทุกวัน เช่น ล้างจาน กวาดห้อง แล้วคลิกขีดนับทีละขีด (ครบ 5 เส้นจะมัดรวมเป็น 卌 อัตโนมัติ)'],
+    ['scroll','สมุดงานประจำวันแบบขีดนับ','คลิกที่ปกสมุดบนโต๊ะหรือในลิ้นชักเก็บของเพื่อเปิด จดงานที่ทำซ้ำ แล้วคลิกขีดนับทีละขีด ครบ 5 ขีดจะรวมเป็นมัด'],
+    ['feather','สมุดโน้ต','คลิกปกสมุดเพื่อจดบนหน้ากระดาษ เลื่อนหน้าคู่ด้วยลูกศรหรือกดเพิ่มหน้าคู่ ข้อความบันทึกอัตโนมัติและค้นหาได้เมื่อนำสมุดไปเก็บในลิ้นชัก'],
+    ['star','แผงไม้ปิดโต๊ะ','ลากแถบรูปดาวจากขอบล่างขึ้นเพื่อปิดโต๊ะ ลากลงเพื่อเปิด หรือคลิกแถบเพื่อสลับทันที'],
+    ['shield','ที่ทับกระดาษ','ลากตุ้มไปวางบนใบเควสเพื่อยึดไว้ คลิกตุ้มเพื่อเปลี่ยนตรา ใช้ปุ่มลูกศรเลื่อนตุ้ม และกด Shift+Enter เมื่อตุ้มอยู่เหนือใบที่ต้องการยึด'],
+    ['photo','รูปถ่ายบนโต๊ะ','ลากไฟล์ภาพมาวางบนโต๊ะ หรือกดวางรูปบนโต๊ะในรางเครื่องมือด้านบน ลากมือจับลูกศรข้างมุมภาพเพื่อปรับขนาด คลิกมุมภาพเพื่อจดด้านหลัง ลากรูปไปเก็บในลิ้นชักขวาและลากกลับได้'],
     ['volume','เสียงบนโต๊ะนักผจญภัย','เสียงปั๊มตรา หยิบกระดาษ เปิดลิ้นชักและแฟ้มเริ่มหลังการคลิก ปรับความดังหรือปิดเสียงได้ในเครื่องมืออื่น ๆ ของลิ้นชักเครื่องมือ']
   ].map(([i,t,d])=>`<div>${icon(i)}<section><h3>${t}</h3><p>${d}</p></section></div>`).join(''));
 }
@@ -1087,6 +1335,37 @@ function openDailyBook(){
   returnStamp(false);closeToolMenu();
   state=ensureDailyBook(state);
   dailyBookWindow?.open();
+}
+function findNotebook(id){return state.items.find(item=>item.id===id&&item.type==='notebook');}
+function openNotebook(id){
+  returnStamp(false);closeToolMenu();
+  notebookWindows.open(id);
+}
+function toggleNotebookStorage(id){
+  const book=findNotebook(id);
+  if(!book)return;
+  if(book.archived)restoreQuest(id);
+  else archiveQuest(id);
+}
+function openNotebookEditor(id){
+  const book=findNotebook(id);
+  if(!book)return;
+  const fields=`<label class="field">ชื่อสมุด<input name="title" maxlength="60" required autofocus value="${esc(book.title)}"></label>
+    ${renderLeatherColorPicker('สีปกหนัง',book.color)}`;
+  openDialog('ปกสมุดโน้ต','',`<form class="dialog-body" id="notebook-cover-form">
+    ${renderCoverEditorFields(fields,renderNotebookCover(book,{icon}),NOTEBOOK_SIZE)}
+    <p id="form-error" class="form-error" hidden></p>
+    <footer class="dialog-footer end"><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('check')}บันทึกปกสมุด</button></footer>
+  </form>`,'cover-editor-dialog');
+  const form=$('#notebook-cover-form');
+  bindCoverEditor(form);
+  form.onsubmit=event=>{
+    event.preventDefault();
+    try{
+      const next=updateItem(state,id,Object.fromEntries(new FormData(form)));
+      closeDialog();sound.play('pen');commit(next,'บันทึกปกสมุดโน้ตแล้ว');
+    }catch(error){formError(error.message);}
+  };
 }
 function toggleDailyBookArchive(){
   state=ensureDailyBook(state);
@@ -1096,8 +1375,17 @@ function toggleDailyBookArchive(){
 }
 function openDailyBookMetaEditor(){
   const book=ensureDailyBook(state).dailyBook;
-  openDialog('ปกสมุดงานประจำวัน','ปรับชื่อสมุด คำโปรย และสีปกหนังของสมุดขีดนับประจำกิลด์',`<form class="dialog-body" id="daily-book-meta-form"><label class="field">ชื่อสมุด<input name="title" maxlength="60" required autofocus value="${esc(book.title)}" placeholder="เช่น สมุดงานประจำวัน"></label><label class="field">คำโปรยปกสมุด<input name="subtitle" maxlength="100" value="${esc(book.subtitle||'')}" placeholder="เช่น ขีดนับกิจวัตรประจำวันของนักผจญภัย"></label><label class="field">สีปกสมุด<select name="color">${[['gold','หนังสีน้ำตาลทอง'],['sage','หนังเขียวมอส'],['red','หนังแดงไวน์'],['navy','หนังน้ำเงินกิลด์']].map(([value,label])=>`<option value="${value}" ${book.color===value?'selected':''}>${label}</option>`).join('')}</select></label><p id="form-error" class="form-error" hidden></p><footer class="dialog-footer"><span></span><div><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('check')}บันทึกปกสมุด</button></div></footer></form>`,'small-dialog');
-  $('#daily-book-meta-form').onsubmit=e=>{
+  const fields=`<label class="field">ชื่อสมุด<input name="title" maxlength="60" required autofocus value="${esc(book.title)}" placeholder="เช่น สมุดงานประจำวัน"></label>
+    <label class="field">คำโปรยปกสมุด<input name="subtitle" maxlength="100" value="${esc(book.subtitle||'')}" placeholder="เช่น ขีดนับกิจวัตรประจำวันของนักผจญภัย"></label>
+    ${renderLeatherColorPicker('สีปกหนัง',book.color)}`;
+  openDialog('ปกสมุดงานประจำวัน','ปรับชื่อสมุด คำโปรย และสีปกหนังของสมุดขีดนับประจำกิลด์',`<form class="dialog-body" id="daily-book-meta-form">
+    ${renderCoverEditorFields(fields,renderDailyBookCover(book,{icon}),DAILY_BOOK_SIZE)}
+    <p id="form-error" class="form-error" hidden></p>
+    <footer class="dialog-footer end"><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('check')}บันทึกปกสมุด</button></footer>
+  </form>`,'cover-editor-dialog');
+  const form=$('#daily-book-meta-form');
+  bindCoverEditor(form);
+  form.onsubmit=e=>{
     e.preventDefault();
     try{
       const values=Object.fromEntries(new FormData(e.target));
@@ -1284,21 +1572,25 @@ function arrangeBoard(){
   const before=state.items.map(i=>({id:i.id,x:i.x,y:i.y,rotation:i.rotation}));let q=0,l=0,f=0;
   const quests=questItems();if(quests.length>6){showToast('โต๊ะมีมากกว่า 6 เควส จะจัดซ้อนเป็นชั้นให้หยิบแต่ละใบได้');}
   const folderY=quests.length?85+(Math.min(2,Math.ceil(quests.length/3))-1)*(PAPER.height+60)+PAPER.height+60+Math.min(Math.floor((quests.length-1)/6),5)*18:110;
-  state={...state,items:state.items.map(i=>{if(i.archived)return i;if(i.type==='folder')return {...i,x:55+(f++%3)*370,y:folderY,rotation:0};if(i.type==='label')return {...i,x:55+(l++%3)*370,y:24,rotation:0};const index=q++;const layer=Math.floor(index/6);return{...i,x:55+(index%3)*370,y:85+Math.floor((index%6)/3)*(PAPER.height+60)+Math.min(layer,5)*18,rotation:0,z:index+10};})};
-  commit(state);showToast('จัดกระดาษเป็นระเบียบแล้ว',{label:'เลิกทำ',run:()=>commit({...state,items:state.items.map(i=>({...i,...before.find(p=>p.id===i.id)}))})});
+  state={...state,items:state.items.map(i=>{if(i.archived||i.type==='photo'||i.type==='notebook')return i;if(i.type==='folder')return {...i,x:55+(f++%3)*370,y:folderY,rotation:0};if(i.type==='label')return {...i,x:55+(l++%3)*370,y:24,rotation:0};const index=q++;if(state.paperweight?.questId===i.id)return i;const layer=Math.floor(index/6);return{...i,x:55+(index%3)*370,y:85+Math.floor((index%6)/3)*(PAPER.height+60)+Math.min(layer,5)*18,rotation:0,z:index+10};})};
+  commit(state);showToast('จัดกระดาษเป็นระเบียบแล้ว',{label:'เลิกทำ',run:()=>commit({...state,items:state.items.map(i=>i.type==='photo'||state.paperweight?.questId===i.id?i:{...i,...before.find(p=>p.id===i.id)})})});
 }
 document.addEventListener('pointerdown',prepareStampPointer,true);
 document.addEventListener('click',handleStampClick,true);
 document.addEventListener('keydown',handleStampKey,true);
-document.addEventListener('pointermove',e=>{if(heldStamp)updateStampPointer(e);});
-document.addEventListener('pointerleave',()=>$('#stamp-cursor')?.classList.remove('is-visible'));
+document.addEventListener('pointermove',queueStampPointer,{passive:true});
+document.addEventListener('pointerleave',hideStampPointer);
 document.addEventListener('contextmenu',e=>{if(heldStamp){e.preventDefault();e.stopPropagation();returnStamp();}},true);
 document.addEventListener('click',e=>{
   const b=e.target.closest('button');if(!b)return;
-  if(b.dataset.openDailyBook){if(typeof openDailyBook==='function')openDailyBook();return;}
   if(b.dataset.editDailyBook){if(typeof openDailyBookMetaEditor==='function')openDailyBookMetaEditor();return;}
   if(b.dataset.toggleDailyBookArchive){if(typeof toggleDailyBookArchive==='function')toggleDailyBookArchive();return;}
   if(b.dataset.dailyAction==='close'||b.dataset.action==='close-daily-book'){if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.close?.({animate:true,returnFocus:true});return;}
+  if(b.dataset.readPhoto){openPhotoSheet(b.dataset.readPhoto,b.hasAttribute('data-photo-back'));return;}
+  if(b.dataset.openNotebook){openNotebook(b.dataset.openNotebook);return;}
+  if(b.dataset.editNotebook){openNotebookEditor(b.dataset.editNotebook);return;}
+  if(b.dataset.storeNotebook){toggleNotebookStorage(b.dataset.storeNotebook);return;}
+  if(b.dataset.action==='new-photo-sheet'){setToolsOpen(false,false);$('#photo-sheet-file').click();return;}
   if(b.dataset.readFront){returnStamp(false);closeToolMenu();paperReader.open(b.dataset.readFront,{back:false});return;}
   if(b.dataset.readBack){returnStamp(false);closeToolMenu();paperReader.open(b.dataset.readBack);return;}
   if(e.detail===0&&b.dataset.folderDrag){placeFolder(b.dataset.folderDrag,true);return;}
@@ -1314,12 +1606,15 @@ document.addEventListener('click',e=>{
   if(b.dataset.edit){openQuest(b.dataset.edit);return;}if(b.dataset.stamp){openStamp(b.dataset.stamp);return;}if(b.dataset.editLabel){openLabel(b.dataset.editLabel);return;}
   if(b.dataset.openArchived){openQuest(b.dataset.openArchived);return;}if(b.dataset.restore){restoreQuest(b.dataset.restore);return;}
   if(b.dataset.action==='open-drawer'){document.body.classList.remove('menu-open');setDrawerOpen(true,true);return;}if(b.dataset.action==='close-drawer'){setDrawerOpen(false);return;}
-  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'open-daily-book':()=>{if(typeof setToolsOpen==='function')setToolsOpen(false,false);if(typeof openDailyBook==='function')openDailyBook();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
+  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
   if(b.dataset.action&&!['tool-menu','close-tool-menu','zoom-in','zoom-out','zoom-reset'].includes(b.dataset.action))closeToolMenu();
   actions[b.dataset.action]?.();
 });
 document.addEventListener('keydown',e=>{
-  if(e.defaultPrevented||e.isComposing||photoViewer?.isOpen||questPhotos?.editing)return;
+  if(e.defaultPrevented||e.isComposing||deskShutter?.closed||photoViewer?.isOpen||questPhotos?.editing)return;
+  if(['Enter',' '].includes(e.key)&&e.target.matches('[data-storage-id="daily-book"][data-open-daily-book]')){
+    e.preventDefault();openDailyBook();return;
+  }
   if(e.key==='Escape'&&$('#tool-menu-dialog')?.open){e.preventDefault();closeToolMenu();return;}
   if(e.key==='/'&&!dialog.open&&!e.target.matches('input,textarea,select')){e.preventDefault();returnStamp(false);setToolsOpen(true);openToolMenu();$('#search')?.focus();}
   if(e.key==='Escape'){if(drag)cancelDrag();else if(storedDrag)cancelStoredDrag();else if(heldStamp){e.preventDefault();returnStamp();}else if(!dialog.open){setActiveDrawer(null);setToolsOpen(false);closeFolderWindow(true);if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.close?.({animate:true});}}
@@ -1339,7 +1634,7 @@ if(saveUnavailable){
   startBoard();
 }
 function startBoard(){
-  state=ensureDailyBook(ensureTrayPositions(state));
+  state=ensureDailyBook(ensureNotebook(ensureTrayPositions(state)));
   shell();persist();
   window.addEventListener('online',()=>backupClient.retry());
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backupClient.retry();});

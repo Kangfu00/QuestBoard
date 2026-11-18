@@ -5,6 +5,7 @@ import {
   splitTallyBundles,
   todayIsoDate,
 } from './daily-book-model.mjs';
+import { leatherDyeMarkup, paintLeatherDye } from './leather-colors.mjs';
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
   '&': '&amp;',
@@ -44,7 +45,7 @@ export function renderTallyBundleSvg(strokes, { freshLast = false } = {}) {
 export function renderTallyMarks(count, { fresh = false } = {}) {
   const bundles = splitTallyBundles(count);
   if (!bundles.length) {
-    return '<span class="daily-tally-empty">ยังไม่มีรอยขีด (คลิกเพื่อขีด | )</span>';
+    return '<span class="daily-tally-empty" aria-hidden="true">—</span>';
   }
   return bundles
     .map((strokes, index) => renderTallyBundleSvg(strokes, { freshLast: fresh && index === bundles.length - 1 }))
@@ -52,7 +53,8 @@ export function renderTallyMarks(count, { fresh = false } = {}) {
 }
 
 export function renderDailyBookCover(book, { icon }) {
-  return `<article class="board-daily-book board-item book-${esc(book.color)}" data-daily-book="1" ${book.archived ? 'data-storage-id="daily-book"' : ''} style="left:${book.x}px;top:${book.y}px;--rotation:${book.rotation}deg;z-index:${book.z}" tabindex="0" role="button" data-daily-book-drag="1" data-open-daily-book="1" aria-label="สมุดงานประจำวัน ${esc(book.title)}">
+  const dye = leatherDyeMarkup(book.color);
+  return `<article class="board-daily-book board-item book-${esc(book.color)}"${dye.attributes} data-daily-book="1" ${book.archived ? 'data-storage-id="daily-book"' : ''} style="left:${book.x}px;top:${book.y}px;${dye.style}--rotation:${book.rotation}deg;z-index:${book.z}" tabindex="0" role="button" data-daily-book-drag="1" data-open-daily-book="1" aria-label="สมุดงานประจำวัน ${esc(book.title)}">
     <div class="daily-book-pages-edge" aria-hidden="true"></div>
     <div class="daily-book-front">
       <div class="daily-book-cover-frame" aria-hidden="true"></div>
@@ -61,7 +63,7 @@ export function renderDailyBookCover(book, { icon }) {
         <strong class="daily-book-title">${esc(book.title)}</strong>
       </div>
       <div class="daily-book-footer">
-        <button type="button" class="daily-book-action-icon-btn" data-edit-daily-book="1" title="เปลี่ยนชื่อและสีปกสมุด" aria-label="เปลี่ยนชื่อสมุด">${icon('edit')}</button>
+        <button type="button" class="daily-book-action-icon-btn" data-edit-daily-book="1" title="เปลี่ยนชื่อและสีปกสมุด" aria-label="เปลี่ยนชื่อและสีปกสมุด">${icon('edit')}</button>
         <button type="button" class="daily-book-action-icon-btn" data-toggle-daily-book-archive="1" title="${book.archived ? 'นำสมุดวางบนโต๊ะ' : 'เก็บสมุดเข้าลิ้นชัก'}" aria-label="${book.archived ? 'นำสมุดวางบนโต๊ะ' : 'เก็บสมุดเข้าลิ้นชัก'}">${icon(book.archived ? 'restore' : 'archive')}</button>
       </div>
     </div>
@@ -111,7 +113,7 @@ export function createDailyBookWindow({
       <section class="daily-book-page daily-book-left">
         <header class="daily-book-header">
           <div class="daily-book-heading">
-            <span class="daily-book-eyebrow">DAILY TALLY LEDGER</span>
+            <span class="daily-book-ink-emblem" aria-hidden="true">${tallyEmblemSvg()}</span>
             <h2 id="daily-book-window-title"></h2>
           </div>
           <div class="daily-book-header-actions">
@@ -120,21 +122,22 @@ export function createDailyBookWindow({
             <button type="button" class="icon-button" data-daily-action="close" data-action="close-daily-book" title="ปิดสมุด (Esc)" aria-label="ปิดสมุด">${icon('cross')}</button>
           </div>
         </header>
-        <label class="drawer-search">${icon('search')}<input id="daily-book-search" type="search" placeholder="ค้นหาในสมุด…" aria-label="ค้นหาในสมุด"></label>
         <form class="daily-add-form" id="daily-add-form">
+          <label for="daily-new-task">จดงานลงสมุด</label>
           <div class="daily-add-form-row">
-            <input type="text" name="title" maxlength="80" required placeholder="เพิ่มสิ่งที่ต้องทำ…" aria-label="สิ่งที่ต้องทำ">
-            <button type="submit" class="daily-btn primary-tally">${icon('plus')}เพิ่ม</button>
+            <input id="daily-new-task" type="text" name="title" maxlength="80" required placeholder="ชื่องาน…">
+            <button type="submit" class="daily-btn">${icon('edit')}จดลงสมุด</button>
           </div>
         </form>
+        <label class="daily-book-search">${icon('search')}<input id="daily-book-search" type="search" placeholder="ค้นหาในสมุด…" aria-label="ค้นหาในสมุด"></label>
         <div class="daily-left-tools">
-          <small>คลิกซ้าย: +1 ขีด · คลิกขวา: -1 ขีด</small>
+          <small>คลิกซ้ายเพิ่มขีด · คลิกขวาลบขีด</small>
         </div>
       </section>
       <section class="daily-book-page daily-book-right" aria-label="หน้ากระดาษขีดนับงานประจำ">
         <div class="daily-sheet-header">
           <div class="daily-sheet-header-title">
-            <strong>รายการสิ่งที่ต้องทำ</strong>
+            <h3>บันทึกขีดนับ</h3>
             <small id="daily-sheet-count">0 รายการ</small>
           </div>
           <button type="button" class="icon-button" data-daily-action="close" data-action="close-daily-book" title="ปิดสมุด (Esc)" aria-label="ปิดสมุด">${icon('cross')}</button>
@@ -229,6 +232,7 @@ export function createDailyBookWindow({
     if (colorClass) panel.classList.remove(colorClass);
     colorClass = `book-${book.color}`;
     panel.classList.add(colorClass);
+    paintLeatherDye(panel, book.color);
 
     panel.querySelector('#daily-book-window-title').textContent = book.title;
     const unfoldingTitle = panel.querySelector('#daily-book-unfolding-title');
@@ -249,7 +253,7 @@ export function createDailyBookWindow({
     const listEl = panel.querySelector('#daily-task-list');
     const scrollTop = listEl.scrollTop;
     if (!filtered.length) {
-      listEl.innerHTML = `<div class="folder-empty">${icon('scroll')}<p>${query ? 'ไม่พบงานที่ค้นหา' : 'ยังไม่มีรายการสิ่งที่ต้องทำ'}</p><small>${query ? 'ลองค้นหาด้วยคำอื่น' : 'พิมพ์สิ่งที่ต้องทำทางหน้าซ้าย แล้วกดเพิ่มได้เลย'}</small></div>`;
+      listEl.innerHTML = `<div class="daily-book-empty">${icon(query ? 'search' : 'scroll')}<p>${query ? 'ไม่พบงานในสมุด' : 'ยังไม่มีงานในสมุด'}</p><small>${query ? 'ลองค้นหาด้วยคำอื่น' : 'จดงานแรกเพื่อเริ่มขีดนับ'}</small></div>`;
     } else {
       listEl.innerHTML = filtered.map(task => {
         const fresh = lastFreshTaskId === task.id && !reducedMotion();
@@ -338,7 +342,7 @@ export function createDailyBookWindow({
     panel.style.display = 'none';
     panel.classList.remove('is-unfolding');
     if (returnFocus) {
-      (document.querySelector('[data-open-daily-book]') || document.querySelector('[data-action="open-daily-book"]'))?.focus({ preventScroll: true });
+      document.querySelector('[data-open-daily-book]')?.focus({ preventScroll: true });
     }
     return true;
   }

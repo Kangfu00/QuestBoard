@@ -1,0 +1,148 @@
+#app { --shutter-lip: 31px; }
+
+#desk-workspace .quiet-desk {
+  min-height: calc(100dvh - var(--shutter-lip));
+  height: calc(100dvh - var(--shutter-lip));
+}
+
+#desk-workspace .desk-content { height: 100%; }
+
+#desk-workspace #quest-drawer.side-storage {
+  bottom: var(--shutter-lip);
+  height: calc(100dvh - var(--shutter-lip));
+}
+
+.desk-surface {
+  position: relative;
+  height: 100%;
+}
+
+.desk-shutter {
+  --shutter-shade: 0;
+  --shutter-settle: .39s cubic-bezier(.22,.8,.24,1);
+  position: fixed;
+  z-index: 11000;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.desk-shutter.is-closed {
+  --shutter-rest: 0px;
+  --shutter-shade: 1;
+}
+
+.desk-shutter-veil,
+.desk-shutter-light {
+  position: absolute;
+  inset: 0;
+  opacity: var(--shutter-shade);
+  transition: opacity var(--shutter-settle);
+  pointer-events: none;
+}
+
+.desk-shutter-veil {
+  background: radial-gradient(ellipse at 50% 54%, #170b0732, #100805b0 85%);
+}
+
+.desk-shutter-panel {
+  position: relative;
+  height: 100%;
+  background:
+    linear-gradient(90deg, #1f100970, transparent 3%, transparent 97%, #20120b80),
+    repeating-linear-gradient(0deg, #311c1090 0 2px, #ad805241 2px 3px, transparent 4px 98px),
+    radial-gradient(ellipse at 26% 26%, #af7a4838, transparent 38%),
+    radial-gradient(ellipse at 77% 68%, #c08d552a, transparent 42%),
+    repeating-linear-gradient(1deg, #331d141e 0 1px, transparent 2px 4px, #af79451a 5px 6px, transparent 7px 13px),
+    linear-gradient(111deg, #3b271c, #604127 49%, #39261b);
+  box-shadow: 0 -4px 12px #1b0e0970;
+  pointer-events: auto;
+  transform: translate3d(0, var(--shutter-offset, var(--shutter-rest, calc(100% - var(--shutter-lip)))), 0);
+  transition: transform var(--shutter-settle);
+}
+
+.desk-shutter.is-pulling :is(.desk-shutter-panel,.desk-shutter-veil,.desk-shutter-light) { transition: none; }
+
+.desk-shutter-light {
+  background: radial-gradient(ellipse 57% 64% at center, #170b0700 13%, #160a0674 56%, #0b0604eb 100%);
+}
+
+.desk-shutter-light::after {
+  position: absolute;
+  inset: 0;
+  content: '';
+  background: radial-gradient(ellipse 33% 41% at center, #dca05b35, #be77321c 41%, transparent 82%);
+  animation: shutter-lamplight 6.2s ease-in-out infinite paused;
+}
+
+.desk-shutter:is(.is-closed,.is-pulling) .desk-shutter-light::after { animation-play-state: running; }
+
+@keyframes shutter-lamplight {
+  0%, 100% { opacity: .78; transform: translate(0, 0); }
+  19% { opacity: .92; transform: translate(.35%, -.45%); }
+  36% { opacity: .73; transform: translate(-.25%, .15%); }
+  59% { opacity: 1; transform: translate(.4%, .3%); }
+  72% { opacity: .82; transform: translate(.1%, -.25%); }
+}
+
+.desk-shutter-handle {
+  position: absolute;
+  z-index: 1;
+  inset: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: var(--shutter-lip);
+  padding: 1px 12px 2px;
+  border: 1px solid #53351e;
+  color: #ead4a0;
+  background:
+    repeating-linear-gradient(2deg, transparent 0 3px, #42261228 4px, transparent 6px),
+    linear-gradient(#987044, #775230 50%, #523520);
+  box-shadow: inset 0 1px 0 #e0b6785e, inset 0 -1px 2px #2b190d8c;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.desk-shutter.is-closed .desk-shutter-handle {
+  background:
+    repeating-linear-gradient(2deg, transparent 0 3px, #2f170d4a 4px, transparent 6px),
+    linear-gradient(90deg, #291a12, #58391f 42% 58%, #291a12);
+  border-color: #352117;
+  box-shadow: inset 0 1px #98724c3d, inset 0 -1px 2px #23150b8c;
+}
+
+.desk-shutter-handle span {
+  display: grid;
+  place-items: center;
+  width: clamp(46px, 10vw, 80px);
+  height: 21px;
+  border: 1px solid #d3ac7170;
+  border-radius: 3px;
+  background: linear-gradient(#724b2c, #54351e);
+  box-shadow: inset 0 1px 2px #280f0866, 0 1px 0 #ddb17944;
+  font: 18px/1 Georgia, serif;
+  text-shadow: 0 2px #2e1a10;
+  pointer-events: none;
+}
+
+.desk-shutter-handle:hover span { color: #fff0c6; border-color: #d3ac71a0; }
+.desk-shutter-handle:focus-visible { outline: none; }
+.desk-shutter-handle:focus-visible span { outline: 2px solid #e7c889; outline-offset: 2px; }
+.desk-shutter.is-pulling .desk-shutter-handle { cursor: grabbing; }
+
+.desk-shutter-star {
+  position: absolute;
+  inset: 50% auto auto 50%;
+  transform: translate(-50%, -50%);
+  color: #d5ad74;
+  font: clamp(49px, 11vmin, 109px)/1 Georgia, serif;
+  text-shadow: 0 1px #f9dc9b65, 0 4px 7px #240f0ac7, 0 0 28px #e2a45d36;
+  pointer-events: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .desk-shutter-panel,.desk-shutter-veil,.desk-shutter-light { transition: none; }
+  .desk-shutter-light::after { animation: none; opacity: .84; }
+}

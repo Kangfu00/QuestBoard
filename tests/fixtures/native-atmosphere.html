@@ -161,6 +161,46 @@ async function run(){try{
   }
   check(clicked.join(',')==='board-button,folder-button,expanded-button','synthetic clicks reach all three native hit-tested controls');
   check(Number(css(layer).zIndex)>Number(css(document.querySelector('.dummy-folder')).zIndex)&&Number(css(layer).zIndex)<Number(css(document.querySelector('.dummy-expanded')).zIndex),'atmosphere paints above dummy desk content and below expanded document');
+  if(!parameters.has('capture')){
+   const viewport=layer.closest('.board-scroll'),canvas=document.createElement('div');
+   canvas.className='canvas-size';
+   viewport.style.overflow='auto';
+   viewport.append(canvas);
+   const coverViewport=label=>{
+    const scroll=viewport.getBoundingClientRect(),paint=layer.getBoundingClientRect();
+    check(close(paint.left,scroll.left+viewport.clientLeft)&&close(paint.top,scroll.top+viewport.clientTop)
+      &&close(paint.width,viewport.clientWidth)&&close(paint.height,viewport.clientHeight),
+      label+': light covers the visible desk '+JSON.stringify({paint:paint.toJSON(),left:viewport.scrollLeft,top:viewport.scrollTop,width:viewport.clientWidth,height:viewport.clientHeight}));
+    const grain=css(viewport,'::before'),desk=canvas.getBoundingClientRect();
+    check(grain.position==='sticky'&&close(parseFloat(grain.height),paint.height)&&close(parseFloat(grain.width),paint.width),label+': wood grain uses the same visible bounds');
+    check(close(desk.left+viewport.scrollLeft,paint.left)&&close(desk.top+viewport.scrollTop,paint.top),label+': the canvas keeps the original scroll origin');
+   };
+   for(const [width,height] of [[1664,1140],[2400,1800]]){
+    Object.assign(canvas.style,{width:width+'px',height:height+'px'});
+    await nativeFrame();await nativeFrame();
+    check(viewport.scrollWidth===width&&viewport.scrollHeight===height,'ambient paint adds no space to the enlarged canvas');
+    for(const [x,y] of [[73,0],[0,97],[width,height]]){
+     viewport.scrollLeft=x;viewport.scrollTop=y;
+     check((!x||viewport.scrollLeft>0)&&(!y||viewport.scrollTop>0),'fixture really scrolls the enlarged canvas');
+     coverViewport('canvas '+width+' scrolled to '+x+','+y);
+    }
+   }
+   viewport.scrollTop=0;viewport.scrollLeft=0;
+   viewport.style.width='900px';viewport.style.height='620px';
+   await nativeFrame();await nativeFrame();
+   coverViewport('viewport following a dock resize');
+   check(viewport.scrollWidth===2400&&viewport.scrollHeight===1800,'resize preserves actual scroll bounds');
+   for(const [width,height,horizontal,vertical] of [[500,400,false,false],[1664,400,true,false],[500,1140,false,true]]){
+    Object.assign(canvas.style,{width:width+'px',height:height+'px'});
+    await nativeFrame();await nativeFrame();
+    check((viewport.scrollWidth>viewport.clientWidth)===horizontal&&(viewport.scrollHeight>viewport.clientHeight)===vertical,
+      'ambient paint preserves single-axis and fitted scroll ranges '+JSON.stringify({width,height,scrollWidth:viewport.scrollWidth,scrollHeight:viewport.scrollHeight,clientWidth:viewport.clientWidth,clientHeight:viewport.clientHeight}));
+    viewport.scrollLeft=width;viewport.scrollTop=height;
+    coverViewport('single-axis or fitted viewport');
+   }
+   controller.destroy();
+   check(layer.parentElement===null&&!viewport.style.getPropertyValue('--desk-paint-height'),'destroy removes the pinned paint and its sizing');
+  }
  }
  if(parameters.has('capture')){
   const phase=parameters.get('capture');document.documentElement.dataset.capture=phase;

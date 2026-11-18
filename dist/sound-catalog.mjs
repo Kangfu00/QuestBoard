@@ -161,6 +161,8 @@ const levels={
     -0.93,
     -14.92
   ],
+  "audio/kenney-impact/impactMetal_light_000.ogg": [-0.96, -20.81],
+  "audio/kenney-impact/impactMetal_light_001.ogg": [-0.95, -20.04],
   "audio/freesound/paperFlip1.wav": [
     -4.6,
     -29.08
@@ -247,5 +249,6 @@ export const DESK_SOUNDS=Object.freeze({
   stampPick:mix(wood('light',0,1),{rate:[1.05,1.13],peak:-10,rms:-30,interval:90}),
   stampReturn:mix(wood('light',2,3,4),{rate:[.96,1.04],peak:-8,rms:-27,interval:90}),
   stamp:mix(wood('medium',0,1,2,3,4),{rate:[.96,1.04],peak:-5,rms:-23,interval:65}),
+  paperweightDrop:mix(['audio/kenney-impact/impactMetal_light_000.ogg','audio/kenney-impact/impactMetal_light_001.ogg'],{rate:[.87,.95],peak:-10,rms:-29}),
   pen:mix(paper('pencilScratch1','pencilScratch2','pencilScratch3'),{peak:-12,rms:-29,interval:110}),
 });

@@ -1,5 +1,19 @@
 /* Paint above ordinary desk cards and folios, below expanded body-level readers.
    No compositing, clipping, opacity or filters are added to 3D ancestors. */
+.board-scroll::before {
+  content:'';position:absolute;inset:0;pointer-events:none;opacity:.13;filter:url(#paper-noise);z-index:0;
+}
+.board-scroll:has(> .desk-atmosphere)::before,
+.board-scroll > .desk-atmosphere {
+  /* Pin the light and wood grain to the scrollport. The matching negative
+     margin leaves the canvas at the origin and owns no extra scroll space. */
+  position:sticky;
+  inset:0 auto auto 0;
+  display:block;
+  width:100%;
+  height:var(--desk-paint-height, 0px);
+  margin-bottom:calc(-1 * var(--desk-paint-height, 0px));
+}
 .desk-atmosphere {
   position:absolute;inset:0;z-index:20;overflow:hidden;pointer-events:none;
   --sun-morning-mask:linear-gradient(118deg,transparent 3%,#fff2 7%,#fff9 11%,#fff 14%,#fffb 18%,#fff3 23%,transparent 27%,transparent 31%,#fff2 34%,#fffa 39%,#fffd 42%,#fff8 46%,#fff2 50%,transparent 54%,transparent 58%,#fff2 61%,#fff7 65%,#fffa 69%,#fff5 73%,transparent 79%);

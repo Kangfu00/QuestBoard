@@ -12,7 +12,8 @@ import {spawn} from 'node:child_process';
 const root=fileURLToPath(new URL('../dist/',import.meta.url));
 const fixture=await readFile(new URL('./fixtures/native-prerequisite-flow.html',import.meta.url));
 const assets=new Map([
-  ['model.mjs','text/javascript'],['paper-format.mjs','text/javascript'],['photo-layout.mjs','text/javascript'],
+  ['model.mjs','text/javascript'],['daily-book-model.mjs','text/javascript'],['paper-format.mjs','text/javascript'],['photo-layout.mjs','text/javascript'],
+  ['leather-colors.mjs','text/javascript'],
   ['stamp-tools.mjs','text/javascript'],['stamp-surfaces.mjs','text/javascript'],['stamp-placement.mjs','text/javascript'],
   ['quest-dependencies.mjs','text/javascript'],['quest-dependency-view.mjs','text/javascript'],['quest-unlock.mjs','text/javascript'],
   ['quest-dependency-view.css','text/css'],['quest-unlock.css','text/css'],

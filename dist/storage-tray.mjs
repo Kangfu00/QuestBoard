@@ -1,5 +1,5 @@
 import {BOARD_LIMIT} from './model.mjs';
-import {PAPER} from './paper-format.mjs';
+import {NOTEBOOK_SIZE,PAPER,photoSheetSize} from './paper-format.mjs';
 import {DAILY_BOOK_SIZE} from './daily-book-model.mjs';
 
 export const TRAY_SCALE=.62;
@@ -11,17 +11,18 @@ export function trayPosition(item,index=0){
   const rows=Math.floor((BOARD_LIMIT.height-30-PAPER.height)/rowHeight)+1,bandSize=rows*4;
   return item.storagePosition??{x:34+(index%4+Math.floor(index/bandSize)*4)*(PAPER.width+80),y:30+Math.floor(index%bandSize/4)*rowHeight};
 }
-export function trayDrop(pointer,origin,grab={x:PAPER.width/2,y:28},scale=TRAY_SCALE,rotation=0,type='quest'){
-  const width=type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
-  const height=type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
+export function trayDrop(pointer,origin,grab={x:PAPER.width/2,y:28},scale=TRAY_SCALE,rotation=0,type='quest',aspect,photoScale){
+  const sizedSheet=type==='photo'?photoSheetSize(aspect,photoScale):type==='notebook'?NOTEBOOK_SIZE:null;
+  const width=sizedSheet?.width??(type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width);
+  const height=sizedSheet?.height??(type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height);
   const angle=rotation*Math.PI/180,cx=width/2,cy=height/2;
   const dx=grab.x-cx,dy=grab.y-cy;
   return {x:clamp((pointer.x-origin.left)/scale-cx-dx*Math.cos(angle)+dy*Math.sin(angle),0,BOARD_LIMIT.width-width),y:clamp((pointer.y-origin.top)/scale-cy-dx*Math.sin(angle)-dy*Math.cos(angle),0,BOARD_LIMIT.height-height)};
 }
 export function trayItems(state,search=''){
   const term=search.trim().toLocaleLowerCase();
-  return state.items.filter(item=>item.archived&&(item.type==='folder'||item.type==='quest'&&!item.folderId))
-    .filter(item=>!term||[item.title,item.name,item.description,item.category].some(value=>value?.toLocaleLowerCase().includes(term))
+  return state.items.filter(item=>item.archived&&(item.type==='folder'||item.type==='photo'||item.type==='notebook'||item.type==='quest'&&!item.folderId))
+    .filter(item=>!term||[item.title,item.name,item.description,item.category,item.type==='photo'?item.notes:null,...(item.pages??[])].some(value=>value?.toLocaleLowerCase().includes(term))
       ||item.type==='folder'&&state.items.some(q=>q.folderId===item.id&&[q.title,q.description,q.category].some(value=>value?.toLocaleLowerCase().includes(term))));
 }
 

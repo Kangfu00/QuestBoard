@@ -37,13 +37,14 @@ test('quest photo markup carries cached orientation and manual pose into fresh p
   assert.equal(context.questPhotoPresentation({imageDataUrl:null}).markup,'');
 });
 
-test('desk shortcuts leave an open photo viewer or active image arrangement alone',()=>{
-  for(const mode of ['viewer','edit']){
+test('desk shortcuts leave an open photo viewer, active image arrangement or closed shutter alone',()=>{
+  for(const mode of ['viewer','edit','covered']){
     let keydown;const calls=[];
-    const context={photoViewer:{isOpen:mode==='viewer'},questPhotos:{editing:mode==='edit'},
+    const context={photoViewer:{isOpen:mode==='viewer'},questPhotos:{editing:mode==='edit'},deskShutter:{closed:mode==='covered'},
       document:{addEventListener:(name,handler)=>{keydown=handler;}},dialog:{open:false},drag:null,storedDrag:null,heldStamp:null,
       $:()=>({open:false}),setActiveDrawer:()=>calls.push('drawer'),setToolsOpen:()=>calls.push('tools'),closeFolderWindow:()=>calls.push('folio')};
     vm.createContext(context);vm.runInContext(section("document.addEventListener('keydown',e=>{","window.addEventListener('blur'"),context);
     keydown({key:'Escape',target:{matches:()=>false}});assert.deepEqual(calls,[]);
+    keydown({key:'/',target:{matches:()=>false}});assert.deepEqual(calls,[]);
   }
 });

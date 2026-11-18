@@ -181,6 +181,7 @@ export function createDeskWindows({document = globalThis.document, window = glob
   return {
     register,
     get top() { return restack()?.panel ?? null; },
+    get topZ() { return baseZ + Math.max(0, order.length - 1); },
     get size() { return entries.size; },
     destroy() {
       if (destroyed) return;

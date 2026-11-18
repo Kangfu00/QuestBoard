@@ -17,6 +17,7 @@ Raw archives and a machine-readable audit catalog are retained in `.local/audio-
 
 - Gain hints below are linear per-clip multipliers before the application master volume; they are conservative starting points, not listening-approved final mixes.
 - Native RPG recordings are 48 kHz stereo; Impact recordings are 44.1 kHz stereo. Web Audio can decode/resample them to its context rate.
+- The paperweight contact uses `impactMetal_light_000.ogg` and `impactMetal_light_001.ogg`, copied unchanged from the same CC0 Kenney Impact Sounds archive. Their SHA-256 values are `33b5e6e37c6e9d54e07bf5a89b12c76e879f40c1ea83cdd82714df1d6f9fec6d` and `fba69c467ddd85da7b1d82e259f936b876d9ba6a3d6f1b24bdd10468e46bfe08`.
 - Some original Vorbis files decode to peaks above 0 dBFS. Apply clip gain in floating-point Web Audio before output; do not treat all source files as equally loud. The runtime should also limit overlapping voices and avoid accumulating a click sound on top of each material sound.
 - `bookFlip1/2/3` provide three recorded paper gestures. Keep variants and timing separate from leather cover handling, binding pulls, wood contacts, and stamps.
 - `doorOpen_1`, `doorClose_2`, and `creak1/2/3` are cabinet/wood movement candidates; the source pack does not identify a dedicated drawer recording. Their suitability for drawers requires listening in the application. Do not describe them as recordings of drawers.

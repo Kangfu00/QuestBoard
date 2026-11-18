@@ -1,5 +1,5 @@
-import { BOARD, BOARD_LIMIT, DAILY_BOOK_SIZE } from './model.mjs';
-import {PAPER} from './paper-format.mjs';
+import { BOARD, BOARD_LIMIT, DAILY_BOOK_SIZE, PAPERWEIGHT_SIZE } from './model.mjs';
+import {NOTEBOOK_SIZE,PAPER,photoSheetSize} from './paper-format.mjs';
 
 export function dragPosition(start, pointer, scale, boardShift={x:0,y:0}) {
   return { x: start.x + (pointer.x - start.pointerX - boardShift.x) / scale, y: start.y + (pointer.y - start.pointerY - boardShift.y) / scale };
@@ -19,14 +19,14 @@ export function shouldOpenDrawer(reveal, travel) {
 
 export function drawerForDraggedItem(type, current, hovered=null) {
   if(type==='folder')return 'folder-drawer';
-  if(type==='daily-book')return 'quest-drawer';
+  if(type==='daily-book'||type==='photo'||type==='notebook')return 'quest-drawer';
   if(type!=='quest')return current;
   if(['quest-drawer','folder-drawer'].includes(hovered))return hovered;
   return current==='folder-drawer'?'folder-drawer':'quest-drawer';
 }
 
 export function storageTrayAccepts(type, drawer) {
-  return type==='folder'&&drawer==='folder-drawer'||(type==='quest'||type==='daily-book')&&drawer==='quest-drawer';
+  return type==='folder'&&drawer==='folder-drawer'||(type==='quest'||type==='daily-book'||type==='photo'||type==='notebook')&&drawer==='quest-drawer';
 }
 
 export function rotatedOrigin(bounds, width, height, rotation, scale) {
@@ -38,9 +38,10 @@ export function rotatedOrigin(bounds, width, height, rotation, scale) {
   };
 }
 
-function rotatedDimensions(type, rotation) {
-  const width=type==='label'?230:type==='daily-book'?DAILY_BOOK_SIZE.width:PAPER.width;
-  const height=type==='label'?70:type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:PAPER.height;
+function rotatedDimensions(type, rotation, aspect, photoScale) {
+  const sizedSheet=type==='photo'?photoSheetSize(aspect,photoScale):type==='notebook'?NOTEBOOK_SIZE:null;
+  const width=sizedSheet?.width??(type==='label'?230:type==='daily-book'?DAILY_BOOK_SIZE.width:type==='paperweight'?PAPERWEIGHT_SIZE:PAPER.width);
+  const height=sizedSheet?.height??(type==='label'?70:type==='folder'?210:type==='daily-book'?DAILY_BOOK_SIZE.height:type==='paperweight'?PAPERWEIGHT_SIZE:PAPER.height);
   const angle=rotation*Math.PI/180;
   const cos=Math.abs(Math.cos(angle)), sin=Math.abs(Math.sin(angle));
   return {width,height,halfX:(width*cos+height*sin)/2,halfY:(width*sin+height*cos)/2};
@@ -55,16 +56,17 @@ export function canvasLayout(viewport, items, zoom=1, compact=false) {
   let width=Math.max(BOARD.width,viewport.width/scale);
   let height=Math.max(BOARD.height,viewport.height/scale);
   for(const item of items){
-    const size=rotatedDimensions(item.type,item.rotation??0);
-    width=Math.max(width,item.x+(size.width/2+size.halfX)+24);
-    height=Math.max(height,item.y+(size.height/2+size.halfY)+24);
+    const size=rotatedDimensions(item.type,item.rotation??0,item.aspect,item.photoScale);
+    const margin=item.type==='paperweight'?0:24;
+    width=Math.max(width,item.x+(size.width/2+size.halfX)+margin);
+    height=Math.max(height,item.y+(size.height/2+size.halfY)+margin);
   }
   // Keep fractional board units so fitting does not introduce subpixel scrollbars.
   return {scale,width:Math.min(BOARD_LIMIT.width,width),height:Math.min(BOARD_LIMIT.height,height)};
 }
 
-export function rotatedClampPosition(x, y, type='quest', rotation=0, bounds=BOARD) {
-  const size=rotatedDimensions(type,rotation);
+export function rotatedClampPosition(x, y, type='quest', rotation=0, bounds=BOARD, aspect, photoScale) {
+  const size=rotatedDimensions(type,rotation,aspect,photoScale);
   const minX=Math.max(0,size.halfX-size.width/2), minY=Math.max(0,size.halfY-size.height/2);
   const maxX=Math.min(bounds.width-size.width,bounds.width-(size.width/2+size.halfX));
   const maxY=Math.min(bounds.height-size.height,bounds.height-(size.height/2+size.halfY));

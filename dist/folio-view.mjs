@@ -1,6 +1,7 @@
 import {STATUS,filterQuests} from './model.mjs';
 import {animateTransient,cancelMotion} from './desk-motion.mjs';
 import {PAPER} from './paper-format.mjs';
+import {paintLeatherDye} from './leather-colors.mjs';
 const esc=(value='')=>String(value).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 let nextFolioScope=0;
 const folioScope=()=>`folio-${++nextFolioScope}`;
@@ -13,7 +14,7 @@ export function folioPaperScale(width,height){return Math.max(0,Math.min((width-
 export function folioMarkup(folder,{icon,binding,scope=folioScope()}){
   return `<div class="folder-window-cover" aria-hidden="true"><div class="folio-cover-outer"><span class="folio-cover-label">${esc(folder.name)}</span>${binding}</div><div class="folio-cover-inner"></div></div>
     <div class="folio-spine" aria-hidden="true"></div>
-    <section class="folio-left"><header class="folder-window-header"><div>${icon('shield')}<h2 id="${esc(scope)}-title" class="folder-window-title">${esc(folder.name)}</h2><small>บันทึกแห่งกิลด์</small></div><div><button class="icon-button" data-edit-folder="${folder.id}" aria-label="แก้ไขชื่อแฟ้ม">${icon('edit')}</button><button class="icon-button" data-store-folder="${folder.id}" aria-label="เก็บแฟ้มกลับลิ้นชัก">${icon('archive')}</button><button class="icon-button" data-action="close-folder" aria-label="ปิดแฟ้ม">${icon('cross')}</button></div></header>
+    <section class="folio-left"><header class="folder-window-header"><div>${icon('shield')}<h2 id="${esc(scope)}-title" class="folder-window-title">${esc(folder.name)}</h2><small>บันทึกแห่งกิลด์</small></div><div><button class="icon-button" data-edit-folder="${folder.id}" title="แก้ไขชื่อและสีแฟ้ม" aria-label="แก้ไขชื่อและสีแฟ้ม">${icon('edit')}</button><button class="icon-button" data-store-folder="${folder.id}" aria-label="เก็บแฟ้มกลับลิ้นชัก">${icon('archive')}</button><button class="icon-button" data-action="close-folder" aria-label="ปิดแฟ้ม">${icon('cross')}</button></div></header>
     <div class="folio-index-paper"><label class="drawer-search">${icon('search')}<input id="${esc(scope)}-search" class="folder-search" type="search" placeholder="ค้นหาในแฟ้ม…" aria-label="ค้นหาเควสในแฟ้ม"></label><div class="folio-index-heading"><span>สารบัญเควส</span><b id="${esc(scope)}-total" class="folio-total"></b></div><div id="${esc(scope)}-list" class="folder-window-list"></div></div>
     <div class="folder-window-drop">${icon('folder')}<strong>กระเป๋าเก็บเรื่องราว</strong><small>ลากเควสมาวางเพื่อเก็บในแฟ้มนี้</small></div></section>
     <section class="folio-right" aria-label="ใบเควสที่เลือก"><div class="folio-preview-heading"><span id="${esc(scope)}-selected-title" class="folio-selected-title"></span><small id="${esc(scope)}-page-count" class="folio-page-count"></small></div><div class="folio-paper-viewport"><div class="folio-stack" aria-hidden="true" hidden></div><div class="folio-paper-stage"></div><div class="folio-preview-empty"></div></div><div class="folio-paper-actions"></div><p class="folder-window-footnote">ลากหัวกระดาษออกไปวางบนโต๊ะ · กดมุมกระดาษเพื่อจดบันทึก</p></section>`;
@@ -92,6 +93,7 @@ export function createFolioView({panel,document=globalThis.document,renderQuest,
     }
     if(colorClass)panel.classList.remove(colorClass);colorClass=`folder-${folder.color}`;
     panel.classList.add('folder-window','folio-spread',colorClass);
+    paintLeatherDye(panel,folder.color);
     panel.setAttribute('aria-labelledby',`${scope}-title`);
     panel.hidden=false;panel.dataset.folderTarget=folder.id;panel.dataset.openFolder=folder.id;
     find('.folder-window-title').textContent=folder.name;find('.folio-cover-label').textContent=folder.name;

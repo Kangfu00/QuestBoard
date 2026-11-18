@@ -32,6 +32,7 @@ function desk(type){
   surface.dataset.storageId=item.id;
   surface.getBoundingClientRect=()=>({left:800,top:100,width:PAPER.width*TRAY_SCALE,height:(type==='folder'?210:PAPER.height)*TRAY_SCALE});
   grip.dataset[type==='folder'?'folderDrag':'questDrag']=item.id;
+  grip.matches=selector=>selector==='[data-daily-book-drag]'&&Object.hasOwn(grip.dataset,'dailyBookDrag');
   grip.closest=selector=>selector==='[data-storage-id]'?surface:selector==='[data-folio-paper]'?null:grip;
   const landing=element();let finishLanding;
   const finished=new Promise(resolve=>{finishLanding=resolve;});

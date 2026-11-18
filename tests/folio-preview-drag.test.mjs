@@ -45,6 +45,7 @@ function desk({scale=.72,boardScale=.63,rotation=8,grab={x:65,y:24},animatedPare
   paper.getBoundingClientRect=()=>{calls.push(['measure-preview']);return rect;};
   paper.closest=selector=>selector.includes('[data-folio-paper]')?paper:selector==='.folio-paper-stage'?stage:selector==='.folder-window'?panel:null;
   const grip=element(['quest-top','drag-handle']);grip.dataset.questDrag='quest';
+  grip.matches=selector=>selector==='[data-daily-book-drag]'&&Object.hasOwn(grip.dataset,'dailyBookDrag');
   grip.closest=selector=>selector.includes('[data-quest-drag]')?grip:selector.includes('[data-folio-paper]')?paper:null;
   const boardOrigin={left:40,top:60};
   const trayRect={left:920,top:80};
@@ -90,6 +91,25 @@ const near=(actual,expected,message)=>assert.ok(Math.abs(actual-expected)<1e-8,`
 function released(h){
   assert.equal(h.context.storedDrag,null);assert.equal(h.body.hasPointerCapture(7),false);assert.equal(h.window.listeners.size,0);
 }
+
+test('lifting a folder from storage preserves the custom leather hue on its drag copy',()=>{
+  const h=desk();
+  const folder={...h.context.state.items.find(item=>item.id==='source'), color:'dye-167-classic'};
+  const copy=element(['board-folder']);
+  copy.style.setProperty('--leather-hue','167');
+  Object.defineProperty(copy.style,'cssText',{set(){delete this['--leather-hue'];}});
+  h.context.document.createElement=()=>({firstElementChild:copy});
+  h.context.storedDrag={id:folder.id,item:folder,surface:element(),scale:TRAY_SCALE,rotation:folder.rotation,
+    grab:{x:60,y:18},startX:h.pointer.clientX,startY:h.pointer.clientY,pointerId:h.pointer.pointerId,moved:false};
+
+  h.move();
+
+  assert.equal(h.ghosts[0],copy);
+  assert.equal(copy.style.getPropertyValue('--leather-hue'),'167');
+  assert.equal(copy.style.position,'fixed');
+  assert.equal(copy.style.width,`${PAPER.width}px`);
+  assert.equal(copy.style.height,'210px');
+});
 
 for(const scale of [.72,1.15])test(`folio pickup at ${scale}x preserves the actual grabbed pixel and its upright fitted pose`,()=>{
   const h=desk({scale});h.start();
@@ -172,4 +192,12 @@ test('releasing a held folio paper over a document keeps it filed instead of dro
   h.release();released(h);
   assert.equal(h.commits.length,0);assert.equal(h.context.state.items.find(item=>item.id==='quest').folderId,'source');
   assert.equal(h.panel.hidden,false);assert.equal(h.ghosts[0].isConnected,false);
+});
+
+test('dropping a stored paper on the wooden shutter leaves it in storage',()=>{
+  const h=desk();h.start();h.move();
+  h.context.document.elementFromPoint=()=>({closest:selector=>selector.includes('.desk-shutter')?{}:null});
+  h.release();released(h);
+  assert.equal(h.commits.length,0);
+  assert.equal(h.context.state.items.find(item=>item.id==='quest').folderId,'source');
 });
