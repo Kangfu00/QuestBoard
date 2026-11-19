@@ -1,5 +1,29 @@
 # Verification
 
+## 2026-11-19 — ป้ายนักผจญภัย + ถุงเหรียญ XP บนกรอบโต๊ะ (Brass Adventurer Plate & Leather Coin Pouch)
+
+- **ความต้องการ:** ย้ายข้อมูล XP และ LEVEL ออกจากข้อความในเมนูเครื่องมือ มาเป็นวัตถุจริงบนโต๊ะนายทะเบียนกิลด์: ป้ายทองเหลืองโบราณแขวนด้วยสายหนัง พร้อมถุงเหรียญหนังที่พองตามความคืบหน้าของเลเวล
+- **ตำแหน่งและเลเยอร์:** วางบนกรอบโต๊ะ `#desk-surface` ที่มุมซ้ายล่าง (`left: 18px; bottom: 18px; z-index: 40;`) อยู่นอก `#board-scroll` ทำให้ไม่เลื่อนหรือซูมตามโต๊ะ และไม่ชนกับรางเครื่องมือ (บน), ลิ้นชักเก็บของ (ขวา), ม่านโต๊ะ (ล่าง), หรือข้อความแจ้งเตือน (`#toast` ล่างกลาง) คลิกทะลุชั้นบรรยากาศได้ตามปกติ
+- **โมเดลบริสุทธิ์ (`dist/adventurer-model.mjs`):**
+  - `XP_PER_LEVEL = 500`
+  - `ADVENTURER_TITLES`: 1: ผู้สมัครกิลด์, 2: ผู้ฝึกหัด, 3: นักสำรวจ, 4: นักผจญภัย, 5: ผู้กล้า, 6: ผู้เชี่ยวชาญ, 7: ผู้พิทักษ์, 8+: ตำนานแห่งกิลด์
+  - `xpSummary(rawXp)`: คำนวณ `{ level, intoLevel, perLevel: 500, toNext, title, totalXp }` รับค่า NaN/ติดลบ/ไม่ใช่ตัวเลขได้อย่างปลอดภัย
+  - `coinCount(rawDeltaXp)`: คำนวณจำนวนเหรียญบิน `clamp(ceil(delta / 50), 1, 8)` คืนค่า 0 หาก delta <= 0
+- **คอมโพเนนต์และการโต้ตอบ (`dist/adventurer-plate.mjs` และ `dist/adventurer-plate.css`):**
+  - ป้ายเป็น `<button>` คลิกหรือกด Enter เพื่อพลิกดูสถิติด้านหลังแบบ 3D (XP รวม, จำนวนเควสสำเร็จ, XP ที่ขาด) เป้าแตะ ≥ 40px พร้อม `aria-label` และ live region `role="status"`
+  - ด้านหน้ามีตราประจำตัว (ซิงก์กับตราที่ทับกระดาษ), เลขเลเวล (`Cinzel`), ฉายาภาษาไทย (`Noto Serif Thai`), และร่องสลักทองเหลืองแสดงแถบความคืบหน้าสู่เลเวลถัดไป
+  - เมื่อประทับตรา "สำเร็จ": เหรียญทอง 1–8 เหรียญบินเป็นเส้นโค้งพาราโบลาจากจุดประทับตราเข้าถุงเหรียญ (420–560ms, stagger 50ms, easing slide) ถุงยุบแล้วเด้งคืน ~160ms พร้อมเสียงเคาะโลหะ (`paperweightDrop`) จำกัดเหรียญที่บินพร้อมกันไม่เกิน 8 เหรียญ
+  - เมื่อขึ้นเลเวล: ข้อมูลเปลี่ยนก่อนเสมอ ป้ายยกตัวขึ้น ประกายทองวาบข้ามหน้าป้าย (800ms) เลขใหม่ตอกลงด้วยท่า `stamp-in` (380ms) รวม ~900ms พร้อมประกาศเสียงสำหรับ screen reader
+  - XP ลด: อัปเดตเงียบ ๆ ไม่มีเหรียญย้อน ไม่มีพิธี
+  - ลดการเคลื่อนไหว (`prefers-reduced-motion`): ไม่บินเหรียญ ถุงไม่เด้ง เปลี่ยนเลขเลเวลด้วย `reducedMotionCrossfade` (120ms)
+- **การทดสอบ:**
+  - `tests/adventurer-model.test.mjs`: 4 tests (XP milestones, negative/NaN sanitization, rank boundaries, coin count limits) — ผ่าน 100%
+  - `tests/adventurer-plate.test.mjs`: 8 tests (DOM mounting, 3D flip card, coin flight lifecycle, cancelAll cleanup, level up celebration, reduced motion, graceful degradation without WAAPI, serialization immutability) — ผ่าน 100%
+  - `tests/motion-governance.test.mjs`: ผ่าน 5/5 (ไร้ direct WAAPI .animate(), มี reduced-motion guard ทุกจุด, package.json check ครบทุกไฟล์)
+  - `npm run check`: ทุกไฟล์ใน `dist/` รวมทั้งไฟล์ใหม่ผ่านไวยากรณ์ Node 100%
+  - ผลรวมชุดทดสอบทั้งโปรเจกต์: **718 tests passed** (เมื่อรัน browser suite แยกตามปกติ)
+- **สิ่งที่ยังไม่ได้ดูในเบราว์เซอร์จริง:** ความลื่นไหลของอนิเมชันเหรียญบินบนหน้าจอจริง, ความรู้สึกของการคลิกพลิกป้าย 3D, และการซ้อนทับจริงกับสภาพแสงบรรยากาศโต๊ะในเบราว์เซอร์สด (ตรวจผ่าน unit test, governance test, DOM test และ static verification แล้ว)
+
 ## 2026-11-19 — paper burn visual rework: scorch / char / ember layers along one frayed edge
 
 - **Why:** the first version cut a ragged line into a soft brown shadow and drew a straight copper line on the paper's outer border, so it read as torn, aged paper rather than fire. The ragged line had no visual edge of its own and the ember did not follow it.
