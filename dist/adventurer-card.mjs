@@ -1,5 +1,5 @@
 import { xpSummary, manaCount } from './adventurer-model.mjs';
-import { animateTransient, cancelMotion, reducedMotionCrossfade } from './desk-motion.mjs';
+import { animateTransient, cancelMotion, reducedMotionCrossfade, dragTilt } from './desk-motion.mjs';
 import { MOTION_DURATION, MOTION_EASING } from './motion-tokens.mjs';
 import { DEFAULT_ADVENTURER_CARD, ADVENTURER_CARD_SIZE } from './model.mjs';
 
@@ -487,6 +487,7 @@ export function createAdventurerCard({
 
   // Dragging & Interaction State
   let dragActive = false;
+  let dragMoved = false;
   let dragStartX = 0;
   let dragStartY = 0;
   let initialCardX = 0;
@@ -496,6 +497,17 @@ export function createAdventurerCard({
   let pointerMoveDist = 0;
   let tiltX = 0;
   let tiltY = 0;
+  let sway = 0;
+  let targetTiltX = 0;
+  let targetTiltY = 0;
+  let targetSway = 0;
+  let motionFrame = null;
+  let lastSampleTime = 0;
+  let sample = null;
+
+  const nowMs = () => (window?.performance || globalThis?.performance || Date).now?.() || Date.now();
+  const raf = cb => (window?.requestAnimationFrame || globalThis?.requestAnimationFrame || setTimeout)(cb);
+  const cancelRaf = id => (window?.cancelAnimationFrame || globalThis?.cancelAnimationFrame || clearTimeout)(id);
 
   function getSealCenter() {
     const rect = sealEl?.getBoundingClientRect?.();
@@ -506,14 +518,60 @@ export function createAdventurerCard({
     return { x: cardRect.left + 58, y: cardRect.top + 92 };
   }
 
+  function renderCardMotion() {
+    if (isReduced()) return;
+    const base = isFlipped ? 'rotateY(180deg) ' : '';
+    if (cardInner) {
+      cardInner.style.transform = `${base}rotate(${sway.toFixed(2)}deg) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.028)`;
+    }
+    if (sheenEl) {
+      sheenEl.style.setProperty('--sheen-angle', `${(105 + (tiltY + sway) * 4).toFixed(1)}deg`);
+      sheenEl.style.setProperty('--sheen-opacity', `${Math.min(0.55, 0.22 + Math.abs(tiltX + tiltY + sway) * 0.04).toFixed(3)}`);
+    }
+  }
+
+  function startMotionLoop() {
+    if (motionFrame || isReduced()) return;
+    const tick = () => {
+      if (!dragActive) {
+        motionFrame = null;
+        return;
+      }
+      const now = nowMs();
+      const isStationary = now - lastSampleTime > 80;
+      const desiredSway = isStationary ? 0 : targetSway;
+      const desiredTiltX = isStationary ? 0 : targetTiltX;
+      const desiredTiltY = isStationary ? 0 : targetTiltY;
+
+      sway += (desiredSway - sway) * 0.22;
+      tiltX += (desiredTiltX - tiltX) * 0.22;
+      tiltY += (desiredTiltY - tiltY) * 0.22;
+
+      renderCardMotion();
+      motionFrame = raf(tick);
+    };
+    motionFrame = raf(tick);
+  }
+
+  function stopMotionLoop() {
+    if (motionFrame) {
+      cancelRaf(motionFrame);
+      motionFrame = null;
+    }
+  }
+
   function startDrag(clientX, clientY) {
     if (dragActive) return;
     dragActive = true;
-    pointerMoveDist = 0;
-    dragStartX = clientX;
-    dragStartY = clientY;
+    dragMoved = true;
     prevPointerX = clientX;
     prevPointerY = clientY;
+    lastSampleTime = nowMs();
+    sample = { x: clientX, time: lastSampleTime };
+    targetSway = 0;
+    targetTiltX = 0;
+    targetTiltY = 0;
+    sway = 0;
     tiltX = 0;
     tiltY = 0;
 
@@ -537,14 +595,17 @@ export function createAdventurerCard({
     card.style.bottom = 'auto';
 
     card.classList.add('is-dragging');
-    card.style.setProperty('--lift', '1.08');
+    card.style.setProperty('--lift', '3.2');
+
+    cancelMotion(cardInner);
+    renderCardMotion();
+    startMotionLoop();
   }
 
   function moveDrag(clientX, clientY) {
     if (!dragActive) return;
     const dx = clientX - dragStartX;
     const dy = clientY - dragStartY;
-    pointerMoveDist += Math.hypot(clientX - prevPointerX, clientY - prevPointerY);
 
     const surfaceRect = deskSurface.getBoundingClientRect();
     const maxX = Math.max(10, surfaceRect.width - ADVENTURER_CARD_SIZE.width - 12);
@@ -556,43 +617,71 @@ export function createAdventurerCard({
     card.style.left = `${currentX}px`;
     card.style.top = `${currentY}px`;
 
-    // Perspective tilt up to ±6 degrees
+    const now = nowMs();
     const vx = clientX - prevPointerX;
     const vy = clientY - prevPointerY;
     prevPointerX = clientX;
     prevPointerY = clientY;
 
-    tiltX = Math.min(6, Math.max(-6, -vy * 0.45));
-    tiltY = Math.min(6, Math.max(-6, vx * 0.45));
-    if (cardInner) {
-      cardInner.style.setProperty('--tilt-x', `${tiltX}deg`);
-      cardInner.style.setProperty('--tilt-y', `${tiltY}deg`);
-      cardInner.style.transform = isFlipped
-        ? `rotateY(180deg) rotateX(${tiltX}deg) rotateY(${tiltY}deg)`
-        : `rotateX(${tiltX}deg) rotateY(${tiltY}deg)`;
-    }
+    if (!isReduced()) {
+      if (sample) {
+        targetSway = dragTilt(sample, { x: clientX, time: now });
+      }
+      sample = { x: clientX, time: now };
+      lastSampleTime = now;
 
-    if (sheenEl) {
-      sheenEl.style.setProperty('--sheen-angle', `${105 + tiltY * 4}deg`);
-      sheenEl.style.setProperty('--sheen-opacity', `${0.25 + Math.abs(tiltX + tiltY) * 0.05}`);
+      // 3D perspective pitch (vertical) and roll (horizontal)
+      targetTiltX = Math.min(5, Math.max(-5, -vy * 0.45));
+      targetTiltY = Math.min(5, Math.max(-5, vx * 0.45));
+
+      sway += (targetSway - sway) * 0.35;
+      tiltX += (targetTiltX - tiltX) * 0.35;
+      tiltY += (targetTiltY - tiltY) * 0.35;
+
+      renderCardMotion();
     }
   }
 
   function endDrag() {
     if (!dragActive) return;
     dragActive = false;
+    dragMoved = false;
+    stopMotionLoop();
+
     card.classList.remove('is-dragging');
     card.style.setProperty('--lift', '1');
 
     if (cardInner) {
-      if (!isReduced() && (Math.abs(tiltX) > 0.5 || Math.abs(tiltY) > 0.5)) {
+      if (!isReduced()) {
+        const base = isFlipped ? 'rotateY(180deg) ' : '';
+        const settleKeyframes = [
+          {
+            transform: `${base}rotate(${sway * 0.35}deg) rotateX(${tiltX * 0.35}deg) rotateY(${tiltY * 0.35}deg) scale(1.028)`,
+            easing: 'cubic-bezier(.2,.7,.3,1)',
+          },
+          {
+            transform: `${base}rotate(${sway * 0.45}deg) rotateX(${tiltX * 0.45}deg) rotateY(${tiltY * 0.45}deg) scale(1.018)`,
+            offset: 0.18,
+            easing: 'cubic-bezier(.4,0,.6,1)',
+          },
+          {
+            transform: `${base}rotate(${-sway * 0.25 - 0.2}deg) rotateX(${-tiltX * 0.2}deg) rotateY(${-tiltY * 0.2}deg) scale(0.998)`,
+            offset: 0.72,
+            easing: 'ease-out',
+          },
+          {
+            transform: `${base}rotate(${sway * 0.08}deg) scale(1.002)`,
+            offset: 0.88,
+            easing: 'ease-out',
+          },
+          {
+            transform: `${base}rotate(0deg) scale(1)`,
+          },
+        ];
         animateTransient(
           cardInner,
-          [
-            { transform: isFlipped ? `rotateY(180deg) rotateX(${tiltX}deg) rotateY(${tiltY}deg)` : `rotateX(${tiltX}deg) rotateY(${tiltY}deg)` },
-            { transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' },
-          ],
-          { duration: 210, easing: 'cubic-bezier(.2,.8,.3,1)' },
+          settleKeyframes,
+          { duration: 240, easing: 'linear' },
           {
             onFinish: () => {
               if (cardInner) cardInner.style.transform = '';
@@ -603,8 +692,12 @@ export function createAdventurerCard({
         cardInner.style.transform = '';
       }
     }
+    sway = 0;
     tiltX = 0;
     tiltY = 0;
+    targetSway = 0;
+    targetTiltX = 0;
+    targetTiltY = 0;
 
     applyPosition();
     onCue?.('cardDrop');
@@ -612,16 +705,26 @@ export function createAdventurerCard({
   }
 
   function cancelDrag() {
-    if (!dragActive) return;
+    if (!dragActive && !dragMoved) return;
     dragActive = false;
+    dragMoved = false;
+    stopMotionLoop();
+
     card.classList.remove('is-dragging');
     card.style.setProperty('--lift', '1');
     currentX = initialCardX;
     currentY = initialCardY;
     applyPosition();
-    if (cardInner) cardInner.style.transform = '';
+    if (cardInner) {
+      cancelMotion(cardInner);
+      cardInner.style.transform = '';
+    }
+    sway = 0;
     tiltX = 0;
     tiltY = 0;
+    targetSway = 0;
+    targetTiltX = 0;
+    targetTiltY = 0;
   }
 
   // Pointer event listeners
@@ -632,20 +735,45 @@ export function createAdventurerCard({
       return;
     }
     e.preventDefault();
-    startDrag(e.clientX, e.clientY);
-    const onMove = ev => moveDrag(ev.clientX, ev.clientY);
+    pointerMoveDist = 0;
+    dragMoved = false;
+    dragStartX = e.clientX;
+    dragStartY = e.clientY;
+    prevPointerX = e.clientX;
+    prevPointerY = e.clientY;
+    lastSampleTime = nowMs();
+    sample = { x: e.clientX, time: lastSampleTime };
+
+    const cardRect = card.getBoundingClientRect();
+    const surfaceRect = deskSurface.getBoundingClientRect();
+    initialCardX = cardRect.left - surfaceRect.left;
+    initialCardY = cardRect.top - surfaceRect.top;
+    currentX = initialCardX;
+    currentY = initialCardY;
+
+    const onMove = ev => {
+      const dist = Math.hypot(ev.clientX - dragStartX, ev.clientY - dragStartY);
+      pointerMoveDist += dist;
+      if (!dragMoved && dist > 4) {
+        startDrag(ev.clientX, ev.clientY);
+      }
+      if (dragActive) {
+        moveDrag(ev.clientX, ev.clientY);
+      }
+    };
+
     const onUp = () => {
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
-      const wasClick = pointerMoveDist <= 4;
-      if (wasClick) {
+      if (!dragMoved) {
         cancelDrag();
         flip();
         return;
       }
       endDrag();
     };
+
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
     window.addEventListener('pointercancel', onUp);
@@ -898,6 +1026,9 @@ export function createAdventurerCard({
    * Immediately terminates all active mana particle flights, timers and transient motions.
    */
   function cancelAll() {
+    stopMotionLoop();
+    dragActive = false;
+    dragMoved = false;
     cancelManaParticles();
     clearTimeout(absorbTimer);
     sealEl?.classList.remove('is-absorbing');
@@ -914,6 +1045,7 @@ export function createAdventurerCard({
   }
 
   function destroy() {
+    stopMotionLoop();
     cancelAll();
     closeViewer();
     if (viewerDialog) {

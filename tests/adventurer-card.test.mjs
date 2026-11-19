@@ -678,3 +678,52 @@ test('enlarged inspection viewer opens on inspect button / dblclick and plays ca
   card.destroy();
   assert.equal(card.isViewerOpen, false);
 });
+
+test('card dragging lifts with --lift 3.2, tracks tactile sway and tilts, and settles with cardDrop on release', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+  const cardInner = cardEl.querySelector('.adventurer-card-inner');
+
+  // Resting state: lift is 1, not dragging
+  assert.equal(cardEl.classList.contains('is-dragging'), false);
+  assert.equal(cardEl.style.getPropertyValue('--lift') || '1', '1');
+
+  // Pointerdown at (100, 200)
+  cardEl.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 100, clientY: 200, preventDefault() {} });
+  assert.equal(cardEl.classList.contains('is-dragging'), false, 'Not dragging yet before movement threshold');
+
+  // Move by 30px to (130, 220) -> crosses 4px threshold
+  env.window.dispatchEvent({ type: 'pointermove', clientX: 130, clientY: 220 });
+
+  assert.equal(cardEl.classList.contains('is-dragging'), true, 'Enters is-dragging state');
+  assert.equal(cardEl.style.getPropertyValue('--lift'), '3.2', 'Desk elevation lift increases to 3.2 for expanded shadow');
+  assert.match(cardInner.style.transform, /scale\(1\.028\)/, 'Card inner scales up to lift off table');
+  assert.match(cardInner.style.transform, /rotate\(/, 'Card inner has rotational sway');
+
+  // Pointerup releases card onto desk
+  const animsBefore = env.createdAnimations.length;
+  const cuesBefore = env.soundCues.filter(c => c === 'cardDrop').length;
+  env.window.dispatchEvent({ type: 'pointerup' });
+
+  assert.equal(cardEl.classList.contains('is-dragging'), false, 'Exits is-dragging state');
+  assert.equal(cardEl.style.getPropertyValue('--lift'), '1', 'Desk elevation lift returns to 1');
+  assert.ok(env.soundCues.filter(c => c === 'cardDrop').length > cuesBefore, 'cardDrop cue played on landing');
+  assert.ok(env.savedPositions.length > 0, 'New position committed');
+
+  // Settle animation keyframes triggered on cardInner
+  const settleAnims = env.createdAnimations.slice(animsBefore).filter(a => a.element === cardInner);
+  assert.equal(settleAnims.length, 1, 'WAAPI settle animation triggered on cardInner');
+  assert.ok(settleAnims[0].keyframes.length >= 4, 'Settle keyframes include anticipation and rebound');
+
+  card.destroy();
+});
