@@ -294,13 +294,12 @@ function shell(){
   adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,getScale:()=>currentScale,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   questReception?.destroy();
   questReception=createQuestReception({
-    surface:$('#board-scroll')||$('#desk-surface'),
+    surface:document.body,
     document,
     window,
     icon,
     onCue:onSoundCue,
     reducedMotion,
-    getScale:()=>currentScale,
     onTurnIn:(quest,{origin})=>{
       const xp=quest.xp||50;
       state=setItemStatus(state,quest.id,'done');
@@ -1081,6 +1080,8 @@ function onDrag(e){
   highlightFolder(drag.folderTarget);
   drag.overTray=!drag.folderTarget&&overStorageTray(e,drag.type);
   highlightStorageTray(drag.overTray);
+  const nearLeftEdge=drag.type==='quest'&&e.clientX<=75;
+  if(nearLeftEdge&&typeof questReception!=='undefined'&&questReception)questReception.open?.();
   const overReception=drag.type==='quest'&&!drag.folderTarget&&typeof questReception!=='undefined'&&questReception?.checkDrop?.({x:e.clientX,y:e.clientY});
   drag.overReception=Boolean(overReception);
   if(typeof questReception!=='undefined'&&questReception)questReception.setDropTarget?.(drag.overReception);
@@ -1101,7 +1102,8 @@ function endDrag(e){
     const item=state.items.find(i=>i.id===id);
     if(item&&canReceiveQuest(item)){
       if(questReception.hasQuest)questReception.withdrawQuest();
-      if(questReception.placeQuest(item)){
+      ghost?.remove();
+      if(questReception.placeQuest(item,ghost)){
         renderBoard();
         setActiveDrawer(drawerBefore,false,false);
         return;

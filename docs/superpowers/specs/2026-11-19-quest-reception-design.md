@@ -1,30 +1,36 @@
-# Guild Quest Reception Counter Specification (เคาน์เตอร์ส่งงานกิลด์)
+# Guild Quest Reception Counter Specification (ลิ้นชักเคาน์เตอร์ส่งงานกิลด์)
 
 **Date:** 2026-11-19  
-**Feature:** ถาดทองเหลืองส่งงานกิลด์ + กระดิ่งเคาน์เตอร์ (Guild Turn-in Tray & Receptionist Service Bell)  
-**Status:** In Progress / Plan  
+**Feature:** ลิ้นชักเคาน์เตอร์ส่งเควสด้านซ้าย + ถาดทองเหลืองขนาดใหญ่ + กระดิ่งบริการ (Guild Reception Drawer & Service Bell)  
+**Status:** Implemented & Verified  
 
 ---
 
 ## 1. Goal & Product Vision
 
-In The Questboard, completing a quest is not merely checking an abstract checkbox—it is a tangible moment of triumph within an authentic fantasy guildhall. To elevate the feeling of finishing work into an enjoyable ceremony, we introduce the **Guild Quest Reception Counter (เคาน์เตอร์ส่งงานกิลด์)** stationed at the left rim of the desk:
+In The Questboard, completing a quest is not merely checking an abstract checkbox—it is a tangible moment of triumph within an authentic fantasy guildhall. To elevate the feeling of finishing work into an enjoyable ceremony without cluttering the desk canvas, we introduce the **Guild Quest Reception Drawer (ลิ้นชักเคาน์เตอร์ส่งเควสฝั่งซ้าย)**:
 
-1. **ถาดทองเหลืองส่งงานกิลด์ (Brass Guild Turn-in Tray):**
-   - An ornate engraved brass tray lined with dark woodland green/golden velvet, sized proportionately to receive quest papers.
-   - Sits on the left desk rim (`.desk-surface` / `#board-scroll` under the atmosphere layer), creating a balanced spatial composition opposite the right-side drawers and top tool rail.
-   - Functions as an interactive dropzone: dragging an active quest over the tray activates a warm golden ambient highlight. Releasing the quest gently snaps it flat into the tray (`paperDrop` cue), where it rests peacefully awaiting submission.
-   - **Freedom to withdraw:** At any time before ringing the bell, the player can drag the quest out of the tray back onto the desk without any loss of data or forced completion.
+1. **ลิ้นชักเคาน์เตอร์ส่งเควสฝั่งซ้าย (Left Slide-out Reception Drawer):**
+   - Hides neatly along the left edge of the screen (`position: fixed; left: 0; top: 18px; height: min(680px, calc(100dvh - 220px));`), keeping the desk surface clean and leaving the bottom-left area completely open for the Adventurer Card.
+   - A stylish vertical drawer handle (`44px` wide) peeks out on the left rim with a brass shield icon, vertical Thai title `"ส่งมอบเควส"`, and notification badge.
+   - Clicking the handle smoothly slides open/closed with tactile drawer audio (`drawerOpen` / `drawerClose`).
+   - Dragging an active quest sheet towards the left edge (`e.clientX <= 75`) automatically slides open the drawer to receive the paper!
 
-2. **กระดิ่งเคาน์เตอร์กิลด์ (Receptionist Service Bell 🛎️):**
-   - A polished brass desk service bell mounted at the top corner of the tray, complete with a round brass plunger.
-   - **Idle Delight:** Even when the tray is empty, the player can click or press Enter on the bell to ring it (*Ding!*). A guild receptionist speech bubble floats up with playful banter (e.g. *"ยังไม่มีเควสมาส่งเหรอ? สู้ ๆ นะ ออกเดินทางปลอดภัยล่ะ!"*).
-   - **Submission Trigger:** When a quest rests in the tray, clicking the bell triggers the submission ceremony:
-     1. Bell plunger depresses 1.5px and the bell body wobbles subtly (±2° micro-vibration, 200ms) with a resonant chime sound cue.
-     2. A parchment speech bubble floats up from the receptionist with randomized warm congratulations (e.g. *"ยินดีต้อนรับกลับมา! ภารกิจสำเร็จลุล่วงด้วยดีนะจ๊ะ"*).
-     3. A large **GUILD ACCEPTED** red/gold seal stamps down with impact (*ตึ้ง!*) onto the quest paper.
-     4. A luminous fountain of blue mana particles bursts upward from the impact point and arcs gracefully downward toward the **Adventurer Card** at the bottom-left dock.
-     5. The completed quest slides smoothly into the keepsakes drawer (`#quest-drawer` archive).
+2. **ถาดทองเหลืองบุผ้ากำมะหยี่ขนาดใหญ่ (Spacious Velvet Turn-in Bed):**
+   - Sized comfortably (`~328px` wide × `~430px` tall) to accommodate an entire standard A4 quest paper (`280px × 396px`) with rich parchment details (title, category badge, description, XP reward, and a withdraw button).
+   - Dropping a quest into the tray immediately clears the drag ghost, plays `paperDrop`, and displays the quest resting inside the tray.
+   - **Freedom to withdraw:** At any time before ringing the bell, clicking the withdraw button returns the quest paper back to the desk unharmed.
+
+3. **กระดิ่งเคาน์เตอร์บริการกิลด์ (Counter Service Bell 🛎️):**
+   - A seamless 3D brass service bell with plunger firmly seated on the dome, mounted in the top action bar next to the receptionist speech bubble.
+   - **Idle Delight:** Clicking the bell when empty rings a cheerful chime (*Ding!*) and shows playful banter from the receptionist.
+   - **Submission Ceremony & Golden Dissolving Animation:**
+     1. Bell depresses with chime sound `bell`.
+     2. Receptionist speech bubble pops up with warm congratulations.
+     3. Giant **GUILD ACCEPTED** red wax stamp slams down onto the quest paper with impact audio (`receptionStamp`).
+     4. Luminous blue mana particles burst from the stamp impact and arc down toward the Adventurer Card seal.
+     5. The quest paper **dissolves cleanly into golden mana sparkles and fades away** (`is-dissolving`), disappearing completely into the guild archives without any stuck artifacts.
+     6. State is committed (`status: 'done'`, `archived: true`), XP is added, and the drawer gently auto-closes.
 
 ---
 

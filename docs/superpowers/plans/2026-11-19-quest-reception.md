@@ -39,14 +39,17 @@
 - [ ] Expose public methods: `mount`, `checkDrop`, `placeQuest`, `ringBell`, `destroy`.
 
 ### Phase 5: App Integration & Wiring (`dist/app.mjs`)
-- [ ] Mount `questReception` inside `#board-scroll` on the left desk rim.
-- [ ] In `dist/app.mjs` drag handlers: check if dragged quest is released over the reception tray dropzone.
-- [ ] Connect submission completion to `adventurerCard.flyMana({ origin, deltaXp })` and `renderCounts()`.
-- [ ] Update `package.json` `check` script to include new modules.
+- [x] Mount `questReception` drawer on the left desk rim (`left: 0; top: 18px;`).
+- [x] In `dist/app.mjs` drag handlers: open drawer when dragged quest approaches left edge (`e.clientX <= 75`), detect tray dropzone, cleanly remove `ghost` to eliminate freezing artifacts.
+- [x] Connect submission completion to `adventurerCard.flyMana({ origin, deltaXp })` and `renderCounts()`.
+- [x] Update `package.json` `check` script to include new modules.
 
-### Phase 6: Verification & Polish
-- [ ] Run `npm run check`.
-- [ ] Run `node --test tests/quest-reception.test.mjs`.
-- [ ] Run full test suite (`npm test`).
+### Phase 6: Redesign to Left Slide-out Drawer & Paper Dissolve (User Feedback Iteration)
+- [x] Convert fixed tray into Left Slide-out Drawer (`#reception-drawer`) with 44px handle and badge.
+- [x] Resize velvet tray to comfortably fit full A4 quest paper (280px × 396px).
+- [x] Fix bell visual assembly: tightly join plunger onto dome without floating gap.
+- [x] Implement golden mana dissolving animation (`is-dissolving`) on submission so quest paper vanishes cleanly.
+- [x] Prevent ghost freezing by explicitly removing drag ghost on placement.
+- [x] Full test coverage and governance verification passing.
 - [ ] Update `docs/verification.md` with results.
 - [ ] Push commit to GitHub `main`.

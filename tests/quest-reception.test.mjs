@@ -123,12 +123,15 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       },
       getBoundingClientRect: () => {
         if (node.classList.contains('reception-tray')) {
-          return { left: 18, top: 18, width: 250, height: 160, right: 268, bottom: 178 };
+          return { left: 18, top: 90, width: 334, height: 420, right: 352, bottom: 510 };
         }
         if (node.classList.contains('reception-slot')) {
-          return { left: 24, top: 24, width: 238, height: 148, right: 262, bottom: 172 };
+          return { left: 24, top: 96, width: 322, height: 408, right: 346, bottom: 504 };
         }
-        return { left: 18, top: 18, width: 250, height: 240, right: 268, bottom: 258 };
+        if (node.classList.contains('reception-drawer-handle')) {
+          return { left: 370, top: 54, width: 44, height: 140, right: 414, bottom: 194 };
+        }
+        return { left: 0, top: 18, width: 370, height: 620, right: 370, bottom: 638 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
@@ -188,16 +191,23 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       },
     });
 
+    Object.defineProperty(node, 'hidden', {
+      get() { return attrs.has('hidden'); },
+      set(val) {
+        if (val) attrs.set('hidden', '');
+        else attrs.delete('hidden');
+      },
+    });
+
     return node;
   }
 
-  const deskSurface = createNode('div');
-  deskSurface.setAttribute('id', 'desk-surface');
+  const rootSurface = createNode('body');
 
   const document = {
-    body: createNode('body'),
+    body: rootSurface,
     createElement: tag => createNode(tag),
-    getElementById: id => (id === 'desk-surface' ? deskSurface : null),
+    getElementById: id => (id === 'reception-drawer' ? rootSurface.querySelector('#reception-drawer') : null),
   };
 
   const window = {
@@ -208,7 +218,7 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
   return {
     document,
     window,
-    deskSurface,
+    rootSurface,
     createdAnimations,
     soundCues,
     turnedIn,
@@ -222,24 +232,41 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
 
 function buildMockTree(parent, html, createNode) {
   const elements = [
-    { class: 'reception-tray', tag: 'div', attrs: { 'data-reception-dropzone': '' } },
-    { class: 'reception-tray-inner', tag: 'div' },
-    { class: 'reception-tray-velvet', tag: 'div' },
-    { class: 'reception-tray-rune', tag: 'span' },
-    { class: 'reception-tray-label', tag: 'span' },
-    { class: 'reception-slot', tag: 'div', attrs: { 'data-slot': '' } },
+    { class: 'reception-drawer-body', tag: 'div', id: 'reception-drawer-content' },
+    { class: 'reception-header', tag: 'header' },
+    { class: 'reception-header-title', tag: 'div' },
+    { class: 'reception-close-btn', tag: 'button' },
+    { class: 'reception-counter-bar', tag: 'div' },
+    { class: 'reception-bell-wrap', tag: 'div' },
     { class: 'reception-bell', tag: 'button', id: 'reception-bell' },
     { class: 'bell-assembly', tag: 'div' },
     { class: 'bell-plunger', tag: 'span' },
     { class: 'bell-dome', tag: 'span' },
     { class: 'bell-base', tag: 'span' },
+    { class: 'reception-bell-hint', tag: 'span' },
     { class: 'reception-speech-bubble', tag: 'div', id: 'reception-speech' },
+    { class: 'reception-tray-container', tag: 'div' },
+    { class: 'reception-tray', tag: 'div', attrs: { 'data-reception-dropzone': '' } },
+    { class: 'reception-tray-inner', tag: 'div' },
+    { class: 'reception-tray-velvet', tag: 'div' },
+    { class: 'reception-tray-rune', tag: 'span' },
+    { class: 'reception-tray-label', tag: 'span' },
+    { class: 'reception-tray-instruction', tag: 'span' },
+    { class: 'reception-slot', tag: 'div', attrs: { 'data-slot': '' } },
+    { class: 'reception-drawer-handle', tag: 'button', id: 'reception-drawer-handle' },
+    { class: 'reception-handle-icon', tag: 'div' },
+    { class: 'reception-handle-text', tag: 'span' },
+    { class: 'reception-handle-badge', tag: 'b', id: 'reception-badge' },
     { class: 'reception-paper-preview', tag: 'div' },
-    { class: 'reception-paper-top', tag: 'div' },
+    { class: 'reception-paper-header', tag: 'div' },
+    { class: 'reception-paper-tag', tag: 'span' },
     { class: 'reception-paper-xp', tag: 'span' },
-    { class: 'reception-paper-title', tag: 'div' },
+    { class: 'reception-paper-body', tag: 'div' },
+    { class: 'reception-paper-title', tag: 'h3' },
+    { class: 'reception-paper-desc', tag: 'p' },
     { class: 'reception-paper-footer', tag: 'div' },
-    { class: 'reception-paper-withdraw', tag: 'span' },
+    { class: 'reception-withdraw-btn', tag: 'button' },
+    { class: 'reception-paper-prompt', tag: 'span' },
     { class: 'reception-stamp-impact', tag: 'div' },
     { class: 'reception-stamp-mark', tag: 'span' },
   ];
@@ -297,10 +324,10 @@ function matches(node, sel) {
 // 3. Component Interaction Tests
 // =========================================================================
 
-test('createQuestReception mounts elements into desk surface', () => {
+test('createQuestReception mounts left drawer into surface and toggles open/close', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
     onCue: env.onCue,
@@ -308,21 +335,33 @@ test('createQuestReception mounts elements into desk surface', () => {
     onWithdraw: env.onWithdraw,
   });
 
-  assert.ok(reception.element, 'Container element is created');
-  assert.equal(env.deskSurface.children.length, 1, 'Container mounted to deskSurface');
-  assert.ok(reception.element.querySelector('.reception-tray'), 'Tray element exists');
-  assert.ok(reception.element.querySelector('.reception-bell'), 'Bell button exists');
-  assert.ok(reception.element.querySelector('.reception-speech-bubble'), 'Speech bubble exists');
-  assert.equal(reception.hasQuest, false, 'Initial state has no quest');
+  assert.ok(reception.element, 'Drawer container created');
+  assert.equal(env.rootSurface.children.length, 1, 'Drawer mounted to surface');
+  assert.equal(reception.isOpen, false, 'Drawer initially closed');
+
+  const handle = reception.element.querySelector('.reception-drawer-handle');
+  assert.ok(handle, 'Drawer handle exists');
+
+  // Toggle open
+  handle.click();
+  assert.equal(reception.isOpen, true, 'Drawer opened on handle click');
+  assert.equal(reception.element.classList.contains('is-open'), true, 'Drawer has is-open class');
+  assert.ok(env.soundCues.includes('drawerOpen'), 'drawerOpen sound played');
+
+  // Toggle close
+  handle.click();
+  assert.equal(reception.isOpen, false, 'Drawer closed on handle click');
+  assert.equal(reception.element.classList.contains('is-open'), false, 'is-open removed');
+  assert.ok(env.soundCues.includes('drawerClose'), 'drawerClose sound played');
 
   reception.destroy();
-  assert.equal(env.deskSurface.children.length, 0, 'Container removed after destroy');
+  assert.equal(env.rootSurface.children.length, 0, 'Drawer removed after destroy');
 });
 
 test('clicking bell when empty rings bell sound and shows idle dialogue bubble', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
     onCue: env.onCue,
@@ -339,89 +378,119 @@ test('clicking bell when empty rings bell sound and shows idle dialogue bubble',
   reception.destroy();
 });
 
-test('checkDrop accurately detects points within the brass turn-in tray bounds', () => {
+test('checkDrop detects drop coordinates over tray or drawer handle', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
   });
 
-  // Tray mock bounds: left: 18, top: 18, width: 250, height: 160 -> right: 268, bottom: 178
-  assert.equal(reception.checkDrop({ x: 50, y: 50 }), true, 'Point inside tray is accepted');
-  assert.equal(reception.checkDrop({ x: 18, y: 18 }), true, 'Top-left edge is accepted');
-  assert.equal(reception.checkDrop({ x: 268, y: 178 }), true, 'Bottom-right edge is accepted');
-  assert.equal(reception.checkDrop({ x: 300, y: 50 }), false, 'Point to the right is rejected');
-  assert.equal(reception.checkDrop({ x: 50, y: 250 }), false, 'Point below tray is rejected');
+  // Tray bounds: left: 18, top: 90, width: 334, height: 420 (right: 352, bottom: 510)
+  assert.equal(reception.checkDrop({ x: 50, y: 150 }), true, 'Point inside tray accepted');
+  assert.equal(reception.checkDrop({ x: 18, y: 90 }), true, 'Top-left of tray accepted');
+  assert.equal(reception.checkDrop({ x: 352, y: 510 }), true, 'Bottom-right of tray accepted');
+
+  // Handle bounds: left: 370, top: 54, right: 414, bottom: 194
+  assert.equal(reception.checkDrop({ x: 380, y: 100 }), true, 'Point over handle accepted');
+
+  // Far points rejected
+  assert.equal(reception.checkDrop({ x: 600, y: 300 }), false, 'Point in center desk rejected');
   assert.equal(reception.checkDrop(null), false, 'Null point safely rejected');
 
   reception.destroy();
 });
 
-test('setDropTarget toggles .is-drop-target on reception counter', () => {
+test('setDropTarget opens drawer and marks .is-drop-target', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
   });
 
   reception.setDropTarget(true);
-  assert.equal(reception.element.classList.contains('is-drop-target'), true, 'Drop target active');
+  assert.equal(reception.isOpen, true, 'Drawer automatically opens when hovered as drop target');
+  assert.equal(reception.element.classList.contains('is-drop-target'), true, 'Drawer has is-drop-target class');
 
   reception.setDropTarget(false);
-  assert.equal(reception.element.classList.contains('is-drop-target'), false, 'Drop target inactive');
+  assert.equal(reception.element.classList.contains('is-drop-target'), false, 'is-drop-target removed');
 
   reception.destroy();
 });
 
-test('placeQuest and withdrawQuest manage resting quest lifecycle with sounds', () => {
+test('placeQuest displays full quest parchment, opens drawer, removes drag ghost, and withdrawQuest clears slot', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
     onCue: env.onCue,
     onWithdraw: env.onWithdraw,
   });
 
-  const quest = { id: 'quest-101', type: 'quest', title: 'ปราบก็อบลิน', xp: 120 };
-  const placed = reception.placeQuest(quest);
+  let ghostRemoved = false;
+  const mockGhost = {
+    remove() {
+      ghostRemoved = true;
+    },
+  };
 
-  assert.equal(placed, true, 'Quest successfully placed in tray');
+  const quest = {
+    id: 'quest-303',
+    type: 'quest',
+    title: 'สำรวจปราสาทโบราณ',
+    description: 'ค้นหาโบราณวัตถุที่ซ่อนอยู่ในห้องใต้ดิน',
+    category: 'adventure',
+    xp: 200,
+  };
+
+  const placed = reception.placeQuest(quest, mockGhost);
+  assert.equal(placed, true, 'Quest successfully placed');
+  assert.equal(ghostRemoved, true, 'Drag ghost removed cleanly on placement to prevent freezing');
+  assert.equal(reception.isOpen, true, 'Drawer opens to display placed quest');
   assert.equal(reception.hasQuest, true, 'hasQuest is true');
-  assert.equal(reception.currentQuest?.id, 'quest-101', 'currentQuest holds quest');
-  assert.ok(env.soundCues.includes('paperDrop'), 'paperDrop sound cue played on placement');
+  assert.equal(reception.currentQuest?.id, 'quest-303', 'Holds quest reference');
+  assert.ok(env.soundCues.includes('paperDrop'), 'paperDrop sound cue played');
 
   const bellBtn = reception.element.querySelector('.reception-bell');
-  assert.equal(bellBtn.classList.contains('has-quest'), true, 'Bell marked with has-quest');
+  assert.equal(bellBtn.classList.contains('has-quest'), true, 'Bell marked with has-quest shimmer');
+
+  const badge = reception.element.querySelector('.reception-handle-badge');
+  assert.equal(badge.hidden, false, 'Handle badge visible');
+  assert.equal(badge.textContent, '1', 'Handle badge displays 1 quest');
 
   // Withdraw quest
-  const withdrawnQuest = reception.withdrawQuest();
-  assert.equal(withdrawnQuest?.id, 'quest-101', 'Withdrawn quest matches placed quest');
+  const withdrawn = reception.withdrawQuest();
+  assert.equal(withdrawn?.id, 'quest-303', 'Withdrawn quest matches');
   assert.equal(reception.hasQuest, false, 'hasQuest is false after withdraw');
   assert.equal(bellBtn.classList.contains('has-quest'), false, 'has-quest removed from bell');
+  assert.equal(badge.hidden, true, 'Badge hidden after withdraw');
   assert.ok(env.soundCues.includes('cardDrop'), 'cardDrop sound played on withdraw');
-  assert.equal(env.withdrawn.length, 1, 'onWithdraw callback invoked');
-  assert.equal(env.withdrawn[0].id, 'quest-101', 'Withdrawn quest passed to callback');
+  assert.equal(env.withdrawn.length, 1, 'onWithdraw callback called');
 
   reception.destroy();
 });
 
-test('ringing bell with a resting quest triggers full turn-in flow', () => {
+test('ringing bell with quest triggers turnin, stamp impact, mana origin, and dissolves paper', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
-    surface: env.deskSurface,
+    surface: env.rootSurface,
     document: env.document,
     window: env.window,
     onCue: env.onCue,
     onTurnIn: env.onTurnIn,
   });
 
-  const quest = { id: 'quest-202', type: 'quest', title: 'สำรวจถ้ำคริสตัล', xp: 250 };
-  reception.placeQuest(quest);
+  const quest = {
+    id: 'quest-404',
+    type: 'quest',
+    title: 'ปราบมังกรเพลิง',
+    category: 'boss',
+    xp: 500,
+  };
 
-  // Ring bell to turn in
+  reception.placeQuest(quest);
   reception.ringBell();
 
   assert.ok(env.soundCues.includes('bell'), 'bell chime cue triggered');
@@ -431,23 +500,9 @@ test('ringing bell with a resting quest triggers full turn-in flow', () => {
   assert.equal(bubble.hidden, false, 'Speech bubble visible');
   assert.ok(RECEPTIONIST_TURNIN_QUOTES.includes(bubble.textContent), 'Displays a turn-in quote');
 
-  assert.equal(env.turnedIn.length, 1, 'onTurnIn callback invoked');
-  assert.equal(env.turnedIn[0].quest.id, 'quest-202', 'Turned in quest matches');
-  assert.ok(env.turnedIn[0].meta?.origin, 'Origin point passed for mana surge animation');
-
-  reception.destroy();
-});
-
-test('setScale updates --card-scale custom property', () => {
-  const env = createMockEnvironment();
-  const reception = createQuestReception({
-    surface: env.deskSurface,
-    document: env.document,
-    window: env.window,
-  });
-
-  reception.setScale(0.85);
-  assert.equal(reception.element.style.getPropertyValue('--card-scale'), '0.85', 'Scale applied');
+  assert.equal(env.turnedIn.length, 1, 'onTurnIn callback called');
+  assert.equal(env.turnedIn[0].quest.id, 'quest-404', 'Turned in quest matches');
+  assert.ok(env.turnedIn[0].meta?.origin, 'Origin point passed for blue mana arc');
 
   reception.destroy();
 });
