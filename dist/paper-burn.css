@@ -91,3 +91,15 @@
     display: none !important;
   }
 }
+
+/* Stages 3–4 eat away the outer paper edge via SVG mask-image so the wooden desk shows through. */
+.quest-paper[data-burn="3"],
+.quest-paper[data-burn="4"] {
+  box-shadow: none;
+}
+
+.quest-paper[data-burn="3"]::after,
+.quest-paper[data-burn="4"]::after {
+  opacity: .55;
+  filter: sepia(.65) brightness(.65);
+}

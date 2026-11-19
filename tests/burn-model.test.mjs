@@ -121,7 +121,7 @@ test('generateBurnLayerSvg draws halo for stages 1-4 but char and ember only for
       const halo = generateBurnLayerSvg('halo', v, stage);
       assert.ok(halo.startsWith("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 424'"));
       assert.ok(halo.endsWith('</svg>'));
-      for (const layer of ['char', 'ember']) {
+      for (const layer of ['mask', 'char', 'ember']) {
         const svg = generateBurnLayerSvg(layer, v, stage);
         assert.equal(svg === '', stage < 3, `${layer} stage ${stage}`);
       }
@@ -157,7 +157,8 @@ test('burnLayerCss binds every stage and variant to its layers', () => {
       assert.ok(css.includes(`.paper-burn[data-burn="${stage}"][data-burn-variant="${v}"]`), `stage ${stage} variant ${v}`);
     }
   }
-  assert.equal(css.split('\n').length, 16 + 8 + 8);
+  assert.equal(css.split('\n').length, 16 + 8 + 8 + 8);
+  assert.equal(css.match(/mask-image:/g).length, 16);
   assert.equal(css.match(/\)::before\{/g).length, 8);
   assert.equal(css.match(/\)::after\{/g).length, 8);
 });

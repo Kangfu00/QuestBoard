@@ -237,12 +237,20 @@ export function generateBurnLayerSvg(layer, variant = 0, stage = 1, width = PAPE
   if (!depth) return '';
   const rough = 8;
 
+  if (layer === 'mask') {
+    const ring = smoothPath(edge(depth));
+    return wrapSvg(width, height,
+      frayFilter('m', { rough, seed }),
+      `<path d='${ring}' fill='#ffffff' filter='url(#m)'/>`);
+  }
+
   if (layer === 'char') {
+    const ring = smoothPath(edge(depth));
     return wrapSvg(width, height,
       frayFilter('c', { rough, seed })
-      + frayFilter('k', { rough: rough + 4, seed: seed + 2, blur: 1.6 }),
-      `<path d='${zonePath(edge(depth * 1.8), width, height)}' fill='#3a2414' fill-opacity='.85' fill-rule='evenodd' filter='url(#k)'/>`
-      + `<path d='${zonePath(edge(depth), width, height)}' fill='#1b110b' fill-rule='evenodd' filter='url(#c)'/>`);
+      + frayFilter('k', { rough: rough + 4, seed: seed + 2, blur: 1.8 }),
+      `<path d='${ring}' fill='none' stroke='#3a2414' stroke-opacity='.82' stroke-width='11' stroke-linejoin='round' filter='url(#k)'/>`
+      + `<path d='${ring}' fill='none' stroke='#1b110b' stroke-opacity='.94' stroke-width='5' stroke-linejoin='round' filter='url(#c)'/>`);
   }
 
   if (layer === 'ember') {
@@ -289,6 +297,9 @@ export function burnLayerCss(width = PAPER_W, height = PAPER_H) {
       const image = layer => `url("${svgDataUri(generateBurnLayerSvg(layer, v, stage, width, height))}")`;
       rules.push(`:is(${at}){background-image:${image('halo')}}`);
       if (stage >= 3) {
+        const paper = `.quest-paper[data-burn="${stage}"][data-burn-variant="${v}"]`;
+        const maskUrl = image('mask');
+        rules.push(`${paper}{-webkit-mask-image:${maskUrl};mask-image:${maskUrl};-webkit-mask-size:100% 100%;mask-size:100% 100%;-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat}`);
         rules.push(`:is(${at})::before{background-image:${image('char')}}`);
         rules.push(`:is(${at})::after{background-image:${image('ember')}}`);
       }
