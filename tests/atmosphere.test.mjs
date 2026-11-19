@@ -14,6 +14,7 @@ class Events {
 class Element extends Events {
   constructor(tag) { super(); this.tagName = tag.toUpperCase(); this.children = []; this.parentElement = null; this.attributes = new Map(); this.dataset = {}; this.style = {setProperty(name, value) { this[name] = value; }}; this.value = ''; this.checked = false; this.hidden = false; this.text = ''; this.className = ''; }
   setAttribute(name, value) { this.attributes.set(name, String(value)); if (name.startsWith('data-')) this.dataset[name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())] = String(value); }
+  removeAttribute(name) { this.attributes.delete(name); if (name.startsWith('data-')) delete this.dataset[name.slice(5).replace(/-([a-z])/g, (_, c) => c.toUpperCase())]; }
   getAttribute(name) { return this.attributes.get(name) ?? null; }
   append(...nodes) { for (const node of nodes) { node.remove(); node.parentElement = this; this.children.push(node); } }
   insertBefore(node, before) { if (!before) return this.append(node); node.remove(); const index = this.children.indexOf(before); node.parentElement = this; this.children.splice(index, 0, node); }
@@ -482,4 +483,50 @@ test('phase callback failures do not break control mounting or local clock updat
   const f = fixture(t, {factory: {onPhaseChange() { throw Error('consumer failed'); }}});
   assert.doesNotThrow(() => { f.controller.mount(); f.controller.mountControls(f.menu); f.setClock(16, 0); f.tick(); });
   assert.equal(f.layer().dataset.lighting, 'evening'); assert.equal(f.timers.size, 1); assert.equal(f.writes.length, 0); assert.equal(f.audio.length, 1);
+});
+
+test('setSuspended pauses atmosphere during drag and restores it upon release', t => {
+  const f = fixture(t, {hour: 11}); f.controller.mount();
+  const layer = f.layer(), surface = f.scroll;
+  assert.equal(layer.dataset.paused, 'false');
+  assert.equal(surface.getAttribute('data-atmosphere-paused'), null);
+  assert.equal(f.controller.suspended, false);
+
+  f.controller.setSuspended(true);
+  assert.equal(f.controller.suspended, true);
+  assert.equal(layer.dataset.paused, 'true');
+  assert.equal(surface.getAttribute('data-atmosphere-paused'), 'true');
+
+  f.controller.setSuspended(false);
+  assert.equal(f.controller.suspended, false);
+  assert.equal(layer.dataset.paused, 'false');
+  assert.equal(surface.getAttribute('data-atmosphere-paused'), null);
+});
+
+test('directional light vectors --light-x and --light-y update on surface across dayparts', t => {
+  const f = fixture(t, {hour: 7}); f.controller.mount();
+  const surface = f.scroll;
+  assert.equal(surface.dataset.lighting, 'morning');
+  assert.equal(surface.style['--light-x'], '1.2');
+  assert.equal(surface.style['--light-y'], '1.1');
+
+  f.setClock(12, 0); f.tick();
+  assert.equal(surface.dataset.lighting, 'day');
+  assert.equal(surface.style['--light-x'], '0');
+  assert.equal(surface.style['--light-y'], '1.2');
+
+  f.setClock(17, 0); f.tick();
+  assert.equal(surface.dataset.lighting, 'evening');
+  assert.equal(surface.style['--light-x'], '-1.2');
+  assert.equal(surface.style['--light-y'], '1.1');
+
+  f.setClock(21, 0); f.tick();
+  assert.equal(surface.dataset.lighting, 'night');
+  assert.equal(surface.style['--light-x'], '0');
+  assert.equal(surface.style['--light-y'], '0.8');
+
+  f.controller.setSettings({lighting: 'off'});
+  assert.equal(surface.dataset.lighting, 'off');
+  assert.equal(surface.style['--light-x'], '0.4');
+  assert.equal(surface.style['--light-y'], '1');
 });

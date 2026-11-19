@@ -279,7 +279,9 @@
   background:
     linear-gradient(90deg, #12090655, transparent 12px, transparent 95%, #160b084d),
     linear-gradient(125deg, var(--leather-mid), var(--leather-dark));
-  box-shadow: 2px 7px 10px #170c0966, 0 2px 2px #170c0966,
+  box-shadow:
+    calc(var(--light-x, 0.4) * 2px * var(--lift, 1)) calc(var(--light-y, 1) * 7px * var(--lift, 1)) calc(10px * var(--lift, 1)) #170c0966,
+    calc(var(--light-x, 0.4) * 1px * var(--lift, 1)) calc(var(--light-y, 1) * 2px * var(--lift, 1)) calc(2px * var(--lift, 1)) #170c0966,
     inset 0 1px 1px #d1aa6e59, inset 0 -3px 1px #160b0873;
 }
 

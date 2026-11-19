@@ -16,6 +16,7 @@ const assets=new Map([
   ['leather-colors.mjs','text/javascript'],
   ['stamp-tools.mjs','text/javascript'],['stamp-surfaces.mjs','text/javascript'],['stamp-placement.mjs','text/javascript'],
   ['quest-dependencies.mjs','text/javascript'],['quest-dependency-view.mjs','text/javascript'],['quest-unlock.mjs','text/javascript'],
+  ['desk-motion.mjs','text/javascript'],['motion-tokens.mjs','text/javascript'],
   ['quest-dependency-view.css','text/css'],['quest-unlock.css','text/css'],
 ].map(([name,type])=>['/'+name,[name,type]]));
 

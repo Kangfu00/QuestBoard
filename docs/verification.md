@@ -1,5 +1,14 @@
 # Verification
 
+## 2026-11-19 — motion phases 2 & 3: directional lighting, release inertia, atmosphere drag suspension, playbackRate fast-forward & reduced-motion crossfade
+
+- Unified directional lighting vectors (`--light-x`, `--light-y`, `--lift`) across all dayparts (`morning`, `day`, `evening`, `night`, `off`) in `dist/atmosphere.mjs`, reflected dynamically into CSS box shadows in `tabletop.css`, `leather-folios.css`, `daily-book.css`, `paperweight.css`, and `motion-tokens.css`.
+- Implemented Release Inertia and Anticipation-Action-Settle via pure mathematical helper `settleTiltKeyframes(rotation, velocityTilt)` in `dist/desk-motion.mjs`, smoothly integrated into `settlePaper` and `settleDailyBook` in `dist/app.mjs`, and enhanced metallic landing physics in `dist/paperweight.mjs`.
+- Implemented atmosphere drag suspension (`atmosphere.setSuspended(Boolean)`) in `dist/atmosphere.mjs` and `dist/atmosphere.css`, hooked into all dragging gestures in `dist/app.mjs` and `dist/paperweight.mjs` to pause dust, clouds, and ambient lighting animations during drag operations, restoring full 60 FPS performance.
+- Implemented animation acceleration via `fastForwardAnimations(element, rate = 4)` in `dist/desk-motion.mjs` to crisply accelerate remaining unfolding animations to 4x playback rate upon early closure or cancellation in `dist/daily-book.mjs` and `dist/notebook.mjs`.
+- Added `reducedMotionCrossfade(element)` in `dist/desk-motion.mjs` providing accessible 120ms crossfade transitions for users preferring reduced motion.
+- Full test suite: **683 passed, 0 failed, 0 skipped** (`npm test`), all 43 modules passed `npm run check`, and governance verified by `tests/motion-governance.test.mjs`.
+
 ## 2026-11-19 — motion phase 1: shared tokens, unified animateTransient, governance tests & ?motion-debug
 
 - Centralized motion durations and easing curves in `dist/motion-tokens.mjs` and mirrored CSS custom properties (`--dur-*`, `--ease-*`) in `dist/motion-tokens.css` (linked in `dist/index.html`).

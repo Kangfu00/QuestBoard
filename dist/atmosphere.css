@@ -124,9 +124,9 @@
 .desk-atmosphere[data-dust="false"] .desk-atmosphere-dust-lit,
 .desk-atmosphere[data-motion="still"] .desk-atmosphere-dust,
 .desk-atmosphere[data-motion="still"] .desk-atmosphere-dust-lit { display:none; }
-.desk-atmosphere[data-paused="true"] :is(.desk-atmosphere-particle,.desk-atmosphere-lit-particle,.desk-atmosphere-cloud),
-.desk-atmosphere[data-paused="true"] :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::before,
-.desk-atmosphere[data-paused="true"] :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::after { animation-play-state:paused; }
+:is(.desk-atmosphere[data-paused="true"], [data-atmosphere-paused="true"] .desk-atmosphere) :is(.desk-atmosphere-particle,.desk-atmosphere-lit-particle,.desk-atmosphere-cloud),
+:is(.desk-atmosphere[data-paused="true"], [data-atmosphere-paused="true"] .desk-atmosphere) :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::before,
+:is(.desk-atmosphere[data-paused="true"], [data-atmosphere-paused="true"] .desk-atmosphere) :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::after { animation-play-state:paused !important; }
 .desk-atmosphere[data-motion="still"] :is(.desk-atmosphere-particle,.desk-atmosphere-lit-particle,.desk-atmosphere-cloud),
 .desk-atmosphere[data-motion="still"] :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::before,
 .desk-atmosphere[data-motion="still"] :is(.desk-atmosphere-morning,.desk-atmosphere-day,.desk-atmosphere-evening,.desk-atmosphere-night)::after { animation:none; }

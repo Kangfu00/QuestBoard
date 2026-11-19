@@ -1,6 +1,13 @@
 const STORAGE_KEY = 'guild-board-atmosphere-v1';
 const DEFAULTS = Object.freeze({lighting: 'auto', dust: true, rain: false, tavern: false, volume: .3, rainVolume: 1, tavernVolume: 1, soundscape: 'auto', soundscapeVolume: 1, dustDensity: .65});
 const LIGHTING = new Set(['auto', 'morning', 'day', 'evening', 'night', 'off']);
+export const LIGHT_VECTORS = Object.freeze({
+  morning: Object.freeze({ x: 1.2, y: 1.1 }),
+  day: Object.freeze({ x: 0, y: 1.2 }),
+  evening: Object.freeze({ x: -1.2, y: 1.1 }),
+  night: Object.freeze({ x: 0, y: 0.8 }),
+  off: Object.freeze({ x: 0.4, y: 1.0 }),
+});
 const PHASE_LABELS = Object.freeze({morning: 'เช้า', day: 'กลางวัน', evening: 'เย็น', night: 'กลางคืน', off: 'ปิดแสง'});
 const SOUNDSCAPE_LABELS = Object.freeze({morning: 'นกนอกหน้าต่าง', day: 'ลม/ใบไม้', evening: 'เตาผิง', night: 'แมลงยามค่ำ', off: 'ปิดเสียงตามช่วงเวลา'});
 const KEYS = Object.keys(DEFAULTS);
@@ -18,7 +25,7 @@ function normalize(patch, previous = DEFAULTS) {
 
 /** Local decorative paint and preferences only; the app owns audio and mute. */
 export function createDeskAtmosphere({document = globalThis.document, window = globalThis.window, storage, now = () => new Date(), reducedMotion, onAudioChange = () => {}, onPhaseChange = () => {}} = {}) {
-  let localStorage = storage, settings = {...DEFAULTS}, layer = null, dustLayer = null, litDustLayer = null, controls = null, phaseHint = null, soundscapeHint = null, timer = null, destroyed = false;
+  let localStorage = storage, settings = {...DEFAULTS}, layer = null, dustLayer = null, litDustLayer = null, controls = null, phaseHint = null, soundscapeHint = null, timer = null, destroyed = false, suspended = false;
   const fields = new Map(), outputs = new Map(), statusHints = new Map(), audioStatus = {}, controlCleanup = [];
   let media = null, paintObserver = null;
   try { if (localStorage === undefined) localStorage = window?.localStorage; } catch {}
@@ -139,12 +146,25 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
     if (destroyed) return;
     clearTimer();
     const date = readClock(), info = clockInfo(date), phase = settings.lighting === 'auto' ? info.phase : settings.lighting;
+    const vector = LIGHT_VECTORS[phase] || LIGHT_VECTORS.off;
+    const isPaused = hidden() || suspended;
     if (layer) {
       layer.dataset.lighting = phase;
       layer.dataset.dust = String(settings.dust);
       layer.dataset.motion = motionReduced() ? 'still' : 'moving';
-      layer.dataset.paused = String(hidden());
+      layer.dataset.paused = String(isPaused);
       syncDust();
+      const surface = layer.parentElement;
+      if (surface) {
+        surface.dataset.lighting = phase;
+        surface.style?.setProperty?.('--light-x', String(vector.x));
+        surface.style?.setProperty?.('--light-y', String(vector.y));
+        if (suspended) surface.setAttribute?.('data-atmosphere-paused', 'true');
+        else surface.removeAttribute?.('data-atmosphere-paused');
+      }
+      document?.documentElement?.style?.setProperty?.('--light-x', String(vector.x));
+      document?.documentElement?.style?.setProperty?.('--light-y', String(vector.y));
+      if (document?.documentElement?.dataset) document.documentElement.dataset.lighting = phase;
       // One slow timer while either automatic clock layer is visible. CSS owns
       // all dust/flicker animation; there are no per-particle JS callbacks.
       if ((settings.lighting === 'auto' || settings.soundscape === 'auto') && !hidden()) {
@@ -266,6 +286,20 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
     container.append(controls); syncControls(); sync();
     return controls;
   }
+  function setSuspended(value) {
+    if (destroyed) return;
+    const next = Boolean(value);
+    if (suspended === next) return;
+    suspended = next;
+    if (layer) {
+      layer.dataset.paused = String(hidden() || suspended);
+      const surface = layer.parentElement;
+      if (surface) {
+        if (suspended) surface.setAttribute?.('data-atmosphere-paused', 'true');
+        else surface.removeAttribute?.('data-atmosphere-paused');
+      }
+    }
+  }
   const onVisibility = () => sync(), onMotion = () => sync();
   document?.addEventListener?.('visibilitychange', onVisibility);
   if (media?.addEventListener) media.addEventListener('change', onMotion);
@@ -274,11 +308,27 @@ export function createDeskAtmosphere({document = globalThis.document, window = g
   // minute timer until the decorative surface is mounted.
   notifyPhase(clockInfo(readClock()));
   notifyAudio();
-  return {mount, mountControls, getSettings, setSettings, setAudioStatus, destroy() {
-    if (destroyed) return;
-    destroyed = true; clearTimer(); removeControls(); unobservePaint(); layer?.remove(); layer = null; dustLayer = null; litDustLayer = null;
-    document?.removeEventListener?.('visibilitychange', onVisibility);
-    if (media?.removeEventListener) media.removeEventListener('change', onMotion);
-    else media?.removeListener?.(onMotion);
-  }};
+  return {
+    mount,
+    mountControls,
+    getSettings,
+    setSettings,
+    setAudioStatus,
+    setSuspended,
+    get suspended() { return suspended; },
+    destroy() {
+      if (destroyed) return;
+      destroyed = true; clearTimer(); removeControls(); unobservePaint();
+      const surface = layer?.parentElement;
+      surface?.removeAttribute?.('data-atmosphere-paused');
+      surface?.style?.removeProperty?.('--light-x');
+      surface?.style?.removeProperty?.('--light-y');
+      document?.documentElement?.style?.removeProperty?.('--light-x');
+      document?.documentElement?.style?.removeProperty?.('--light-y');
+      layer?.remove(); layer = null; dustLayer = null; litDustLayer = null;
+      document?.removeEventListener?.('visibilitychange', onVisibility);
+      if (media?.removeEventListener) media.removeEventListener('change', onMotion);
+      else media?.removeListener?.(onMotion);
+    }
+  };
 }

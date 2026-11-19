@@ -34,7 +34,9 @@
   background:
     repeating-conic-gradient(from 8deg, #6845163c 0deg 1deg, #f7daab24 1deg 2deg, transparent 2deg 5deg),
     linear-gradient(135deg, #f3d99a, #aa783d 45%, #d2a869 70%, #8d5d31);
-  box-shadow: inset 0 1px 2px #ffebbcbd, inset 0 -2px 4px #65411a70, 2px 5px 6px #24150985;
+  box-shadow:
+    inset 0 1px 2px #ffebbcbd, inset 0 -2px 4px #65411a70,
+    calc(var(--light-x, 0.4) * 2px * var(--lift, 1)) calc(var(--light-y, 1) * 5px * var(--lift, 1)) calc(6px * var(--lift, 1)) #24150985;
   pointer-events: none;
 }
 

@@ -6,6 +6,7 @@ import {
   todayIsoDate,
 } from './daily-book-model.mjs';
 import { leatherDyeMarkup, paintLeatherDye } from './leather-colors.mjs';
+import { fastForwardAnimations } from './desk-motion.mjs';
 
 const esc = (value = '') => String(value).replace(/[&<>"']/g, c => ({
   '&': '&amp;',
@@ -312,6 +313,9 @@ export function createDailyBookWindow({
         panel.classList.remove('is-unfolding');
       }
       return false;
+    }
+    if (panel.classList.contains('is-unfolding')) {
+      fastForwardAnimations(panel, 4);
     }
     handle?.cancelDrag();
     if (animate && !reducedMotion() && typeof panel.animate === 'function' && document?.body) {

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import vm from 'node:vm';
 import {createInitialState,createQuest,createFolder,moveQuestToFolder} from '../dist/model.mjs';
-import {ghostPose} from '../dist/desk-motion.mjs';
+import {ghostPose, settleTiltKeyframes} from '../dist/desk-motion.mjs';
 import {TRAY_SCALE} from '../dist/storage-tray.mjs';
 import {PAPER} from '../dist/paper-format.mjs';
 
@@ -24,7 +24,7 @@ function desk(){
   state.items=[quest,folder];
   const paper=element(),ghost=element(),target=element(),animations=[],cues=[];
   target.dataset={folderTarget:'folder'};
-  const context={PAPER,state,TRAY_SCALE,currentScale:1,ghostPose,moveQuestToFolder,stampCues:new Map(),AbortController,
+  const context={PAPER,state,TRAY_SCALE,currentScale:1,ghostPose,settleTiltKeyframes,moveQuestToFolder,stampCues:new Map(),AbortController,
     $:()=>paper,document:{querySelectorAll:()=>[target]},reducedMotion:()=>false,setTimeout(){},cancelMotion(){},showToast(){},
     commit(next){context.state=next;},sound:{play(name,options){cues.push({name,...options});}},
     animateTransient(element,frames,options){animations.push({element,frames,options});},

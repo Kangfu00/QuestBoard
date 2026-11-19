@@ -38,6 +38,7 @@ export function paperweightFace(weight, icon) {
 /** One liftable prop on the desk. Pointer motion is ephemeral until a valid drop. */
 export function createPaperweight({canvas, viewport, getState, getLayout, save, onEdit, icon,
   onCue = () => {}, onError = () => {}, isBlocked = () => false, reducedMotion = () => false,
+  onDragStateChange = () => {},
   document = canvas.ownerDocument, window = document.defaultView}) {
   let weightButton = null, markedPaper = null, gesture = null, frame = null, suppressUntil = 0;
   const getWeight = () => getState().paperweight ?? DEFAULT_PAPERWEIGHT;
@@ -72,7 +73,13 @@ export function createPaperweight({canvas, viewport, getState, getLayout, save, 
     weightButton.innerHTML = `<span class="paperweight-metal"><span class="paperweight-face">${paperweightFace(weight,icon)}</span></span>`;
     if (landed && !reducedMotion()) animateTransient(
       weightButton.querySelector('.paperweight-metal'),
-      [{transform:'translateY(-8px) scale(1.04)',opacity:.88},{transform:'translateY(1px) scale(.99)',offset:.68},{transform:'none',opacity:1}],
+      [
+        { transform: 'translateY(-10px) scale(1.05)', opacity: 0.88, easing: 'cubic-bezier(.4, 0, .6, 1)' },
+        { transform: 'translateY(-6px) scale(1.03)', offset: 0.18 },
+        { transform: 'translateY(2px) scale(0.985)', offset: 0.60, easing: 'cubic-bezier(.2, .8, .3, 1)' },
+        { transform: 'translateY(-1px) scale(1.005)', offset: 0.82, easing: 'ease-out' },
+        { transform: 'none', opacity: 1 },
+      ],
       MOTION_TIMING.paperweightLand,
     );
     if (focus) weightButton.focus({preventScroll:true});
@@ -136,6 +143,7 @@ export function createPaperweight({canvas, viewport, getState, getLayout, save, 
       positionGhost(current);
       document.body.append(ghost);
       current.button.classList.add('paperweight-source');
+      try { onDragStateChange(true); } catch {}
       if (getWeight().questId) onCue('paperSlide');
     }
     paintCarry(current);
@@ -151,6 +159,7 @@ export function createPaperweight({canvas, viewport, getState, getLayout, save, 
       suppressUntil = window.performance.now() + 400;
       current.ghost.remove();
       current.button.classList.remove('paperweight-source');
+      try { onDragStateChange(false); } catch {}
     }
     if (current.button.hasPointerCapture(current.pointerId)) current.button.releasePointerCapture(current.pointerId);
   }

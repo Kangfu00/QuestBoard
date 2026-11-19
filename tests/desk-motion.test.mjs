@@ -169,3 +169,77 @@ test('ordinary element animations keep their element after cleanup',async()=>{
   assert.equal(element.connected,true);assert.equal(finished,true);
   assert.equal(element.animations[0].active,false);
 });
+
+test('settleTiltKeyframes returns anticipation-action-settle transforms without mutating layout', () => {
+  assert.equal(typeof motion.settleTiltKeyframes, 'function');
+
+  // Default parameters
+  const defaults = motion.settleTiltKeyframes();
+  assert.equal(defaults.length, 5);
+  assert.equal(defaults[0].transform, 'rotate(0deg) scale(1.025)');
+  assert.equal(defaults[1].offset, 0.18);
+  assert.equal(defaults[2].offset, 0.72);
+  assert.equal(defaults[3].offset, 0.88);
+  assert.equal(defaults[4].transform, 'rotate(0deg) scale(1)');
+
+  // Verifying no layout properties (left/top/width/height)
+  for (const kf of defaults) {
+    assert.equal(kf.left, undefined);
+    assert.equal(kf.top, undefined);
+    assert.ok(kf.transform.includes('rotate('));
+    assert.ok(kf.transform.includes('scale('));
+  }
+
+  // Active tilt with rotation
+  const tilted = motion.settleTiltKeyframes(10, 2);
+  assert.equal(tilted.length, 5);
+  // 0%: 10 + 2 * 0.35 = 10.7
+  assert.ok(tilted[0].transform.includes('rotate(10.7deg)'));
+  // 18% anticipation: 10 + 2 * 0.45 = 10.9
+  assert.ok(tilted[1].transform.includes('rotate(10.9deg)'));
+  // 55% overshoot opposite to tilt: 10 - 2 * 0.25 - 0.3 = 9.2
+  assert.ok(tilted[2].transform.includes('rotate(9.2deg)'));
+  // 100% final resting pose: rotate(10deg) scale(1)
+  assert.equal(tilted[4].transform, 'rotate(10deg) scale(1)');
+
+  // Without anticipation (e.g. quick settle)
+  const direct = motion.settleTiltKeyframes(5, -1, { anticipation: false });
+  assert.equal(direct.length, 3);
+  assert.equal(direct[2].transform, 'rotate(5deg) scale(1)');
+
+  // Robust against non-finite inputs
+  const safe = motion.settleTiltKeyframes(NaN, Infinity);
+  assert.equal(safe.length, 5);
+  assert.equal(safe[4].transform, 'rotate(0deg) scale(1)');
+});
+
+test('fastForwardAnimations increases playbackRate of running animations', () => {
+  assert.equal(typeof motion.fastForwardAnimations, 'function');
+  assert.deepEqual(motion.fastForwardAnimations(null), []);
+  assert.deepEqual(motion.fastForwardAnimations({}), []);
+
+  const runningAnim = { playbackRate: 1, playState: 'running' };
+  const finishedAnim = { playbackRate: 1, playState: 'finished' };
+  const fakeElement = {
+    getAnimations: () => [runningAnim, finishedAnim],
+  };
+
+  const accelerated = motion.fastForwardAnimations(fakeElement, 4);
+  assert.equal(accelerated.length, 2);
+  assert.equal(runningAnim.playbackRate, 4);
+  assert.equal(finishedAnim.playbackRate, 1);
+});
+
+test('reducedMotionCrossfade performs a 120ms fade-in transition', async () => {
+  assert.equal(typeof motion.reducedMotionCrossfade, 'function');
+  const element = paper();
+  let finished = false;
+  const p = motion.reducedMotionCrossfade(element, { onFinish: () => { finished = true; } });
+  assert.equal(element.animations.length, 1);
+  assert.deepEqual(element.animations[0].keyframes, [{ opacity: 0 }, { opacity: 1 }]);
+  assert.equal(element.animations[0].options.duration, 120);
+
+  element.animations[0].finish();
+  await p;
+  assert.equal(finished, true);
+});

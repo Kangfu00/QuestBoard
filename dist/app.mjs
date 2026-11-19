@@ -2,7 +2,7 @@ import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSh
 import {NOTEBOOK_SIZE,PAPER,toPaperStampPosition,photoSheetSize} from './paper-format.mjs';
 import { chooseStampTool, applyHeldStamp } from './stamp-tools.mjs';
 import { dragPosition, containsPoint, drawerReveal, shouldOpenDrawer, rotatedOrigin, canvasLayout, rotatedClampPosition, storedDropPosition, drawerForDraggedItem, storageTrayAccepts } from './interactions.mjs';
-import { grabPoint, ghostPose, dragTilt, animateTransient, cancelMotion } from './desk-motion.mjs';
+import { grabPoint, ghostPose, dragTilt, animateTransient, cancelMotion, settleTiltKeyframes } from './desk-motion.mjs';
 import { MOTION_TIMING } from './motion-tokens.mjs';
 import { createMotionDebug } from './motion-debug.mjs';
 import {paperGripPose} from './paper-grip.mjs';
@@ -274,6 +274,7 @@ function shell(){
   paperweightControl=createPaperweight({canvas:$('#board-canvas'),viewport:$('#board-scroll'),getState:()=>state,
     getLayout:()=>({bounds:canvasBounds,scale:currentScale}),save:savePaperweight,onEdit:openPaperweightEditor,icon,
     onCue:onSoundCue,onError:showToast,reducedMotion,
+    onDragStateChange:dragging=>atmosphere?.setSuspended?.(dragging),
     isBlocked:()=>!!(drag||storedDrag||bookDrag||heldStamp||bundleControl?.dragging||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open),
   });
   photoResizeControl=bindPhotoSheetResizing({document,window,getPhoto:id=>state.items.find(item=>item.id===id),
@@ -425,8 +426,8 @@ function setupQuestBundles(){
     getDropTarget:bundleTargetAt,onAssist:e=>followStorageHandle(e,'quest'),onCue:onSoundCue,
     isBlocked:()=>!!(drag||storedDrag||heldStamp||deskShutter?.closed||deskShutter?.pulling||paperweightControl?.dragging||photoResizeControl?.active||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open||document.querySelector('.is-window-dragging')),
     onTarget:target=>{dropTarget=target;highlightFolder(target?.type==='folder'?target.id:null);highlightStorageTray(target?.type==='tray'?'quest-drawer':null);},
-    onStart:({ids,source})=>{drawerBefore=activeDrawerId();paperEffects.cancelAll();storageDrawerControl?.rest();for(const id of ids){stampCues.get(id)?.abort();stampCues.delete(id);}const panel=source?.closest?.('.folder-window');if(panel)finishFolderOpening(panel);},
-    onEnd:({committed,target})=>{clearStorageFeedback();highlightFolder(null);setActiveDrawer(committed&&(target?.type==='tray'||target?.drawer)?'quest-drawer':drawerBefore,false,false);},
+    onStart:({ids,source})=>{if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(true);drawerBefore=activeDrawerId();paperEffects.cancelAll();storageDrawerControl?.rest();for(const id of ids){stampCues.get(id)?.abort();stampCues.delete(id);}const panel=source?.closest?.('.folder-window');if(panel)finishFolderOpening(panel);},
+    onEnd:({committed,target})=>{if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(false);clearStorageFeedback();highlightFolder(null);setActiveDrawer(committed&&(target?.type==='tray'||target?.drawer)?'quest-drawer':drawerBefore,false,false);},
   });
 }
 function highlightFolder(id){document.querySelectorAll('[data-folder-target]').forEach(el=>el.classList.toggle('folder-drop-ready',el.dataset.folderTarget===id));}
@@ -491,9 +492,12 @@ function settlePaper(id,tilt=0){
   queueContactSound(id,['folder','notebook'].includes(item.type)?'folderDrop':'paperDrop',typeof el.animate==='function'?166:0);
   if(reducedMotion())return;
   const rotation=item.rotation;
-  animateTransient(el,[{transform:`rotate(${rotation+tilt*.35}deg) scale(1.025)`,boxShadow:'4px 12px 17px #170e0a60',easing:'cubic-bezier(.2,.7,.3,1)'},
+  const keyframes=typeof settleTiltKeyframes==='function'?settleTiltKeyframes(rotation,tilt):[
+    {transform:`rotate(${rotation+tilt*.35}deg) scale(1.025)`,easing:'cubic-bezier(.2,.7,.3,1)'},
     {transform:`rotate(${rotation-.3}deg) scale(.998)`,offset:.72,easing:'ease-out'},
-    {transform:`rotate(${rotation}deg) scale(1)`}],{duration:230,easing:'linear'});
+    {transform:`rotate(${rotation}deg) scale(1)`}
+  ];
+  animateTransient(el,keyframes,{duration:230,easing:'linear'});
 }
 function animateFolderInsert(ghost,folderId,surface='board-folder'){
   if(!ghost)return false;
@@ -557,7 +561,7 @@ function startStoredDrag(e){
 function moveStoredDrag(e){
   const d=storedDrag;if(!d||e.pointerId!==d.pointerId)return;
   if(!d.moved&&Math.abs(e.clientX-d.startX)+Math.abs(e.clientY-d.startY)>5){
-    d.moved=true;sound.play(['folder','daily-book','notebook'].includes(d.item.type)?'folderPick':'paperPick');
+    d.moved=true;if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(true);sound.play(['folder','daily-book','notebook'].includes(d.item.type)?'folderPick':'paperPick');
     const container=document.createElement('div');
     if(d.item.type==='photo'){
       container.innerHTML=renderPhotoSheet(d.item);
@@ -592,6 +596,7 @@ function moveStoredDrag(e){
 }
 function cleanupStoredDrag(keepGhost=false){
   const d=storedDrag;if(!d)return;
+  if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(false);
   storedDrag=null;window.removeEventListener('pointermove',moveStoredDrag);window.removeEventListener('pointerup',endStoredDrag);window.removeEventListener('pointercancel',cancelStoredDrag);
   if(document.body.hasPointerCapture(d.pointerId))document.body.releasePointerCapture(d.pointerId);
   stopHeldMotion(d);d.surface?.classList.remove('storage-source');if(!keepGhost)d.ghost?.remove();highlightFolder(null);clearStorageFeedback();
@@ -974,6 +979,7 @@ function onDrag(e){
   const dx=e.clientX-drag.startX,dy=e.clientY-drag.startY;
   if(!drag.moved&&Math.abs(dx)+Math.abs(dy)>4){
     drag.moved=true;
+    if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(true);
     sound.play(['folder','notebook'].includes(drag.type)?'folderPick':'paperPick');
     if(['quest','folder','photo','notebook'].includes(drag.type)){
       const ghost=drag.el.cloneNode(true);ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('aria-label');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');ghost.classList.add(drag.type==='notebook'?'book-drag-ghost':drag.type==='folder'?'folder-drag-ghost':'quest-drag-ghost','paper-in-hand');ghost.style.setProperty('--drag-scale',currentScale);ghost.style.zIndex='10000';ghost.querySelectorAll('[tabindex],button').forEach(el=>el.setAttribute('tabindex','-1'));document.body.append(ghost);drag.ghost=ghost;drag.el.classList.add('drag-source');
@@ -995,6 +1001,7 @@ function onDrag(e){
 }
 function cleanupDrag(keepGhost=false){
   if(!drag)return;const {handle,pointerId,el,ghost}=drag;
+  if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(false);
   handle.removeEventListener('pointermove',onDrag);handle.removeEventListener('pointerup',endDrag);handle.removeEventListener('pointercancel',cancelDrag);
   if(handle.hasPointerCapture(pointerId))handle.releasePointerCapture(pointerId);stopHeldMotion(drag);el.classList.remove('dragging','drag-source');if(!keepGhost)ghost?.remove();clearStorageFeedback();highlightFolder(null);drag=null;
 }
@@ -1425,11 +1432,7 @@ function settleDailyBook(tilt=0){
   sound.play('folderDrop');
   if(reducedMotion())return;
   const book=ensureDailyBook(state).dailyBook;const rotation=book.rotation??0;
-  animateTransient(el,[
-    {transform:`rotate(${rotation+tilt*.35}deg) scale(1.025)`,boxShadow:'0 20px 42px rgba(12, 8, 5, 0.65)',easing:'cubic-bezier(.2,.7,.3,1)'},
-    {transform:`rotate(${rotation-.3}deg) scale(.998)`,offset:.72,easing:'ease-out'},
-    {transform:`rotate(${rotation}deg) scale(1)`}
-  ],{duration:230,easing:'linear'});
+  animateTransient(el,settleTiltKeyframes(rotation,tilt),{duration:230,easing:'linear'});
 }
 function settleTrayDailyBook(ghost,grab={x:DAILY_BOOK_SIZE.width/2,y:28}){
   const target=$(`[data-storage-id="daily-book"]`),book=ensureDailyBook(state).dailyBook;
@@ -1496,7 +1499,7 @@ function startDailyBookDrag(e){
     if(!bookDrag||ev.pointerId!==bookDrag.pointerId)return;
     const dx=ev.clientX-bookDrag.startX,dy=ev.clientY-bookDrag.startY;
     if(!bookDrag.moved&&Math.abs(dx)+Math.abs(dy)>4){
-      bookDrag.moved=true;sound.play('folderPick');
+      bookDrag.moved=true;if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(true);sound.play('folderPick');
       const ghost=bookDrag.el.cloneNode(true);
       ghost.removeAttribute('data-daily-book');ghost.removeAttribute('aria-label');
       ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');
@@ -1525,6 +1528,7 @@ function startDailyBookDrag(e){
 
   const cleanup=(keepGhost=false)=>{
     if(!bookDrag)return;
+    if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(false);
     const {handle:h,pointerId,el:element,ghost}=bookDrag;
     h.removeEventListener('pointermove',move);h.removeEventListener('pointerup',end);h.removeEventListener('pointercancel',cancel);
     if(h.hasPointerCapture(pointerId))h.releasePointerCapture(pointerId);

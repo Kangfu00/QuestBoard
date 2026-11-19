@@ -1,7 +1,7 @@
 import {MAX_NOTEBOOK_PAGES,MAX_NOTEBOOK_PAGE_TEXT} from './model.mjs';
 import {NOTEBOOK_SIZE} from './paper-format.mjs';
 import {leatherDyeMarkup,paintLeatherDye} from './leather-colors.mjs';
-import {animateTransient} from './desk-motion.mjs';
+import {animateTransient, fastForwardAnimations} from './desk-motion.mjs';
 import {MOTION_TIMING} from './motion-tokens.mjs';
 
 const escape=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
@@ -156,6 +156,7 @@ export function createNotebookWindows({document,window,windows,getBook,writePage
 
     function close({animate=false,returnFocus=false}={}){
       if(!flushPages())return false;
+      if(panel.classList.contains('is-unfolding'))fastForwardAnimations(panel,4);
       window.clearTimeout(opening);
       remembered.set(id,spread);
       registration.cancelDrag();

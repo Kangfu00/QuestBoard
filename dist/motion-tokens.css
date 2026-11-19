@@ -27,4 +27,9 @@
   --ease-unfold: cubic-bezier(.16, .75, .28, 1);
   --ease-turn: cubic-bezier(.32, .05, .24, 1);
   --ease-unlock: cubic-bezier(.2, .65, .25, 1);
+
+  /* Tabletop directional lighting and elevation tokens */
+  --light-x: 0.4;
+  --light-y: 1.0;
+  --lift: 1;
 }
