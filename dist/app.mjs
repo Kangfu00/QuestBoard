@@ -293,12 +293,13 @@ function shell(){
   adventurerCard?.destroy();
   adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,getScale:()=>currentScale,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   questReception?.destroy();
-  questReception=createQuestReception({
-    surface:document.body,
+  questReception = createQuestReception({
+    surface: document.body,
     document,
     window,
     icon,
-    onCue:onSoundCue,
+    renderQuest: q => renderQuest(q, 0),
+    onCue: onSoundCue,
     reducedMotion,
     onTurnIn:(quest,{origin})=>{
       const xp=quest.xp||50;

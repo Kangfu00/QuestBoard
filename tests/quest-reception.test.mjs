@@ -58,8 +58,8 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
 
     const node = {
       tagName: tag.toUpperCase(),
-      offsetWidth: tag.toLowerCase() === 'aside' ? 440 : 396,
-      offsetHeight: 620,
+      offsetWidth: tag.toLowerCase() === 'aside' ? 392 : 348,
+      offsetHeight: 650,
       style: {
         setProperty: (k, v) => customProps.set(k, String(v)),
         getPropertyValue: k => customProps.get(k) || '',
@@ -129,15 +129,15 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       },
       getBoundingClientRect: () => {
         if (node.classList.contains('reception-tray')) {
-          return { left: 20, top: 85, width: 388, height: 450, right: 408, bottom: 535 };
+          return { left: 16, top: 85, width: 318, height: 500, right: 334, bottom: 585 };
         }
         if (node.classList.contains('reception-slot')) {
-          return { left: 24, top: 90, width: 380, height: 440, right: 404, bottom: 530 };
+          return { left: 20, top: 90, width: 310, height: 490, right: 330, bottom: 580 };
         }
         if (node.classList.contains('reception-drawer-handle')) {
-          return { left: 396, top: 50, width: 44, height: 150, right: 440, bottom: 200 };
+          return { left: 348, top: 48, width: 44, height: 150, right: 392, bottom: 198 };
         }
-        return { left: 0, top: 18, width: 440, height: 630, right: 440, bottom: 648 };
+        return { left: 0, top: 18, width: 392, height: 650, right: 392, bottom: 668 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
@@ -264,6 +264,11 @@ function buildMockTree(parent, html, createNode) {
     { class: 'reception-handle-text', tag: 'span' },
     { class: 'reception-handle-badge', tag: 'b', id: 'reception-badge' },
     { class: 'reception-paper-preview', tag: 'div' },
+    { class: 'reception-placed-sheet', tag: 'div' },
+    { class: 'reception-paper-stage', tag: 'div' },
+    { class: 'quest-paper', tag: 'article' },
+    { class: 'reception-sheet-actions', tag: 'div' },
+    { class: 'reception-withdraw-prompt', tag: 'span' },
     { class: 'reception-paper-header', tag: 'div' },
     { class: 'reception-paper-tag', tag: 'span' },
     { class: 'reception-paper-xp', tag: 'span' },
@@ -281,6 +286,12 @@ function buildMockTree(parent, html, createNode) {
     if (html.includes(item.class) || (item.id && html.includes(item.id))) {
       const child = createNode(item.tag);
       item.class.split(' ').forEach(c => child.classList.add(c));
+      if (item.class === 'quest-paper') {
+        const classMatch = html.match(/class=["']([^"']*quest-paper[^"']*)["']/);
+        if (classMatch) {
+          classMatch[1].split(/\s+/).filter(Boolean).forEach(c => child.classList.add(c));
+        }
+      }
       if (item.id) child.setAttribute('id', item.id);
       if (item.attrs) {
         for (const [k, v] of Object.entries(item.attrs)) {
@@ -392,13 +403,13 @@ test('checkDrop detects drop coordinates over tray or drawer handle', () => {
     window: env.window,
   });
 
-  // Tray bounds: left: 20, top: 85, width: 388, height: 450 (right: 408, bottom: 535)
+  // Tray bounds: left: 16, top: 85, width: 318, height: 500 (right: 334, bottom: 585)
   assert.equal(reception.checkDrop({ x: 50, y: 150 }), true, 'Point inside tray accepted');
-  assert.equal(reception.checkDrop({ x: 20, y: 85 }), true, 'Top-left of tray accepted');
-  assert.equal(reception.checkDrop({ x: 408, y: 535 }), true, 'Bottom-right of tray accepted');
+  assert.equal(reception.checkDrop({ x: 16, y: 85 }), true, 'Top-left of tray accepted');
+  assert.equal(reception.checkDrop({ x: 334, y: 585 }), true, 'Bottom-right of tray accepted');
 
-  // Handle bounds: left: 396, top: 50, right: 440, bottom: 200
-  assert.equal(reception.checkDrop({ x: 410, y: 100 }), true, 'Point over handle accepted');
+  // Handle bounds: left: 348, top: 48, right: 392, bottom: 198
+  assert.equal(reception.checkDrop({ x: 360, y: 100 }), true, 'Point over handle accepted');
 
   // Far points rejected
   assert.equal(reception.checkDrop({ x: 600, y: 300 }), false, 'Point in center desk rejected');
@@ -525,38 +536,74 @@ test('dragging reception drawer handle pulls open and pushes closed', () => {
   const handle = reception.element.querySelector('.reception-drawer-handle');
   assert.equal(reception.isOpen, false, 'Initially closed');
 
-  // 1. Pull open past 45% threshold (travel is 440 - 44 = 396px; 45% is ~178px; pull by 220px)
+  // 1. Pull open past 45% threshold (travel is 392 - 44 = 348px; 45% is ~157px; pull by 200px)
   handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 1, clientX: 0 });
   assert.equal(reception.element.classList.contains('is-pulling'), true, 'Marked is-pulling while dragging');
 
-  handle.dispatchEvent({ type: 'pointermove', pointerId: 1, clientX: 220 });
-  assert.equal(reception.element.style.getPropertyValue('--reception-reveal'), '220px', 'Sets reveal CSS variable');
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 1, clientX: 200 });
+  assert.equal(reception.element.style.getPropertyValue('--reception-reveal'), '200px', 'Sets reveal CSS variable');
 
-  handle.dispatchEvent({ type: 'pointerup', pointerId: 1, clientX: 220 });
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 1, clientX: 200 });
   assert.equal(reception.element.classList.contains('is-pulling'), false, 'is-pulling removed on release');
   assert.equal(reception.isOpen, true, 'Drawer snapped open');
   assert.ok(env.soundCues.includes('drawerOpen'), 'drawerOpen sound cue triggered');
 
-  // 2. Drag to close (push left from 396 to 100px, which is < 45% threshold)
-  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 2, clientX: 396 });
-  handle.dispatchEvent({ type: 'pointermove', pointerId: 2, clientX: 100 });
-  handle.dispatchEvent({ type: 'pointerup', pointerId: 2, clientX: 100 });
+  // 2. Drag to close (push left from 348 to 80px, which is < 45% threshold)
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 2, clientX: 348 });
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 2, clientX: 80 });
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 2, clientX: 80 });
   assert.equal(reception.isOpen, false, 'Drawer snapped closed');
   assert.ok(env.soundCues.includes('drawerClose'), 'drawerClose sound cue triggered');
 
-  // 3. Small pull below threshold (pull by 60px < 178px) snaps back to closed
+  // 3. Small pull below threshold (pull by 50px < 157px) snaps back to closed
   handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 3, clientX: 0 });
-  handle.dispatchEvent({ type: 'pointermove', pointerId: 3, clientX: 60 });
-  handle.dispatchEvent({ type: 'pointerup', pointerId: 3, clientX: 60 });
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 3, clientX: 50 });
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 3, clientX: 50 });
   assert.equal(reception.isOpen, false, 'Drawer remained closed because pull was below 45%');
 
   // 4. Cancelled pointer restores previous state
   reception.open();
   assert.equal(reception.isOpen, true);
-  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 4, clientX: 396 });
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 4, clientX: 348 });
   handle.dispatchEvent({ type: 'pointermove', pointerId: 4, clientX: 50 });
   handle.dispatchEvent({ type: 'pointercancel', pointerId: 4 });
   assert.equal(reception.isOpen, true, 'Drawer remains open when gesture cancelled');
+
+  reception.destroy();
+});
+
+test('placeQuest uses provided renderQuest callback to retain authentic quest sheet appearance', () => {
+  const env = createMockEnvironment();
+  let renderedQuest = null;
+  const reception = createQuestReception({
+    surface: env.rootSurface,
+    document: env.document,
+    window: env.window,
+    renderQuest: q => {
+      renderedQuest = q;
+      return `<article class="quest-paper board-item custom-rendered-quest" data-id="${q.id}"><span class="paper-wear"></span><h3 class="quest-title">${q.title}</h3></article>`;
+    },
+  });
+
+  const quest = {
+    id: 'quest-505',
+    type: 'quest',
+    title: 'วาดครอบครัวสตอเบอร์รี่',
+    category: 'งานหลัก',
+    xp: 100,
+  };
+
+  reception.placeQuest(quest);
+  assert.equal(renderedQuest?.id, 'quest-505', 'renderQuest callback was invoked with quest');
+
+  const paper = reception.element.querySelector('.quest-paper');
+  assert.ok(paper, 'Quest paper mounted in slot');
+  assert.equal(paper.classList.contains('custom-rendered-quest'), true, 'Rendered with authentic quest markup');
+  assert.equal(paper.classList.contains('board-item'), false, 'board-item class removed to allow relative tray flow');
+  assert.equal(paper.classList.contains('in-reception-tray'), true, 'in-reception-tray class applied');
+
+  const withdrawBtn = reception.element.querySelector('.reception-withdraw-btn');
+  assert.ok(withdrawBtn, 'Withdraw button exists below paper');
 
   reception.destroy();
 });

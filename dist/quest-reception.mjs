@@ -13,6 +13,7 @@ import { animateTransient, cancelMotion } from './desk-motion.mjs';
  * @param {Document} [options.document] - DOM document.
  * @param {Window} [options.window] - DOM window.
  * @param {Function} [options.icon] - Icon helper function icon(name).
+ * @param {Function} [options.renderQuest] - Renderer producing authentic quest article HTML: renderQuest(quest).
  * @param {Function} [options.onCue] - Sound playback callback onCue(name).
  * @param {Function} [options.onTurnIn] - Callback when quest submission is confirmed: onTurnIn(quest, { origin }).
  * @param {Function} [options.onWithdraw] - Callback when resting quest is withdrawn: onWithdraw(quest).
@@ -23,6 +24,7 @@ export function createQuestReception({
   document = globalThis.document,
   window = globalThis.window,
   icon = () => '',
+  renderQuest = null,
   onCue = () => {},
   onTurnIn = () => {},
   onWithdraw = () => {},
@@ -130,7 +132,7 @@ export function createQuestReception({
   const speechBubble = drawer.querySelector('.reception-speech-bubble');
   const badgeEl = drawer.querySelector('.reception-handle-badge');
 
-  const travel = () => Math.max(0, (drawer.offsetWidth || 396) - 44);
+  const travel = () => Math.max(0, (drawer.offsetWidth || 348) - 44);
 
   const setReveal = px => {
     drawer.style.setProperty('--reception-reveal', `${Math.round(px)}px`);
@@ -140,14 +142,10 @@ export function createQuestReception({
     isOpen = open;
     drawer.classList.toggle('is-open', open);
     handleBtn.setAttribute('aria-expanded', String(open));
-    if (open) {
-      setReveal(travel());
-    } else {
-      if (typeof drawer.style?.removeProperty === 'function') {
-        drawer.style.removeProperty('--reception-reveal');
-      } else if (drawer.style) {
-        delete drawer.style['--reception-reveal'];
-      }
+    if (typeof drawer.style?.removeProperty === 'function') {
+      drawer.style.removeProperty('--reception-reveal');
+    } else if (drawer.style) {
+      delete drawer.style['--reception-reveal'];
     }
   };
 
@@ -266,6 +264,14 @@ export function createQuestReception({
   }
 
   function getStampCenter() {
+    const stampEl = slotEl.querySelector('.reception-stamp-impact') || slotEl.querySelector('.quest-paper') || slotEl.querySelector('.reception-paper-preview') || slotEl;
+    if (stampEl && typeof stampEl.getBoundingClientRect === 'function') {
+      const rect = stampEl.getBoundingClientRect();
+      return {
+        x: rect.left + rect.width / 2,
+        y: rect.top + rect.height / 2,
+      };
+    }
     const slotRect = slotEl.getBoundingClientRect();
     return {
       x: slotRect.left + slotRect.width / 2,
@@ -282,34 +288,59 @@ export function createQuestReception({
     }
     currentQuest = quest;
 
-    const categoryText = quest.category ? String(quest.category).toUpperCase() : 'GENERAL';
-    const xpText = `+${quest.xp || 50} XP`;
+    let paperHtml = '';
+    if (typeof renderQuest === 'function') {
+      paperHtml = renderQuest(quest);
+    } else {
+      const priorities = { high: ['A', 'เควสสำคัญ'], normal: ['B', 'เควสทั่วไป'], low: ['C', 'เควสสบาย ๆ'] };
+      const [rank, priority] = priorities[quest.priority] || priorities.normal;
+      paperHtml = `
+        <article class="quest-paper in-reception-tray" data-id="${esc(quest.id)}">
+          <span class="paper-wear" aria-hidden="true"></span>
+          <div class="quest-top"><span class="quest-type">${esc(quest.category || 'งานหลัก')}</span></div>
+          <div class="paper-rule"><span>QUEST No. 001</span><span class="rank rank-${quest.priority || 'normal'}" title="${priority}">${rank}</span></div>
+          <button class="quest-title">${esc(quest.title || 'เควสไม่ระบุชื่อ')}</button>
+          <p class="quest-description">${esc(quest.description || '')}</p>
+          <div class="quest-metadata"><span class="priority priority-${quest.priority || 'normal'}"><i></i>${priority}</span><span class="quest-xp">✨ ${quest.xp || 50} XP</span></div>
+        </article>
+      `;
+    }
 
     slotEl.innerHTML = `
-      <div class="reception-paper-preview" data-reception-quest="${quest.id}" tabindex="0" role="region" aria-label="ใบเควส ${esc(quest.title || 'ไม่มีชื่อ')} พร้อมส่งมอบ">
-        <div class="reception-paper-header">
-          <span class="reception-paper-tag">${categoryText}</span>
-          <span class="reception-paper-xp">${xpText}</span>
+      <div class="reception-placed-sheet" data-reception-quest="${quest.id}">
+        <div class="reception-paper-stage">
+          ${paperHtml}
         </div>
-        <div class="reception-paper-body">
-          <h3 class="reception-paper-title">${esc(quest.title || 'เควสไม่ระบุชื่อ')}</h3>
-          ${quest.description ? `<p class="reception-paper-desc">${esc(quest.description)}</p>` : ''}
-        </div>
-        <div class="reception-paper-footer">
+        <div class="reception-sheet-actions">
           <button type="button" class="reception-withdraw-btn" title="นำเควสกลับคืนสู่โต๊ะ">
             ${crossIcon} นำเควสกลับคืน
           </button>
-          <span class="reception-paper-prompt">กดกระดิ่ง 🛎️ เพื่อส่งมอบ</span>
+          <span class="reception-withdraw-prompt">กดกระดิ่ง 🛎️ เพื่อส่งมอบ</span>
         </div>
       </div>
     `;
+
+    const paperEl = slotEl.querySelector('.quest-paper');
+    if (paperEl) {
+      paperEl.classList.remove('board-item');
+      paperEl.classList.add('in-reception-tray');
+      paperEl.style.left = 'auto';
+      paperEl.style.top = 'auto';
+      paperEl.style.margin = '0 auto';
+      paperEl.style.transform = 'none';
+      paperEl.style.setProperty('--rotation', '0deg');
+      paperEl.style.position = 'relative';
+
+      // Strip board-specific control tools inside tray
+      paperEl.querySelectorAll('.quest-bundle-select, .paper-turn-corner').forEach(el => el.remove());
+    }
 
     bellBtn.classList.add('has-quest');
     badgeEl.hidden = false;
     badgeEl.textContent = '1';
     onCue?.('paperDrop');
 
-    // Withdraw button trigger inside paper
+    // Withdraw button trigger inside paper actions
     const withdrawBtn = slotEl.querySelector('.reception-withdraw-btn');
     withdrawBtn?.addEventListener('click', e => {
       e.stopPropagation();
@@ -349,7 +380,7 @@ export function createQuestReception({
       const quote = pickReceptionistQuote(true);
       showSpeechBubble(quote);
 
-      const previewEl = slotEl.querySelector('.reception-paper-preview');
+      const previewEl = slotEl.querySelector('.reception-placed-sheet') || slotEl.querySelector('.quest-paper') || slotEl.querySelector('.reception-paper-preview');
       if (previewEl) {
         // Overlay giant guild accepted stamp
         const stampOverlay = document.createElement('div');
