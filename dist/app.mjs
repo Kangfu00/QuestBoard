@@ -288,7 +288,7 @@ function shell(){
   });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   adventurerCard?.destroy();
-  adventurerCard=createAdventurerCard({deskSurface:$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
+  adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
   $('#sound-volume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);refreshSoundControls();};

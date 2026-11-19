@@ -82,20 +82,23 @@ function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) 
         return null;
       },
       getBoundingClientRect: () => {
-        if (node.classList.contains('adventurer-dock-slot')) {
-          return { left: 18, top: 586, width: 260, height: 164, right: 278, bottom: 750 };
-        }
         if (node.classList.contains('adventurer-card-seal')) {
-          return { left: 32, top: 620, width: 60, height: 60, right: 92, bottom: 680 };
+          return { left: 32, top: 620, width: 66, height: 66, right: 98, bottom: 686 };
         }
-        if (node.getAttribute('id') === 'desk-surface') {
+        if (node.getAttribute('id') === 'desk-surface' || node.getAttribute('id') === 'board-scroll') {
           return { left: 0, top: 0, width: 1024, height: 768, right: 1024, bottom: 768 };
         }
-        return { left: 18, top: 586, width: 260, height: 164, right: 278, bottom: 750 };
+        return { left: 18, top: 548, width: 320, height: 202, right: 338, bottom: 750 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
     };
+
+    if (tag.toLowerCase() === 'dialog') {
+      node.open = false;
+      node.showModal = () => { node.open = true; node.setAttribute('open', ''); };
+      node.close = () => { node.open = false; node.removeAttribute('open'); };
+    }
 
     if (hasWaapi) {
       node.animate = (keyframes, options) => {
@@ -238,7 +241,10 @@ function buildMockTreeFromHtml(parent, html, createNode) {
     'adventurer-card-value adventurer-back-title', 'adventurer-card-value adventurer-back-level',
     'adventurer-card-value adventurer-back-xp', 'adventurer-card-value adventurer-back-done',
     'adventurer-card-value adventurer-back-tonext', 'adventurer-back-footer',
-    'adventurer-back-edit-btn', 'adventurer-card-status sr-only',
+    'adventurer-back-edit-btn', 'adventurer-topbar-actions', 'adventurer-inspect-icon-btn',
+    'adventurer-back-inspect-btn', 'adventurer-card-viewer-dialog', 'adventurer-viewer-wrap',
+    'adventurer-viewer-card', 'adventurer-viewer-controls', 'adventurer-modal-flip-btn',
+    'adventurer-modal-edit-btn', 'adventurer-viewer-close', 'adventurer-card-status sr-only',
   ];
 
   for (const c of subClasses) {
@@ -445,7 +451,7 @@ test('flying mana light lifecycle spawns particles, animates keyframes and trigg
   await new Promise(r => setTimeout(r, 50));
 
   assert.equal(env.document.body.children.length, 0, 'All particles removed from DOM after absorption');
-  assert.ok(env.soundCues.includes('paperweightDrop'), 'paperweightDrop cue played on mana absorption');
+  assert.ok(env.soundCues.includes('cardDrop'), 'cardDrop cue played on mana absorption');
 
   card.destroy();
 });
@@ -620,4 +626,55 @@ test('clicking edit button, portrait, or back edit button invokes onEdit callbac
   assert.equal(editCount, 3, 'Clicking back edit button triggers onEdit');
 
   card.destroy();
+});
+
+test('enlarged inspection viewer opens on inspect button / dblclick and plays cardDrop cue', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  assert.equal(ADVENTURER_CARD_SIZE.width, 320);
+  assert.equal(ADVENTURER_CARD_SIZE.height, 202);
+
+  card.update(750, { name: 'KANGFU', emblem: 'swords' });
+
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+  const inspectBtn = cardEl.querySelector('.adventurer-inspect-icon-btn');
+  assert.ok(inspectBtn, 'Inspect button rendered in topbar');
+
+  // Inspect button opens viewer
+  assert.equal(card.isViewerOpen, false);
+  inspectBtn.click();
+  assert.equal(card.isViewerOpen, true, 'Viewer is open after clicking inspect');
+  assert.ok(env.soundCues.includes('cardDrop'), 'cardDrop cue played on viewer open');
+
+  const dialog = env.document.body.querySelector('.adventurer-card-viewer-dialog');
+  assert.ok(dialog, 'Viewer dialog appended to document.body');
+
+  // Close viewer via close method
+  card.closeViewer();
+  assert.equal(card.isViewerOpen, false, 'Viewer is closed');
+
+  // Double click on card opens viewer
+  cardEl.dispatchEvent({ type: 'dblclick', preventDefault() {}, stopPropagation() {} });
+  assert.equal(card.isViewerOpen, true, 'Viewer is open after dblclick');
+
+  // Escape closes viewer
+  dialog.dispatchEvent({ type: 'keydown', key: 'Escape', preventDefault() {} });
+  assert.equal(card.isViewerOpen, false, 'Viewer closed on Escape key');
+
+  // Flipping card plays cardDrop cue
+  const cueCount = env.soundCues.filter(c => c === 'cardDrop').length;
+  card.flip();
+  assert.ok(env.soundCues.filter(c => c === 'cardDrop').length > cueCount, 'cardDrop cue played on card flip');
+
+  card.destroy();
+  assert.equal(card.isViewerOpen, false);
 });

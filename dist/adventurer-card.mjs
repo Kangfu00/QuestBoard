@@ -6,7 +6,7 @@ import { DEFAULT_ADVENTURER_CARD, ADVENTURER_CARD_SIZE } from './model.mjs';
 /**
  * Creates and binds the Adventurer Card on the desk surface frame.
  * @param {object} options
- * @param {HTMLElement} [options.deskSurface] - Desk surface container (#desk-surface).
+ * @param {HTMLElement} [options.deskSurface] - Desk surface container (#board-scroll or #desk-surface).
  * @param {Document} [options.document] - DOM document.
  * @param {Window} [options.window] - DOM window.
  * @param {Function} [options.getState] - State getter.
@@ -36,6 +36,8 @@ export function createAdventurerCard({
       element: null,
       update() {},
       flip() {},
+      openViewer() {},
+      closeViewer() {},
       flyMana() {},
       celebrateLevelUp() {},
       cancelAll() {},
@@ -51,13 +53,16 @@ export function createAdventurerCard({
     }
   };
 
+  const zoomIcon = icon('zoom-in') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
+  const penIcon = icon('pen') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+
   // Card element (button)
   const card = document.createElement('button');
   card.type = 'button';
   card.className = 'adventurer-card';
   card.id = 'adventurer-card';
   card.setAttribute('aria-label', 'บัตรประจำตัวนักผจญภัย');
-  card.setAttribute('title', 'คลิกเพื่อพลิกดูสถิติ · ลากเพื่อย้าย');
+  card.setAttribute('title', 'คลิกเพื่อพลิก · ดับเบิลคลิกเพื่อขยายดู · ลากเพื่อย้าย');
 
   card.innerHTML = `
     <div class="adventurer-card-inner">
@@ -71,9 +76,14 @@ export function createAdventurerCard({
         <span class="mana-shockwave" aria-hidden="true"></span>
         <header class="adventurer-card-topbar">
           <span class="adventurer-card-board">THE QUESTBOARD</span>
-          <button type="button" class="adventurer-edit-icon-btn" aria-label="แก้ไขชื่อและรูปประจำตัว" title="แก้ไขข้อมูลบัตร">
-            ${icon('pen') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>'}
-          </button>
+          <div class="adventurer-topbar-actions">
+            <button type="button" class="adventurer-inspect-icon-btn" aria-label="ขยายดูบัตร" title="ขยายดูบัตร">
+              ${zoomIcon}
+            </button>
+            <button type="button" class="adventurer-edit-icon-btn" aria-label="แก้ไขชื่อและรูปประจำตัว" title="แก้ไขข้อมูลบัตร">
+              ${penIcon}
+            </button>
+          </div>
         </header>
         <div class="adventurer-card-body-clean">
           <div class="adventurer-portrait-frame" title="คลิกเพื่อเปลี่ยนรูปประจำตัว">
@@ -108,7 +118,14 @@ export function createAdventurerCard({
         <span class="adventurer-card-sheen" aria-hidden="true"></span>
         <header class="adventurer-card-topbar">
           <span class="adventurer-card-board-back">THE QUESTBOARD GUILD</span>
-          <span class="adventurer-stamp-text">CAREER DOSSIER</span>
+          <div class="adventurer-topbar-actions">
+            <button type="button" class="adventurer-inspect-icon-btn" aria-label="ขยายดูบัตร" title="ขยายดูบัตร">
+              ${zoomIcon}
+            </button>
+            <button type="button" class="adventurer-edit-icon-btn" aria-label="แก้ไขชื่อและรูปประจำตัว" title="แก้ไขข้อมูลบัตร">
+              ${penIcon}
+            </button>
+          </div>
         </header>
         <div class="adventurer-back-grid">
           <div class="adventurer-card-row">
@@ -133,10 +150,13 @@ export function createAdventurerCard({
           </div>
         </div>
         <footer class="adventurer-back-footer">
-          <button type="button" class="adventurer-back-edit-btn">
-            ${icon('pen') || '✎'} แก้ไขชื่อและรูป
+          <button type="button" class="adventurer-back-inspect-btn">
+            ${zoomIcon} ขยายดูบัตร
           </button>
-          <span class="adventurer-flip-hint">คลิกหรือกด Enter เพื่อพลิกกลับ</span>
+          <button type="button" class="adventurer-back-edit-btn">
+            ${penIcon} แก้ไขชื่อและรูป
+          </button>
+          <span class="adventurer-flip-hint">คลิกเพื่อพลิกกลับ</span>
         </footer>
       </div>
     </div>
@@ -163,14 +183,14 @@ export function createAdventurerCard({
   const backDone = card.querySelector('.adventurer-back-done');
   const backToNext = card.querySelector('.adventurer-back-tonext');
   const statusEl = card.querySelector('.adventurer-card-status');
-  const editIconBtn = card.querySelector('.adventurer-edit-icon-btn');
-  const backEditBtn = card.querySelector('.adventurer-back-edit-btn');
+  const editIconBtns = card.querySelectorAll('.adventurer-edit-icon-btn, .adventurer-back-edit-btn');
 
   // Internal state
   let currentSummary = xpSummary(0);
   let currentDoneCount = 0;
   let isFlipped = false;
   let absorbTimer = null;
+  let latestProps = { doneCount: 0, emblem: 'shield', imageDataUrl: null, name: '' };
   const activeParticles = new Set();
   const pendingTimers = new Set();
 
@@ -214,6 +234,7 @@ export function createAdventurerCard({
       cardInner.style.transform = '';
     }
     card.classList.toggle('is-flipped', isFlipped);
+    onCue?.('cardDrop');
     updateAriaLabel();
   }
 
@@ -223,9 +244,200 @@ export function createAdventurerCard({
     e.preventDefault();
     onEdit?.();
   };
-  editIconBtn?.addEventListener('click', triggerEdit);
-  backEditBtn?.addEventListener('click', triggerEdit);
+  editIconBtns.forEach(btn => btn.addEventListener('click', triggerEdit));
   portraitFrame?.addEventListener('click', triggerEdit);
+
+  // Wire inspect button triggers
+  const inspectBtns = card.querySelectorAll('.adventurer-inspect-icon-btn, .adventurer-back-inspect-btn');
+  inspectBtns.forEach(btn => btn.addEventListener('click', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    openViewer();
+  }));
+
+  card.addEventListener('dblclick', e => {
+    e.stopPropagation();
+    e.preventDefault();
+    openViewer();
+  });
+
+  // =========================================================================
+  // Enlarged Card Inspection Viewer Dialog
+  // =========================================================================
+  let viewerDialog = null;
+  let isViewerFlipped = false;
+
+  function renderViewerContent() {
+    if (!viewerDialog) return;
+    const customName = latestProps.name || '';
+    const boardTitle = boardName();
+    const displayName = customName ? customName.toUpperCase() : (boardTitle ? boardTitle.toUpperCase() : 'THE QUESTBOARD');
+    const emblem = latestProps.emblem ?? 'shield';
+    const imageDataUrl = latestProps.imageDataUrl ?? null;
+    const pct = Math.min(100, Math.max(0, (currentSummary.intoLevel / currentSummary.perLevel) * 100));
+
+    const portraitHtml = (emblem === 'custom' && imageDataUrl)
+      ? `<img src="${imageDataUrl}" alt="รูปนักผจญภัย" class="adventurer-portrait-img">`
+      : `<div class="adventurer-seal-emblem">${icon(emblem === 'custom' ? 'shield' : (emblem || 'shield'))}</div>`;
+
+    viewerDialog.innerHTML = `
+      <div class="adventurer-viewer-wrap">
+        <button type="button" class="adventurer-viewer-close" aria-label="ปิดมุมมองขยาย">✕</button>
+        <div class="adventurer-viewer-card ${isViewerFlipped ? 'is-flipped' : ''}" tabindex="0" role="button" aria-label="บัตรนักผจญภัย คลิกเพื่อพลิกด้าน">
+          <div class="adventurer-card-inner">
+            <div class="adventurer-card-face front">
+              <span class="adventurer-card-rune-border" aria-hidden="true"></span>
+              <span class="adventurer-corner tl" aria-hidden="true"></span>
+              <span class="adventurer-corner tr" aria-hidden="true"></span>
+              <span class="adventurer-corner bl" aria-hidden="true"></span>
+              <span class="adventurer-corner br" aria-hidden="true"></span>
+              <span class="adventurer-card-sheen" aria-hidden="true"></span>
+              <header class="adventurer-card-topbar">
+                <span class="adventurer-card-board">${displayName}</span>
+              </header>
+              <div class="adventurer-card-body-clean">
+                <div class="adventurer-portrait-frame">
+                  <div class="adventurer-card-seal">${portraitHtml}</div>
+                </div>
+                <div class="adventurer-card-details-clean">
+                  <div class="adventurer-level-crest">
+                    <div class="adventurer-level-crest-row">
+                      <span class="adventurer-level-tag">LV.</span>
+                      <strong class="adventurer-card-level-num">${currentSummary.level}</strong>
+                    </div>
+                    <span class="adventurer-card-title">${currentSummary.title}</span>
+                  </div>
+                  <div class="adventurer-mana-tube-wrap">
+                    <div class="adventurer-mana-header">
+                      <span class="mana-lbl">LEVEL PROGRESS</span>
+                      <span class="adventurer-mana-text">${currentSummary.intoLevel.toLocaleString()} / ${currentSummary.perLevel.toLocaleString()} XP (${Math.round(pct)}%)</span>
+                    </div>
+                    <div class="adventurer-mana-tube" aria-hidden="true">
+                      <div class="adventurer-mana-bar" style="width: ${pct}%"></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="adventurer-card-face back" aria-hidden="true">
+              <span class="adventurer-card-rune-border" aria-hidden="true"></span>
+              <span class="adventurer-corner tl" aria-hidden="true"></span>
+              <span class="adventurer-corner tr" aria-hidden="true"></span>
+              <span class="adventurer-corner bl" aria-hidden="true"></span>
+              <span class="adventurer-corner br" aria-hidden="true"></span>
+              <span class="adventurer-card-sheen" aria-hidden="true"></span>
+              <header class="adventurer-card-topbar">
+                <span class="adventurer-card-board-back">${displayName} GUILD</span>
+              </header>
+              <div class="adventurer-back-grid">
+                <div class="adventurer-card-row">
+                  <span class="adventurer-card-label">ฉายานักผจญภัย</span>
+                  <strong class="adventurer-card-value adventurer-back-title">${currentSummary.title}</strong>
+                </div>
+                <div class="adventurer-card-row">
+                  <span class="adventurer-card-label">ระดับเลเวล</span>
+                  <strong class="adventurer-card-value adventurer-back-level">LEVEL ${currentSummary.level}</strong>
+                </div>
+                <div class="adventurer-card-row">
+                  <span class="adventurer-card-label">XP สะสมทั้งหมด</span>
+                  <strong class="adventurer-card-value adventurer-back-xp">${currentSummary.totalXp.toLocaleString()} XP</strong>
+                </div>
+                <div class="adventurer-card-row">
+                  <span class="adventurer-card-label">ภารกิจที่สำเร็จ</span>
+                  <span class="adventurer-card-value adventurer-back-done">${currentDoneCount} เควส</span>
+                </div>
+                <div class="adventurer-card-row sub">
+                  <span class="adventurer-card-label">สู่เลเวลถัดไป</span>
+                  <span class="adventurer-card-value adventurer-back-tonext">อีก ${currentSummary.toNext.toLocaleString()} XP</span>
+                </div>
+              </div>
+              <footer class="adventurer-back-footer">
+                <span class="adventurer-flip-hint">คลิกหรือกด Space เพื่อพลิกกลับ</span>
+              </footer>
+            </div>
+          </div>
+        </div>
+        <div class="adventurer-viewer-controls">
+          <button type="button" class="adventurer-viewer-btn adventurer-modal-flip-btn">↻ พลิกด้านบัตร</button>
+          <button type="button" class="adventurer-viewer-btn adventurer-modal-edit-btn">${penIcon} แก้ไขชื่อและรูป</button>
+          <span class="adventurer-viewer-hint">คลิกที่บัตรหรือกด Space เพื่อพลิก</span>
+        </div>
+      </div>
+    `;
+
+    const viewerCard = viewerDialog.querySelector('.adventurer-viewer-card');
+    viewerCard?.addEventListener('click', () => flipViewer());
+
+    const flipBtn = viewerDialog.querySelector('.adventurer-modal-flip-btn');
+    flipBtn?.addEventListener('click', e => {
+      e.stopPropagation();
+      flipViewer();
+    });
+
+    const editBtn = viewerDialog.querySelector('.adventurer-modal-edit-btn');
+    editBtn?.addEventListener('click', e => {
+      e.stopPropagation();
+      closeViewer();
+      onEdit?.();
+    });
+  }
+
+  function flipViewer() {
+    isViewerFlipped = !isViewerFlipped;
+    const viewerCard = viewerDialog?.querySelector('.adventurer-viewer-card');
+    if (viewerCard) {
+      viewerCard.classList.toggle('is-flipped', isViewerFlipped);
+    }
+    onCue?.('cardDrop');
+  }
+
+  function openViewer() {
+    if (viewerDialog?.open) return;
+    if (!viewerDialog) {
+      viewerDialog = document.createElement('dialog');
+      viewerDialog.className = 'adventurer-card-viewer-dialog';
+      viewerDialog.setAttribute('aria-label', 'มุมมองขยายบัตรประจำตัวนักผจญภัย');
+      document.body.appendChild(viewerDialog);
+
+      viewerDialog.addEventListener('click', e => {
+        if (e.target === viewerDialog || e.target?.closest?.('.adventurer-viewer-close')) {
+          closeViewer();
+        }
+      });
+
+      viewerDialog.addEventListener('keydown', e => {
+        if (e.key === 'Escape') {
+          e.preventDefault();
+          closeViewer();
+        } else if (e.key === ' ' || e.key === 'Enter') {
+          if (!e.target?.closest?.('button')) {
+            e.preventDefault();
+            flipViewer();
+          }
+        }
+      });
+    }
+
+    isViewerFlipped = isFlipped;
+    renderViewerContent();
+    if (typeof viewerDialog.showModal === 'function') {
+      viewerDialog.showModal();
+    } else {
+      viewerDialog.setAttribute('open', '');
+    }
+    onCue?.('cardDrop');
+  }
+
+  function closeViewer() {
+    if (!viewerDialog || (!viewerDialog.open && !viewerDialog.hasAttribute('open'))) return;
+    if (typeof viewerDialog.close === 'function') {
+      viewerDialog.close();
+    } else {
+      viewerDialog.removeAttribute('open');
+    }
+    onCue?.('cardDrop');
+    card.focus?.({ preventScroll: true });
+  }
 
   /**
    * Synchronizes adventurer state with current cumulative XP, card name and avatar.
@@ -234,6 +446,7 @@ export function createAdventurerCard({
   function update(rawXp, { doneCount = 0, emblem = 'shield', imageDataUrl = null, name = '', boardName: bName = '' } = {}) {
     currentSummary = xpSummary(rawXp);
     currentDoneCount = Math.max(0, Number(doneCount) || 0);
+    latestProps = { doneCount, emblem, imageDataUrl, name, boardName: bName };
 
     const displayName = String(name || bName || boardName() || 'THE QUESTBOARD').trim() || 'THE QUESTBOARD';
     if (boardEl) boardEl.textContent = displayName;
@@ -266,6 +479,10 @@ export function createAdventurerCard({
     if (backToNext) backToNext.textContent = `อีก ${currentSummary.toNext.toLocaleString()} XP`;
 
     updateAriaLabel();
+
+    if (viewerDialog && (viewerDialog.open || viewerDialog.hasAttribute('open'))) {
+      renderViewerContent();
+    }
   }
 
   // Dragging & Interaction State
@@ -286,7 +503,7 @@ export function createAdventurerCard({
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }
     const cardRect = card.getBoundingClientRect();
-    return { x: cardRect.left + 50, y: cardRect.top + 76 };
+    return { x: cardRect.left + 58, y: cardRect.top + 92 };
   }
 
   function startDrag(clientX, clientY) {
@@ -308,7 +525,6 @@ export function createAdventurerCard({
 
     const cardRect = card.getBoundingClientRect();
     const surfaceRect = deskSurface.getBoundingClientRect();
-
     initialCardX = cardRect.left - surfaceRect.left;
     initialCardY = cardRect.top - surfaceRect.top;
     currentX = initialCardX;
@@ -391,7 +607,7 @@ export function createAdventurerCard({
     tiltY = 0;
 
     applyPosition();
-    onCue?.('paperweightDrop');
+    onCue?.('cardDrop');
     onSavePosition({ x: Math.round(currentX), y: Math.round(currentY) });
   }
 
@@ -411,8 +627,8 @@ export function createAdventurerCard({
   // Pointer event listeners
   card.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
-    // If clicking directly on edit buttons, let their click handler run
-    if (e.target?.closest?.('.adventurer-edit-icon-btn, .adventurer-back-edit-btn, .adventurer-portrait-frame')) {
+    // If clicking directly on action buttons or portrait, let their click handler run
+    if (e.target?.closest?.('.adventurer-inspect-icon-btn, .adventurer-back-inspect-btn, .adventurer-edit-icon-btn, .adventurer-back-edit-btn, .adventurer-portrait-frame')) {
       return;
     }
     e.preventDefault();
@@ -462,7 +678,7 @@ export function createAdventurerCard({
       if (e.key === 'ArrowDown') currentY = Math.min(maxY, currentY + step);
 
       applyPosition();
-      onCue?.('paperweightDrop');
+      onCue?.('cardDrop');
       onSavePosition({ x: Math.round(currentX), y: Math.round(currentY) });
       return;
     }
@@ -475,11 +691,50 @@ export function createAdventurerCard({
     }
   });
 
+  // =========================================================================
+  // Flying Blue Mana Particle Effects (flyMana)
+  // =========================================================================
+
+  function triggerManaAbsorb() {
+    if (sealEl) {
+      sealEl.classList.remove('is-absorbing');
+      void sealEl.offsetWidth;
+      sealEl.classList.add('is-absorbing');
+    }
+    if (card) {
+      card.classList.remove('is-mana-absorbing');
+      void card.offsetWidth;
+      card.classList.add('is-mana-absorbing');
+    }
+
+    clearTimeout(absorbTimer);
+    absorbTimer = setTimeout(() => {
+      sealEl?.classList.remove('is-absorbing');
+      card?.classList.remove('is-mana-absorbing');
+    }, 420);
+  }
+
+  function cancelManaParticles() {
+    for (const timer of pendingTimers) {
+      clearTimeout(timer);
+    }
+    pendingTimers.clear();
+
+    for (const p of activeParticles) {
+      try {
+        cancelMotion(p);
+        p.remove();
+      } catch {}
+    }
+    activeParticles.clear();
+  }
+
   /**
-   * Triggers physical blue mana particle flight on quest completion.
-   * Staggers 3..12 luminous particles from stamp contact to the card's seal.
+   * Spawns flying blue mana light particles from a quest paper's completion stamp
+   * towards the Adventurer Card's seal.
    */
   function flyMana({ origin = null, deltaXp = 0 } = {}) {
+    if (!origin || typeof origin.x !== 'number' || typeof origin.y !== 'number') return;
     const count = manaCount(deltaXp);
     if (count <= 0) return;
 
@@ -490,122 +745,79 @@ export function createAdventurerCard({
 
     const availableSlots = Math.max(0, maxConcurrentParticles - activeParticles.size);
     const toSpawn = Math.min(count, availableSlots);
-    if (toSpawn <= 0) return;
+    if (toSpawn <= 0) {
+      triggerManaAbsorb();
+      return;
+    }
 
-    const startX = origin && Number.isFinite(origin.x) ? origin.x : (window?.innerWidth || 800) / 2;
-    const startY = origin && Number.isFinite(origin.y) ? origin.y : (window?.innerHeight || 600) / 2;
+    const startX = origin.x;
+    const startY = origin.y;
 
     for (let i = 0; i < toSpawn; i++) {
+      const delay = i * 45;
+
       const timerId = setTimeout(() => {
         pendingTimers.delete(timerId);
-        // If card was moved/dragged, reacquire current seal center
+        if (dragActive) {
+          triggerManaAbsorb();
+          return;
+        }
+
+        const particle = document.createElement('div');
+        particle.className = 'mana-particle';
+        particle.setAttribute('aria-hidden', 'true');
+        document.body.appendChild(particle);
+        activeParticles.add(particle);
+
         const target = getSealCenter();
-        spawnSingleParticle(startX, startY, target.x, target.y, i === toSpawn - 1);
-      }, i * 45);
+        const duration = 520 + Math.random() * 180;
+        const curveOffset = (Math.random() - 0.5) * 80;
+        const midX = (startX + target.x) / 2 + curveOffset;
+        const midY = (startY + target.y) / 2 - Math.abs(curveOffset) * 0.8;
+
+        const keyframes = [
+          { transform: `translate3d(${startX}px, ${startY}px, 0) scale(0.4)`, opacity: 0 },
+          { transform: `translate3d(${(startX + midX) / 2}px, ${(startY + midY) / 2}px, 0) scale(1.3)`, opacity: 1, offset: 0.25 },
+          { transform: `translate3d(${midX}px, ${midY}px, 0) scale(1)`, opacity: 0.9, offset: 0.6 },
+          { transform: `translate3d(${target.x}px, ${target.y}px, 0) scale(0.6)`, opacity: 0.8 },
+        ];
+
+        animateTransient(
+          particle,
+          keyframes,
+          {
+            duration,
+            easing: 'cubic-bezier(.2,.8,.3,1)',
+            fill: 'forwards',
+          },
+          {
+            onFinish: () => {
+              activeParticles.delete(particle);
+              try {
+                particle.remove();
+              } catch {}
+              triggerManaAbsorb();
+              if (i === toSpawn - 1) {
+                onCue?.('cardDrop');
+              }
+            },
+          },
+        );
+      }, delay);
+
       pendingTimers.add(timerId);
     }
   }
 
-  function spawnSingleParticle(x0, y0, x1, y1, isLast) {
-    if (!document?.body) return;
+  // =========================================================================
+  // Level-Up Shockwave Celebration (celebrateLevelUp)
+  // =========================================================================
 
-    const particle = document.createElement('div');
-    particle.className = 'mana-particle';
-    document.body.appendChild(particle);
-    activeParticles.add(particle);
-
-    const dx = x1 - x0;
-    const dy = y1 - y0;
-    const dist = Math.hypot(dx, dy);
-
-    // Initial antigravity mana lift (-35px to -70px)
-    const lift = Math.min(90, Math.max(35, dist * 0.18)) + (Math.random() - 0.5) * 20;
-
-    const steps = 7;
-    const keyframes = [];
-
-    for (let s = 0; s <= steps; s++) {
-      const t = s / steps;
-      // Inward curved flight with accelerating velocity
-      const progress = t * t;
-      const currentX = x0 + dx * progress - 5;
-      const currentY = y0 + dy * progress - 4 * lift * t * (1 - t) - 5;
-      const stretch = t > 0.2 && t < 0.85 ? 1.6 : 1.0;
-      const angle = (Math.atan2(dy, dx) * 180) / Math.PI;
-      const opacity = t > 0.88 ? Math.max(0, 1 - (t - 0.88) / 0.12) : Math.min(1, t * 4);
-
-      keyframes.push({
-        transform: `translate(${currentX.toFixed(1)}px, ${currentY.toFixed(1)}px) rotate(${angle.toFixed(1)}deg) scaleX(${stretch})`,
-        opacity,
-      });
-    }
-
-    const duration = 520 + Math.floor(Math.random() * 80);
-
-    animateTransient(
-      particle,
-      keyframes,
-      {
-        duration,
-        easing: 'cubic-bezier(.22, .8, .24, 1)',
-        fill: 'forwards',
-      },
-      {
-        remove: true,
-        onFinish: () => {
-          activeParticles.delete(particle);
-          triggerManaAbsorb();
-          if (isLast) {
-            onCue?.('paperweightDrop');
-          }
-        },
-      },
-    );
-  }
-
-  function triggerManaAbsorb() {
-    if (!sealEl) return;
-    if (isReduced()) {
-      reducedMotionCrossfade(sealEl, { duration: MOTION_DURATION.reducedFade });
-      return;
-    }
-
-    sealEl.classList.remove('is-absorbing');
-    card.classList.remove('is-mana-absorbing');
-    // Force reflow
-    void sealEl.offsetWidth;
-    sealEl.classList.add('is-absorbing');
-    card.classList.add('is-mana-absorbing');
-
-    clearTimeout(absorbTimer);
-    absorbTimer = setTimeout(() => {
-      sealEl?.classList.remove('is-absorbing');
-      card?.classList.remove('is-mana-absorbing');
-    }, MOTION_DURATION.manaAbsorb);
-  }
-
-  function cancelManaParticles() {
-    for (const timerId of pendingTimers) {
-      clearTimeout(timerId);
-    }
-    pendingTimers.clear();
-
-    for (const particle of activeParticles) {
-      cancelMotion(particle);
-      try {
-        particle.remove();
-      } catch {}
-    }
-    activeParticles.clear();
-  }
-
-  /**
-   * Celebrates reaching a new level rank.
-   * Data is updated before calling this function.
-   */
   function celebrateLevelUp(newLevel) {
+    const summary = xpSummary((newLevel - 1) * 500);
+
     if (statusEl) {
-      statusEl.textContent = `ขึ้นสู่ LEVEL ${newLevel} (${currentSummary.title})!`;
+      statusEl.textContent = `ขึ้นสู่ LEVEL ${newLevel} (${summary.title})!`;
     }
 
     if (isReduced()) {
@@ -630,55 +842,52 @@ export function createAdventurerCard({
       );
     }
 
-    // Card metallic lift and settle (~900ms)
-    animateTransient(
-      card,
-      [
-        { transform: 'translateY(0) scale(1)' },
-        { transform: 'translateY(-6px) scale(1.03)', offset: 0.22 },
-        { transform: 'translateY(-6px) scale(1.03)', offset: 0.48 },
-        { transform: 'translateY(1.5px) scale(0.985)', offset: 0.76 },
-        { transform: 'translateY(0) scale(1)' },
-      ],
-      {
-        duration: 900,
-        easing: MOTION_EASING.slide,
-      },
-    );
-
-    // Specular golden sheen sweep across face
+    // Sheen flash across the whole card
     if (sheenEl) {
       animateTransient(
         sheenEl,
         [
-          { opacity: 0, transform: 'translateX(-100%)' },
-          { opacity: 0.85, offset: 0.35 },
-          { opacity: 0.85, offset: 0.65 },
-          { opacity: 0, transform: 'translateX(130%)' },
+          { opacity: 0.2, filter: 'brightness(1)' },
+          { opacity: 0.85, filter: 'brightness(2)' },
+          { opacity: 0.2, filter: 'brightness(1)' },
         ],
         {
-          duration: 800,
-          easing: 'ease-in-out',
+          duration: 600,
+          easing: MOTION_EASING.hover,
         },
       );
     }
 
-    // New level numeral etched into brass with stamp-in impact (380ms)
+    // Card subtle physical lift
+    animateTransient(
+      card,
+      [
+        { transform: 'translateY(0)' },
+        { transform: 'translateY(-6px)' },
+        { transform: 'translateY(0)' },
+      ],
+      {
+        duration: 480,
+        easing: 'cubic-bezier(.2,.9,.3,1)',
+      },
+    );
+
+    // Number stamp-in impact
     if (levelNumEl) {
       animateTransient(
         levelNumEl,
         [
-          { transform: 'scale(1.9) translateY(-4px)', opacity: 0 },
-          { transform: 'scale(0.95) translateY(1px)', opacity: 1, offset: 0.72 },
-          { transform: 'scale(1) translateY(0)', opacity: 1 },
+          { transform: 'scale(1.9)', opacity: 0.3 },
+          { transform: 'scale(0.92)', opacity: 1 },
+          { transform: 'scale(1)', opacity: 1 },
         ],
         {
-          duration: MOTION_DURATION.stampIn,
-          easing: 'cubic-bezier(.16,1,.3,1)',
+          duration: 380,
+          easing: 'cubic-bezier(.17,.89,.32,1.28)',
         },
         {
-          onStart: () => {
-            onCue?.('paperweightDrop');
+          onFinish: () => {
+            onCue?.('cardDrop');
           },
         },
       );
@@ -686,7 +895,7 @@ export function createAdventurerCard({
   }
 
   /**
-   * Cancels all pending timers, flying particles, and active WAAPI animations.
+   * Immediately terminates all active mana particle flights, timers and transient motions.
    */
   function cancelAll() {
     cancelManaParticles();
@@ -706,6 +915,13 @@ export function createAdventurerCard({
 
   function destroy() {
     cancelAll();
+    closeViewer();
+    if (viewerDialog) {
+      try {
+        viewerDialog.remove();
+      } catch {}
+      viewerDialog = null;
+    }
     try {
       card.remove();
     } catch {}
@@ -717,6 +933,11 @@ export function createAdventurerCard({
     },
     update,
     flip,
+    openViewer,
+    closeViewer,
+    get isViewerOpen() {
+      return Boolean(viewerDialog?.open || viewerDialog?.hasAttribute?.('open'));
+    },
     flyMana,
     celebrateLevelUp,
     cancelAll,
