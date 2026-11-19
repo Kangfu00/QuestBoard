@@ -11,6 +11,7 @@ import { DEFAULT_ADVENTURER_CARD, ADVENTURER_CARD_SIZE } from './model.mjs';
  * @param {Window} [options.window] - DOM window.
  * @param {Function} [options.getState] - State getter.
  * @param {Function} [options.onSavePosition] - Callback when card position is committed.
+ * @param {Function} [options.onEdit] - Callback to open the card edit dialog.
  * @param {Function} [options.reducedMotion] - Predicate returning true when reduced motion is preferred.
  * @param {Function} [options.onCue] - Sound playback callback (e.g. onCue(name)).
  * @param {Function} [options.icon] - Icon rendering function icon(name).
@@ -23,6 +24,7 @@ export function createAdventurerCard({
   window = globalThis.window,
   getState = () => ({}),
   onSavePosition = () => {},
+  onEdit = () => {},
   reducedMotion = () => false,
   onCue = () => {},
   icon = () => '',
@@ -32,7 +34,6 @@ export function createAdventurerCard({
   if (!deskSurface || !document) {
     return {
       element: null,
-      dockSlot: null,
       update() {},
       flip() {},
       flyMana() {},
@@ -49,12 +50,6 @@ export function createAdventurerCard({
       return false;
     }
   };
-
-  // Magnetic dock slot on frame
-  const dockSlot = document.createElement('div');
-  dockSlot.className = 'adventurer-dock-slot';
-  dockSlot.setAttribute('aria-hidden', 'true');
-  deskSurface.appendChild(dockSlot);
 
   // Card element (button)
   const card = document.createElement('button');
@@ -74,46 +69,31 @@ export function createAdventurerCard({
         <span class="adventurer-corner br" aria-hidden="true"></span>
         <span class="adventurer-card-sheen" aria-hidden="true"></span>
         <span class="mana-shockwave" aria-hidden="true"></span>
-        <header class="adventurer-card-header">
+        <header class="adventurer-card-topbar">
           <span class="adventurer-card-board">THE QUESTBOARD</span>
-          <span class="adventurer-card-type">GUILD REGISTRATION CARD · บัตรประจำตัวนักผจญภัย</span>
-          <div class="adventurer-card-divider" aria-hidden="true"></div>
+          <button type="button" class="adventurer-edit-icon-btn" aria-label="แก้ไขชื่อและรูปประจำตัว" title="แก้ไขข้อมูลบัตร">
+            ${icon('pen') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>'}
+          </button>
         </header>
-        <div class="adventurer-card-body">
-          <div class="adventurer-card-left">
-            <div class="adventurer-portrait-frame">
-              <div class="adventurer-card-seal" aria-hidden="true"></div>
-            </div>
-            <div class="adventurer-rank-banner">
-              <span class="adventurer-rank-label">RANK</span>
-              <strong class="adventurer-card-title">ผู้สมัครกิลด์</strong>
-            </div>
+        <div class="adventurer-card-body-clean">
+          <div class="adventurer-portrait-frame" title="คลิกเพื่อเปลี่ยนรูปประจำตัว">
+            <div class="adventurer-card-seal" aria-hidden="true"></div>
           </div>
-          <div class="adventurer-card-right">
-            <div class="adventurer-right-top">
-              <div class="adventurer-level-crest">
+          <div class="adventurer-card-details-clean">
+            <div class="adventurer-level-crest">
+              <div class="adventurer-level-crest-row">
                 <span class="adventurer-level-tag">LV.</span>
                 <strong class="adventurer-card-level-num">1</strong>
               </div>
-              <span class="adventurer-badge-done">สำเร็จ <b class="adventurer-front-done">0</b> เควส</span>
+              <span class="adventurer-card-title">ผู้สมัครกิลด์</span>
             </div>
             <div class="adventurer-mana-tube-wrap">
               <div class="adventurer-mana-header">
-                <span class="mana-lbl">MANA GAUGE</span>
+                <span class="mana-lbl">LEVEL PROGRESS</span>
                 <span class="adventurer-mana-text">0 / 500 XP (0%)</span>
               </div>
               <div class="adventurer-mana-tube" aria-hidden="true">
                 <div class="adventurer-mana-bar"></div>
-              </div>
-            </div>
-            <div class="adventurer-front-stats">
-              <div class="adventurer-stat-col">
-                <span class="lbl">XP รวม</span>
-                <strong class="val adventurer-front-xp">0 XP</strong>
-              </div>
-              <div class="adventurer-stat-col sub">
-                <span class="lbl">สู่ขั้นถัดไป</span>
-                <span class="val adventurer-front-tonext">อีก 500 XP</span>
               </div>
             </div>
           </div>
@@ -126,10 +106,9 @@ export function createAdventurerCard({
         <span class="adventurer-corner bl" aria-hidden="true"></span>
         <span class="adventurer-corner br" aria-hidden="true"></span>
         <span class="adventurer-card-sheen" aria-hidden="true"></span>
-        <header class="adventurer-card-header">
+        <header class="adventurer-card-topbar">
           <span class="adventurer-card-board-back">THE QUESTBOARD GUILD</span>
-          <span class="adventurer-card-type">CAREER DOSSIER · บันทึกประวัตินักผจญภัย</span>
-          <div class="adventurer-card-divider" aria-hidden="true"></div>
+          <span class="adventurer-stamp-text">CAREER DOSSIER</span>
         </header>
         <div class="adventurer-back-grid">
           <div class="adventurer-card-row">
@@ -154,8 +133,10 @@ export function createAdventurerCard({
           </div>
         </div>
         <footer class="adventurer-back-footer">
-          <span class="adventurer-stamp-text">OFFICIAL GUILD REGISTRAR</span>
-          <span class="adventurer-flip-hint">กด Enter หรือคลิกเพื่อพลิกกลับ</span>
+          <button type="button" class="adventurer-back-edit-btn">
+            ${icon('pen') || '✎'} แก้ไขชื่อและรูป
+          </button>
+          <span class="adventurer-flip-hint">คลิกหรือกด Enter เพื่อพลิกกลับ</span>
         </footer>
       </div>
     </div>
@@ -169,13 +150,11 @@ export function createAdventurerCard({
   const boardEl = card.querySelector('.adventurer-card-board');
   const boardBackEl = card.querySelector('.adventurer-card-board-back');
   const sealEl = card.querySelector('.adventurer-card-seal');
+  const portraitFrame = card.querySelector('.adventurer-portrait-frame');
   const levelNumEl = card.querySelector('.adventurer-card-level-num');
   const titleEl = card.querySelector('.adventurer-card-title');
   const manaBar = card.querySelector('.adventurer-mana-bar');
   const manaText = card.querySelector('.adventurer-mana-text');
-  const frontDone = card.querySelector('.adventurer-front-done');
-  const frontXp = card.querySelector('.adventurer-front-xp');
-  const frontToNext = card.querySelector('.adventurer-front-tonext');
   const sheenEl = card.querySelector('.adventurer-card-sheen');
   const shockwaveEl = card.querySelector('.mana-shockwave');
   const backTitle = card.querySelector('.adventurer-back-title');
@@ -184,6 +163,8 @@ export function createAdventurerCard({
   const backDone = card.querySelector('.adventurer-back-done');
   const backToNext = card.querySelector('.adventurer-back-tonext');
   const statusEl = card.querySelector('.adventurer-card-status');
+  const editIconBtn = card.querySelector('.adventurer-edit-icon-btn');
+  const backEditBtn = card.querySelector('.adventurer-back-edit-btn');
 
   // Internal state
   let currentSummary = xpSummary(0);
@@ -195,13 +176,13 @@ export function createAdventurerCard({
 
   // Position state (persisted)
   const savedCard = getState()?.adventurerCard ?? DEFAULT_ADVENTURER_CARD;
-  let isDocked = savedCard.docked !== false;
   let currentX = Number.isFinite(savedCard.x) ? savedCard.x : DEFAULT_ADVENTURER_CARD.x;
-  let currentY = Number.isFinite(savedCard.y) ? savedCard.y : DEFAULT_ADVENTURER_CARD.y;
+  let currentY = Number.isFinite(savedCard.y) ? savedCard.y : null;
+  let useBottom = currentY === null || savedCard.docked === true || (currentX === 18 && currentY === 18);
 
   function applyPosition() {
-    if (isDocked) {
-      card.style.left = '18px';
+    if (useBottom) {
+      card.style.left = `${currentX}px`;
       card.style.bottom = '18px';
       card.style.top = 'auto';
     } else {
@@ -236,17 +217,27 @@ export function createAdventurerCard({
     updateAriaLabel();
   }
 
+  // Wire up edit button triggers
+  const triggerEdit = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    onEdit?.();
+  };
+  editIconBtn?.addEventListener('click', triggerEdit);
+  backEditBtn?.addEventListener('click', triggerEdit);
+  portraitFrame?.addEventListener('click', triggerEdit);
+
   /**
-   * Synchronizes adventurer state with current cumulative XP and counts.
+   * Synchronizes adventurer state with current cumulative XP, card name and avatar.
    * Pure data updates; zero animation side-effects.
    */
-  function update(rawXp, { doneCount = 0, emblem = 'shield', imageDataUrl = null, boardName: name = '' } = {}) {
+  function update(rawXp, { doneCount = 0, emblem = 'shield', imageDataUrl = null, name = '', boardName: bName = '' } = {}) {
     currentSummary = xpSummary(rawXp);
     currentDoneCount = Math.max(0, Number(doneCount) || 0);
 
-    const bName = String(name || boardName() || 'THE QUESTBOARD').trim() || 'THE QUESTBOARD';
-    if (boardEl) boardEl.textContent = bName;
-    if (boardBackEl) boardBackEl.textContent = `${bName} GUILD`;
+    const displayName = String(name || bName || boardName() || 'THE QUESTBOARD').trim() || 'THE QUESTBOARD';
+    if (boardEl) boardEl.textContent = displayName;
+    if (boardBackEl) boardBackEl.textContent = `${displayName} GUILD`;
 
     if (levelNumEl) levelNumEl.textContent = String(currentSummary.level);
     if (titleEl) titleEl.textContent = currentSummary.title;
@@ -269,10 +260,6 @@ export function createAdventurerCard({
     if (manaText) {
       manaText.textContent = `${currentSummary.intoLevel.toLocaleString()} / ${currentSummary.perLevel.toLocaleString()} XP (${Math.round(pct)}%)`;
     }
-
-    if (frontDone) frontDone.textContent = `${currentDoneCount}`;
-    if (frontXp) frontXp.textContent = `${currentSummary.totalXp.toLocaleString()} XP`;
-    if (frontToNext) frontToNext.textContent = `อีก ${currentSummary.toNext.toLocaleString()} XP`;
 
     if (backXp) backXp.textContent = `${currentSummary.totalXp.toLocaleString()} XP`;
     if (backDone) backDone.textContent = `${currentDoneCount} เควส`;
@@ -302,11 +289,6 @@ export function createAdventurerCard({
     return { x: cardRect.left + 50, y: cardRect.top + 76 };
   }
 
-  function getDockCenter() {
-    const rect = dockSlot.getBoundingClientRect();
-    return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
-  }
-
   function startDrag(clientX, clientY) {
     if (dragActive) return;
     dragActive = true;
@@ -331,8 +313,9 @@ export function createAdventurerCard({
     initialCardY = cardRect.top - surfaceRect.top;
     currentX = initialCardX;
     currentY = initialCardY;
+    useBottom = false;
 
-    // Switch card from bottom-docked to top/left pixels during drag
+    // Switch card to top/left pixels during drag
     card.style.left = `${currentX}px`;
     card.style.top = `${currentY}px`;
     card.style.bottom = 'auto';
@@ -377,15 +360,6 @@ export function createAdventurerCard({
       sheenEl.style.setProperty('--sheen-angle', `${105 + tiltY * 4}deg`);
       sheenEl.style.setProperty('--sheen-opacity', `${0.25 + Math.abs(tiltX + tiltY) * 0.05}`);
     }
-
-    // Check proximity to dock
-    const dockCenter = getDockCenter();
-    const cardCenter = {
-      x: surfaceRect.left + currentX + ADVENTURER_CARD_SIZE.width / 2,
-      y: surfaceRect.top + currentY + ADVENTURER_CARD_SIZE.height / 2,
-    };
-    const distToDock = Math.hypot(cardCenter.x - dockCenter.x, cardCenter.y - dockCenter.y);
-    dockSlot.classList.toggle('is-hovered', distToDock < 65);
   }
 
   function endDrag() {
@@ -393,7 +367,6 @@ export function createAdventurerCard({
     dragActive = false;
     card.classList.remove('is-dragging');
     card.style.setProperty('--lift', '1');
-    dockSlot.classList.remove('is-hovered');
 
     if (cardInner) {
       if (!isReduced() && (Math.abs(tiltX) > 0.5 || Math.abs(tiltY) > 0.5)) {
@@ -417,28 +390,9 @@ export function createAdventurerCard({
     tiltX = 0;
     tiltY = 0;
 
-    // Check if within snap threshold of dock (< 65px)
-    const surfaceRect = deskSurface.getBoundingClientRect();
-    const dockCenter = getDockCenter();
-    const cardCenter = {
-      x: surfaceRect.left + currentX + ADVENTURER_CARD_SIZE.width / 2,
-      y: surfaceRect.top + currentY + ADVENTURER_CARD_SIZE.height / 2,
-    };
-    const distToDock = Math.hypot(cardCenter.x - dockCenter.x, cardCenter.y - dockCenter.y);
-
-    if (distToDock < 65) {
-      isDocked = true;
-      currentX = DEFAULT_ADVENTURER_CARD.x;
-      currentY = DEFAULT_ADVENTURER_CARD.y;
-      applyPosition();
-      onCue?.('paperweightDrop');
-      onSavePosition({ x: currentX, y: currentY, docked: true });
-    } else {
-      isDocked = false;
-      applyPosition();
-      onCue?.('paperweightDrop');
-      onSavePosition({ x: Math.round(currentX), y: Math.round(currentY), docked: false });
-    }
+    applyPosition();
+    onCue?.('paperweightDrop');
+    onSavePosition({ x: Math.round(currentX), y: Math.round(currentY) });
   }
 
   function cancelDrag() {
@@ -446,7 +400,6 @@ export function createAdventurerCard({
     dragActive = false;
     card.classList.remove('is-dragging');
     card.style.setProperty('--lift', '1');
-    dockSlot.classList.remove('is-hovered');
     currentX = initialCardX;
     currentY = initialCardY;
     applyPosition();
@@ -458,6 +411,10 @@ export function createAdventurerCard({
   // Pointer event listeners
   card.addEventListener('pointerdown', e => {
     if (e.button !== 0) return;
+    // If clicking directly on edit buttons, let their click handler run
+    if (e.target?.closest?.('.adventurer-edit-icon-btn, .adventurer-back-edit-btn, .adventurer-portrait-frame')) {
+      return;
+    }
     e.preventDefault();
     startDrag(e.clientX, e.clientY);
     const onMove = ev => moveDrag(ev.clientX, ev.clientY);
@@ -493,8 +450,8 @@ export function createAdventurerCard({
       const maxX = Math.max(10, surfaceRect.width - ADVENTURER_CARD_SIZE.width - 12);
       const maxY = Math.max(10, surfaceRect.height - ADVENTURER_CARD_SIZE.height - 12);
 
-      if (isDocked) {
-        isDocked = false;
+      if (useBottom) {
+        useBottom = false;
         currentX = 18;
         currentY = surfaceRect.height - ADVENTURER_CARD_SIZE.height - 18;
       }
@@ -504,25 +461,9 @@ export function createAdventurerCard({
       if (e.key === 'ArrowUp') currentY = Math.max(10, currentY - step);
       if (e.key === 'ArrowDown') currentY = Math.min(maxY, currentY + step);
 
-      // Check proximity to dock
-      const dockCenter = getDockCenter();
-      const cardCenter = {
-        x: surfaceRect.left + currentX + ADVENTURER_CARD_SIZE.width / 2,
-        y: surfaceRect.top + currentY + ADVENTURER_CARD_SIZE.height / 2,
-      };
-      const distToDock = Math.hypot(cardCenter.x - dockCenter.x, cardCenter.y - dockCenter.y);
-
-      if (distToDock < 65) {
-        isDocked = true;
-        applyPosition();
-        onCue?.('paperweightDrop');
-        onSavePosition({ x: DEFAULT_ADVENTURER_CARD.x, y: DEFAULT_ADVENTURER_CARD.y, docked: true });
-      } else {
-        isDocked = false;
-        applyPosition();
-        onCue?.('paperweightDrop');
-        onSavePosition({ x: Math.round(currentX), y: Math.round(currentY), docked: false });
-      }
+      applyPosition();
+      onCue?.('paperweightDrop');
+      onSavePosition({ x: Math.round(currentX), y: Math.round(currentY) });
       return;
     }
 
@@ -766,7 +707,6 @@ export function createAdventurerCard({
   function destroy() {
     cancelAll();
     try {
-      dockSlot.remove();
       card.remove();
     } catch {}
   }
@@ -774,9 +714,6 @@ export function createAdventurerCard({
   return {
     get element() {
       return card;
-    },
-    get dockSlot() {
-      return dockSlot;
     },
     update,
     flip,

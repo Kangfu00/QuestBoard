@@ -6,7 +6,7 @@ const source=await readFile(new URL('../dist/app.mjs',import.meta.url),'utf8');
 function menu(){
   let handler;const events=[];
   const context={document:{addEventListener:(name,fn)=>{handler=fn;}},zoom:1,
-    openToolMenu(){events.push('open');},closeToolMenu(){events.push('close');},openLibrary(){},openSettings(){events.push('settings');},openHelp(){},arrangeBoard(){},resizeBoard(){events.push('resize');},
+    openToolMenu(){events.push('open');},closeToolMenu(){events.push('close');},openLibrary(){},openSettings(){events.push('settings');},openHelp(){},arrangeBoard(){},resizeBoard(){events.push('resize');},openAdventurerCardEditor(){events.push('adventurer-card');},
   };
   vm.createContext(context);vm.runInContext(source.slice(source.lastIndexOf("document.addEventListener('click',e=>{"),source.indexOf("document.addEventListener('keydown',e=>{")),context);
   return {events,click:dataset=>handler({detail:1,target:{closest:()=>({dataset})}})};

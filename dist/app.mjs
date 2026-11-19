@@ -1,4 +1,4 @@
-import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSheet, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask, DEFAULT_PAPERWEIGHT, PAPERWEIGHT_EMBLEMS, updatePaperweight, ensureNotebook, updateAdventurerCard } from './model.mjs';
+import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSheet, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask, DEFAULT_PAPERWEIGHT, PAPERWEIGHT_EMBLEMS, updatePaperweight, ensureNotebook, updateAdventurerCard, DEFAULT_ADVENTURER_CARD } from './model.mjs';
 import {NOTEBOOK_SIZE,PAPER,toPaperStampPosition,photoSheetSize} from './paper-format.mjs';
 import { chooseStampTool, applyHeldStamp } from './stamp-tools.mjs';
 import { dragPosition, containsPoint, drawerReveal, shouldOpenDrawer, rotatedOrigin, canvasLayout, rotatedClampPosition, storedDropPosition, drawerForDraggedItem, storageTrayAccepts } from './interactions.mjs';
@@ -206,7 +206,7 @@ function shell(){
         <label class="tool-custom-select">ตราของฉัน<select id="tool-custom-stamp" aria-label="เลือกตราที่อัปโหลด"></select></label>
         <label class="drawer-search">${icon('search')}<input id="search" type="search" aria-label="ค้นหาเควสบนโต๊ะ" placeholder="ค้นหาเควสบนโต๊ะ…" autocomplete="off"></label>
         <div class="drawer-filters" role="group" aria-label="กรองสถานะ"><button data-filter="all">ทั้งหมด <span id="all-badge"></span></button>${['active','done','failed','paused'].map(status=>`<button data-filter="${status}">${STATUS[status].label}</button>`).join('')}</div>
-        <div class="drawer-menu-grid"><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
+        <div class="drawer-menu-grid"><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="adventurer-card">${icon('pen')}บัตรนักผจญภัย</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
         <div class="sound-controls"><button id="sound-toggle" class="button ghost small" aria-pressed="false">${icon('volume')}<span></span></button><label>เสียงหยิบจับ<input id="sound-volume" type="range" min="0" max="100" aria-label="ความดังเสียงหยิบจับ"></label><button class="button ghost small" id="sound-preview">ลองฟัง</button></div>
         <div id="atmosphere-controls"></div>
         <div class="canvas-controls"><button class="zoom-button" data-action="zoom-out" aria-label="ย่อโต๊ะ">${icon('minus')}</button><button class="zoom-percent" data-action="zoom-reset" title="คืนขนาดเริ่มต้น">100%</button><button class="zoom-button" data-action="zoom-in" aria-label="ขยายโต๊ะ">${icon('plus')}</button></div>
@@ -288,7 +288,7 @@ function shell(){
   });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   adventurerCard?.destroy();
-  adventurerCard=createAdventurerCard({deskSurface:$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
+  adventurerCard=createAdventurerCard({deskSurface:$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
   $('#sound-volume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);refreshSoundControls();};
@@ -698,7 +698,7 @@ function renderCounts(){
   document.querySelectorAll('[data-count]').forEach(e=>e.textContent=e.dataset.count==='all'?quests.length:statCount(e.dataset.count));
   $('#active-count').textContent=statCount('active');$('#done-count').textContent=done;$('#xp-count').textContent=xp.toLocaleString();$('#all-badge').textContent=quests.length;
   $('#adventurer-level').textContent=`LEVEL ${Math.floor(xp/500)+1} · ${xp.toLocaleString()} XP`;
-  adventurerCard?.update(xp,{doneCount:done,emblem:state?.paperweight?.emblem,imageDataUrl:state?.paperweight?.imageDataUrl,boardName:state?.settings?.boardName});
+  adventurerCard?.update(xp,{doneCount:done,name:state?.adventurerCard?.name,emblem:state?.adventurerCard?.emblem||state?.paperweight?.emblem||'shield',imageDataUrl:state?.adventurerCard?.emblem==='custom'?state?.adventurerCard?.imageDataUrl:(state?.adventurerCard?.emblem?null:state?.paperweight?.imageDataUrl),boardName:state?.settings?.boardName});
   renderDrawer();
 }
 function resizeBoard(){
@@ -1348,6 +1348,47 @@ function openPaperweightEditor(){
   });
   refresh();
 }
+function openAdventurerCardEditor(){
+  const cardData = state.adventurerCard ?? DEFAULT_ADVENTURER_CARD;
+  const emblems = [...Object.entries(PAPERWEIGHT_EMBLEMS),['custom','รูปประจำตัวของฉัน']];
+  openDialog('แก้ไขบัตรประจำตัวนักผจญภัย','ปรับแต่งชื่อบนบัตรและรูปภาพประจำตัว',`<form class="dialog-body adventurer-card-editor" id="adventurer-card-form">
+    <label class="field">ชื่อบนบัตร<input name="name" maxlength="50" placeholder="เช่น กระดานนักผจญภัย หรือ ชื่อของคุณ" value="${esc(cardData.name || state.settings?.boardName || '')}"><small>เว้นว่างเพื่อใช้ชื่อกระดานเริ่มต้น</small></label>
+    <label class="field">ตราประจำตัว<select name="emblem">${emblems.map(([id,label])=>`<option value="${id}" ${(cardData.emblem||'shield')===id?'selected':''}>${label}</option>`).join('')}</select></label>
+    <label class="field">อัปโหลดรูปประจำตัว<input name="image" type="file" accept="image/png,image/jpeg,image/webp"><small>PNG, JPG หรือ WebP สูงสุด 2 MB</small></label>
+    <p class="form-error" id="form-error" hidden></p>
+    <footer class="dialog-footer end"><button type="button" class="button ghost" data-close>ยกเลิก</button><button type="submit" class="button primary">${icon('check')}บันทึกข้อมูลบัตร</button></footer>
+  </form>`,'small-dialog');
+  const form = $('#adventurer-card-form',dialog), select = form.elements.emblem, nameInput = form.elements.name;
+  const errorText = $('#form-error',form), submit = $('button[type="submit"]',form);
+  let imageDataUrl = cardData.imageDataUrl, version = 0;
+  select.addEventListener('change',()=>{errorText.hidden=true;});
+  form.elements.image.addEventListener('change',async event=>{
+    const file = event.target.files[0];
+    if (!file) return;
+    const token = ++version;
+    const live = () => token === version && form.isConnected && dialog.open;
+    select.value='custom';errorText.hidden=true;submit.disabled=true;
+    try{
+      const data = await prepareImage(file,{maxDimension:256});
+      if (!live()) return;
+      imageDataUrl=data;
+    }catch(error){if(live())formError(error.message);}
+    finally{if(live())submit.disabled=false;}
+  });
+  form.addEventListener('submit',event=>{
+    event.preventDefault();
+    if(submit.disabled)return;
+    try{
+      if(select.value==='custom'&&!imageDataUrl)throw new Error('เลือกรูปประจำตัวที่ต้องการใช้ก่อนบันทึก');
+      const next=updateAdventurerCard(state,{
+        name: nameInput.value.trim(),
+        emblem: select.value,
+        imageDataUrl: select.value==='custom' ? imageDataUrl : null,
+      });
+      state=next;persist();renderCounts();closeDialog();showToast('บันทึกข้อมูลบัตรนักผจญภัยแล้ว');
+    }catch(error){formError(error.message);}
+  });
+}
 function openLibrary(){
   openDialog('คลังตราประทับ','ร่องรอยของทุกชัยชนะ ทุกบทเรียน และวันที่อยากพัก',`<div class="dialog-body library-body"><div class="section-heading"><h3>ตราประจำกิลด์</h3><span>3 รูปแบบ · 3 สถานะ</span></div><div class="library-grid">${['seal','rectangle','banner'].map((style,i)=>`<div class="library-card">${stampMarkup(['done','failed','paused'][i],style)}<strong>${['ตรากิลด์','ตราหมึก','ริบบิ้น'][i]}</strong><span>${['ขอบวงกลมคลาสสิก','รอยหมึกบนกระดาษ','แถบประกาศเกียรติคุณ'][i]}</span><button class="button small ${state.settings.stampStyle===style?'selected-button':'ghost'}" data-default-style="${style}">${state.settings.stampStyle===style?icon('check')+'ค่าเริ่มต้น':'ตั้งเป็นค่าเริ่มต้น'}</button></div>`).join('')}</div><div class="section-heading custom-heading"><h3>ตราประทับของคุณ <span>${state.stamps.length}</span></h3></div><div class="uploaded-stamps">${state.stamps.map(s=>`<div class="uploaded-stamp"><img src="${esc(s.dataUrl)}" alt="${esc(s.name)}"><div><strong>${esc(s.name)}</strong><small>${STATUS[s.status].label}</small></div><button class="icon-button" data-delete-stamp="${esc(s.id)}" aria-label="ลบตรา ${esc(s.name)}">${icon('trash')}</button></div>`).join('')||'<p class="no-custom-stamps">ยังไม่มีตราของตัวเอง เพิ่มเครื่องหมายที่เป็นคุณได้ด้านล่าง</p>'}</div><form id="upload-form" class="upload-panel"><label class="upload-drop" for="stamp-file">${icon('upload')}<strong id="upload-label">เลือกรูปตราประทับของคุณ</strong><span>PNG พื้นหลังโปร่งใสเหมาะที่สุด · JPG / WebP · สูงสุด 2 MB</span><input id="stamp-file" type="file" accept="image/png,image/jpeg,image/webp" required><img id="upload-preview" alt="ตัวอย่างตราที่เลือก" hidden></label><div class="form-row"><label class="field">ชื่อตราประทับ<input name="name" required maxlength="40" placeholder="เช่น ตราแห่งชัยชนะ"></label><label class="field">ใช้กับสถานะ<select name="status"><option value="done">สำเร็จแล้ว</option><option value="failed">ไม่สำเร็จ</option><option value="paused">พักไว้ก่อน</option></select></label></div><p class="form-error" id="form-error" hidden></p><button class="button primary" type="submit">${icon('plus')}เพิ่มเข้าคลังตรา</button></form><footer class="dialog-footer end"><button class="button ghost" data-close>กลับสู่โต๊ะ</button></footer></div>`,'wide-dialog');
   let imageData=null,uploadVersion=0;
@@ -1662,7 +1703,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.edit){openQuest(b.dataset.edit);return;}if(b.dataset.stamp){openStamp(b.dataset.stamp);return;}if(b.dataset.editLabel){openLabel(b.dataset.editLabel);return;}
   if(b.dataset.openArchived){openQuest(b.dataset.openArchived);return;}if(b.dataset.restore){restoreQuest(b.dataset.restore);return;}
   if(b.dataset.action==='open-drawer'){document.body.classList.remove('menu-open');setDrawerOpen(true,true);return;}if(b.dataset.action==='close-drawer'){setDrawerOpen(false);return;}
-  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
+  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,'adventurer-card':()=>openAdventurerCardEditor?.(),settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
   if(b.dataset.action&&!['tool-menu','close-tool-menu','zoom-in','zoom-out','zoom-reset'].includes(b.dataset.action))closeToolMenu();
   actions[b.dataset.action]?.();
 });

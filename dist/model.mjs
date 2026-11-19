@@ -48,7 +48,7 @@ export const PAPERWEIGHT_SIZE = 62;
 export const PAPERWEIGHT_EMBLEMS = Object.freeze({shield:'โล่กิลด์', swords:'ดาบไขว้', star:'ดาวนำทาง', feather:'ขนนก'});
 export const DEFAULT_PAPERWEIGHT = Object.freeze({x:1103,y:496,questId:null,corner:null,emblem:'shield',imageDataUrl:null});
 export const ADVENTURER_CARD_SIZE = Object.freeze({ width: 260, height: 164 });
-export const DEFAULT_ADVENTURER_CARD = Object.freeze({ x: 18, y: 18, docked: true });
+export const DEFAULT_ADVENTURER_CARD = Object.freeze({ x: 18, y: 18, name: '', emblem: 'shield', imageDataUrl: null });
 export const STATUS = Object.freeze({
   active: { label: 'กำลังทำ', en: 'IN PROGRESS', color: '#8b713e' },
   done: { label: 'สำเร็จแล้ว', en: 'COMPLETED', color: '#4f6d4d' },
@@ -462,10 +462,12 @@ export function updatePaperweight(state, patch) {
 
 export function normalizeAdventurerCard(raw) {
   record(raw, 'บัตรนักผจญภัย');
-  const docked = raw.docked === undefined ? true : Boolean(raw.docked);
   const x = number(raw.x ?? DEFAULT_ADVENTURER_CARD.x, 'ตำแหน่งบัตรนักผจญภัย x', 0, 5000);
   const y = number(raw.y ?? DEFAULT_ADVENTURER_CARD.y, 'ตำแหน่งบัตรนักผจญภัย y', 0, 5000);
-  return { x, y, docked };
+  const name = raw.name === undefined || raw.name === null || raw.name === '' ? '' : text(raw.name, 'ชื่อบัตรนักผจญภัย', 50, true);
+  const emblem = raw.emblem === undefined ? 'shield' : oneOf(raw.emblem, [...Object.keys(PAPERWEIGHT_EMBLEMS), 'custom'], 'ตราประจำตัวบัตร');
+  const imageDataUrl = emblem === 'custom' && raw.imageDataUrl ? normalizeRaster(raw.imageDataUrl, 'รูปประจำตัวบัตรนักผจญภัย') : null;
+  return { x, y, name, emblem, imageDataUrl };
 }
 
 export function updateAdventurerCard(state, patch) {
@@ -492,7 +494,15 @@ function checkBackupBudget(state) {
   // separately to avoid allocating a huge backup string on every board edit.
   const weight = state.paperweight;
   if (weight?.imageDataUrl) imageBytes += weight.imageDataUrl.length;
-  const metadata = JSON.stringify({ ...state, items, stamps, ...(weight?.imageDataUrl ? {paperweight:{...weight,imageDataUrl:''}} : {}) }, null, 2);
+  const card = state.adventurerCard;
+  if (card?.imageDataUrl) imageBytes += card.imageDataUrl.length;
+  const metadata = JSON.stringify({
+    ...state,
+    items,
+    stamps,
+    ...(weight?.imageDataUrl ? {paperweight:{...weight,imageDataUrl:''}} : {}),
+    ...(card?.imageDataUrl ? {adventurerCard:{...card,imageDataUrl:''}} : {}),
+  }, null, 2);
   const metadataBytes = new TextEncoder().encode(metadata).byteLength;
   if (imageBytes + metadataBytes > MAX_BACKUP_BYTES) {
     throw new Error('ข้อมูลกระดานมีขนาดเกิน 90 MB กรุณาลบรูปภาพหรือตราประทับบางส่วน');

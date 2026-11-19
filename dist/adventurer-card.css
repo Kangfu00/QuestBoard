@@ -1,41 +1,10 @@
 /* ==========================================================================
    The Questboard — Adventurer Identification Card (บัตรประจำตัวนักผจญภัย)
-   Substantial fantasy guild ID card, magnetic desk dock, 3D flip, and blue mana light.
+   Substantial fantasy guild ID card with customizable name and avatar portrait,
+   3D flip, and blue mana light effects.
    ========================================================================== */
 
-/* Magnetic Dock Slot on Desk Surface Frame */
-.adventurer-dock-slot {
-  position: absolute;
-  left: 18px;
-  bottom: 18px;
-  width: 260px;
-  height: 164px;
-  border-radius: 10px;
-  border: 1.5px dashed #7a583255;
-  box-shadow: inset 0 0 12px #180e0766;
-  pointer-events: none;
-  z-index: 38;
-  box-sizing: border-box;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: border-color 200ms ease, box-shadow 200ms ease;
-}
-
-.adventurer-dock-slot::after {
-  content: "✦ ช่องเก็บบัตรประจำตัวนักผจญภัย ✦";
-  font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 11px;
-  color: #7a583255;
-  letter-spacing: 0.8px;
-}
-
-.adventurer-dock-slot.is-hovered {
-  border-color: #ecd08faa;
-  box-shadow: inset 0 0 16px #b89b6244, 0 0 12px #e2bf7566;
-}
-
-/* Adventurer Card Interactive Container */
+/* Adventurer Card Interactive Container (Freely Placed on Desk Surface) */
 .adventurer-card {
   position: absolute;
   width: 260px;
@@ -65,7 +34,7 @@
   outline-offset: 3px;
 }
 
-/* 3D Flippable Card Plane (Strictly Y-Axis Flip) */
+/* 3D Flippable Card Plane (Strictly Horizontal Y-Axis Flip) */
 .adventurer-card-inner {
   position: relative;
   width: 100%;
@@ -98,13 +67,14 @@
     inset 0 0 0 2.5px #7a502640,
     inset 0 0 16px #3d230e25,
     calc(var(--light-x, 2px) * var(--lift, 1)) calc(var(--light-y, 3px) * var(--lift, 1)) 12px #120a0588;
-  padding: 8px 10px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
 }
 
 .adventurer-card-face.front {
   transform: rotateY(0deg);
+  justify-content: space-between;
 }
 
 .adventurer-card-face.back {
@@ -150,19 +120,22 @@
   transition: opacity 250ms ease;
 }
 
-/* Header Area */
-.adventurer-card-header {
+/* Header Area with Card Name and Edit Trigger */
+.adventurer-card-topbar {
   position: relative;
   z-index: 2;
-  text-align: center;
-  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  border-bottom: 1px solid #7a502640;
+  padding-bottom: 4px;
 }
 
 .adventurer-card-board,
 .adventurer-card-board-back {
-  display: block;
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
   color: #3b230d;
   letter-spacing: 1.2px;
@@ -171,66 +144,64 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  line-height: 1.2;
+  max-width: 200px;
 }
 
-.adventurer-card-type {
-  display: block;
-  font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 7.5px;
-  font-weight: 600;
-  color: #6a4c28;
-  letter-spacing: 0.5px;
-  line-height: 1.1;
-  text-shadow: 0 0.5px 0 #fff8e3;
+/* Small Subtle Pencil Edit Button */
+.adventurer-edit-icon-btn {
+  background: transparent;
+  border: none;
+  padding: 2px 4px;
+  cursor: pointer;
+  color: #734c22;
+  opacity: 0.65;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 180ms ease, transform 180ms ease, background 180ms ease;
 }
 
-.adventurer-card-divider {
-  position: relative;
-  height: 1px;
-  background: linear-gradient(90deg, transparent, #7a502666 20%, #7a5026 50%, #7a502666 80%, transparent);
-  margin-top: 2px;
-}
-.adventurer-card-divider::after {
-  content: "♦";
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-size: 6px;
-  color: #633d18;
-  background: #ecd6ac;
-  padding: 0 4px;
+.adventurer-edit-icon-btn:hover {
+  opacity: 1;
+  transform: scale(1.15);
+  background: #ecd6ac88;
 }
 
-/* FRONT FACE: 2-Column Guild Layout */
-.adventurer-card-body {
+.adventurer-edit-icon-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* FRONT FACE: Minimalist Body with Picture, Level & Level Bar */
+.adventurer-card-body-clean {
   position: relative;
   z-index: 2;
   display: flex;
-  flex: 1;
-  gap: 8px;
-  align-items: stretch;
-}
-
-/* Left Column: Portrait Frame & Rank Banner */
-.adventurer-card-left {
-  display: flex;
-  flex-direction: column;
   align-items: center;
-  width: 78px;
-  flex-shrink: 0;
+  gap: 12px;
+  flex: 1;
+  padding-bottom: 4px;
 }
 
+/* Left: Portrait Picture / Avatar Frame */
 .adventurer-portrait-frame {
   position: relative;
-  width: 66px;
-  height: 66px;
+  width: 78px;
+  height: 78px;
+  flex-shrink: 0;
   border-radius: 8px;
-  padding: 2px;
+  padding: 2.5px;
   background: linear-gradient(145deg, #c5a468, #6d4b23 60%, #3d240d 100%);
-  box-shadow: 0 2px 5px #1a0f0744, inset 0 1px 1px #fff0bb88;
+  box-shadow: 0 2px 6px #1a0f0744, inset 0 1px 1px #fff0bb88;
   box-sizing: border-box;
+  cursor: pointer;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+}
+
+.adventurer-portrait-frame:hover {
+  transform: scale(1.03);
+  box-shadow: 0 3px 8px #1a0f0766, inset 0 1px 1px #fff0bb;
 }
 
 .adventurer-card-seal {
@@ -262,8 +233,8 @@
 }
 
 .adventurer-seal-emblem {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -275,128 +246,92 @@
   height: 100%;
 }
 
-/* Rank Ribbon Banner below Portrait */
-.adventurer-rank-banner {
-  margin-top: 4px;
-  width: 100%;
-  background: linear-gradient(180deg, #5c3b1a 0%, #3a220e 100%);
-  border: 1px solid #8e6837;
-  border-radius: 3px;
-  box-shadow: 0 1px 3px #180d0566, inset 0 1px 0 #baa06f55;
-  text-align: center;
-  padding: 1px 2px;
-  box-sizing: border-box;
-}
-
-.adventurer-rank-label {
-  display: block;
-  font-family: var(--display, 'Cinzel', serif);
-  font-size: 6.5px;
-  font-weight: 700;
-  color: #d1b88a;
-  letter-spacing: 1px;
-  line-height: 1;
-}
-
-.adventurer-card-title {
-  display: block;
-  font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 9px;
-  font-weight: 700;
-  color: #fff6de;
-  text-shadow: 0 1px 2px #000000bb;
-  line-height: 1.25;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Right Column: Level Crest, Mana Tube & Stats */
-.adventurer-card-right {
+/* Right: Level & Level Bar */
+.adventurer-card-details-clean {
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  justify-content: center;
   flex: 1;
   min-width: 0;
-  padding-left: 2px;
+  gap: 6px;
 }
 
-/* Top Row: Level Crest + Completed Badge */
-.adventurer-right-top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
+/* Level Crest */
 .adventurer-level-crest {
   display: flex;
-  align-items: center;
-  gap: 5px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+}
+
+.adventurer-level-crest-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
 }
 
 .adventurer-level-tag {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 9px;
+  font-size: 11px;
   font-weight: 700;
   color: #523417;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.8px;
 }
 
 .adventurer-card-level-num {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 20px;
+  font-size: 26px;
   font-weight: 800;
   color: #2b1807;
   line-height: 1;
   text-shadow: 0 1px 0 #fff5d7;
 }
 
-.adventurer-badge-done {
-  font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 8.5px;
-  color: #4b3117;
-  background: #dfc28d66;
-  border: 1px solid #7c542a44;
-  border-radius: 4px;
-  padding: 1px 5px;
-  line-height: 1.3;
-}
-.adventurer-badge-done b {
-  font-family: var(--display, 'Cinzel', serif);
-  font-size: 10px;
-  color: #2b1807;
+.adventurer-card-title {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #553517;
+  text-shadow: 0 0.5px 0 #fff8e3;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
 }
 
-/* Middle: Alchemical Mana Tube (Recessed Glass Gauge) */
+/* Level Tube (Mana Tube) */
 .adventurer-mana-tube-wrap {
-  margin: 3px 0;
+  width: 100%;
+  margin-top: 2px;
 }
 
 .adventurer-mana-header {
   display: flex;
   justify-content: space-between;
-  font-size: 7.5px;
+  align-items: center;
+  font-size: 8px;
   font-weight: 600;
   color: #55371a;
-  margin-bottom: 2px;
-  letter-spacing: 0.3px;
+  margin-bottom: 3px;
 }
 
 .adventurer-mana-header .mana-lbl {
   font-family: var(--display, 'Cinzel', serif);
   font-weight: 700;
+  letter-spacing: 0.5px;
 }
 
 .adventurer-mana-text {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 8px;
+  font-size: 8.5px;
   font-weight: 700;
   color: #2b1807;
 }
 
 .adventurer-mana-tube {
   width: 100%;
-  height: 9px;
+  height: 10px;
   border-radius: 5px;
   background: #101620;
   box-shadow: inset 0 2px 3px #04080e, 0 1px 0 #fff8dc88;
@@ -419,40 +354,6 @@
   filter: brightness(1.4);
 }
 
-/* Bottom Stats Row on Front */
-.adventurer-front-stats {
-  display: flex;
-  justify-content: space-between;
-  border-top: 1px dashed #7a502640;
-  padding-top: 3px;
-}
-
-.adventurer-stat-col {
-  display: flex;
-  flex-direction: column;
-}
-
-.adventurer-stat-col .lbl {
-  font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 7.5px;
-  color: #634320;
-}
-
-.adventurer-stat-col .val {
-  font-family: var(--display, 'Cinzel', serif);
-  font-size: 10px;
-  font-weight: 700;
-  color: #291708;
-  line-height: 1.2;
-}
-
-.adventurer-stat-col.sub .val {
-  font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 8.5px;
-  font-weight: 600;
-  color: #4f3316;
-}
-
 /* BACK FACE: Detailed Career Record Ledger */
 .adventurer-back-grid {
   position: relative;
@@ -460,7 +361,7 @@
   display: flex;
   flex-direction: column;
   gap: 3px;
-  padding: 0 4px;
+  padding: 0 2px;
 }
 
 .adventurer-card-row {
@@ -505,21 +406,38 @@
   justify-content: space-between;
   align-items: center;
   border-top: 1px solid #7a502640;
-  padding-top: 3px;
+  padding-top: 4px;
   margin-top: 2px;
 }
 
-.adventurer-stamp-text {
-  font-family: var(--display, 'Cinzel', serif);
-  font-size: 7px;
-  font-weight: 700;
-  color: #6a441e;
-  letter-spacing: 0.8px;
+.adventurer-back-edit-btn {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 8.5px;
+  color: #4a2e14;
+  background: #e5cb9c;
+  border: 1px solid #8e6837;
+  border-radius: 4px;
+  padding: 2px 7px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 180ms ease, transform 180ms ease;
+}
+
+.adventurer-back-edit-btn:hover {
+  background: #f0dac2;
+  transform: translateY(-1px);
+}
+
+.adventurer-back-edit-btn svg {
+  width: 10px;
+  height: 10px;
 }
 
 .adventurer-flip-hint {
   font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 7.5px;
+  font-size: 8px;
   color: #7a5833;
 }
 
@@ -542,10 +460,10 @@
 /* Mana Shockwave Expanding Outward */
 .mana-shockwave {
   position: absolute;
-  top: 48px;
-  left: 45px;
-  width: 30px;
-  height: 30px;
+  top: 52px;
+  left: 50px;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
   pointer-events: none;
   z-index: 8;
@@ -570,7 +488,6 @@
 /* High Contrast & Forced Colors Support */
 @media (forced-colors: active) {
   .adventurer-card-face,
-  .adventurer-dock-slot,
   .adventurer-portrait-frame,
   .adventurer-mana-tube {
     border: 2px solid ButtonText;

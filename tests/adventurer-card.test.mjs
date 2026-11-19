@@ -66,11 +66,20 @@ function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) 
         }
       },
       dispatchEvent: evt => {
+        if (!evt.target) evt.target = node;
         const list = listeners.get(evt.type) || [];
         for (const h of list) h(evt);
       },
       click: () => {
         node.dispatchEvent({ type: 'click', button: 0, preventDefault() {}, stopPropagation() {} });
+      },
+      closest: sel => {
+        let cur = node;
+        while (cur) {
+          if (matches(cur, sel)) return cur;
+          cur = cur.parentNode;
+        }
+        return null;
       },
       getBoundingClientRect: () => {
         if (node.classList.contains('adventurer-dock-slot')) {
@@ -215,19 +224,21 @@ function buildMockTreeFromHtml(parent, html, createNode) {
     'adventurer-card-inner', 'adventurer-card-face front', 'adventurer-card-face back',
     'adventurer-card-rune-border', 'adventurer-card-sheen', 'mana-shockwave',
     'adventurer-card-header', 'adventurer-card-board', 'adventurer-card-board-back',
+    'adventurer-card-topbar', 'adventurer-edit-icon-btn', 'adventurer-card-body-clean',
     'adventurer-card-type', 'adventurer-card-divider', 'adventurer-card-body',
     'adventurer-card-left', 'adventurer-portrait-frame', 'adventurer-card-seal',
     'adventurer-rank-banner', 'adventurer-rank-label', 'adventurer-card-title',
-    'adventurer-card-right', 'adventurer-right-top', 'adventurer-level-crest',
-    'adventurer-level-tag', 'adventurer-card-level-num', 'adventurer-badge-done',
-    'adventurer-front-done', 'adventurer-mana-tube-wrap', 'adventurer-mana-header',
-    'adventurer-mana-text', 'adventurer-mana-tube', 'adventurer-mana-bar',
-    'adventurer-front-stats', 'adventurer-front-xp', 'adventurer-front-tonext',
-    'adventurer-back-grid', 'adventurer-card-row', 'adventurer-card-label',
+    'adventurer-card-right', 'adventurer-card-details-clean', 'adventurer-right-top',
+    'adventurer-level-crest', 'adventurer-level-crest-row', 'adventurer-level-tag',
+    'adventurer-card-level-num', 'adventurer-badge-done', 'adventurer-front-done',
+    'adventurer-mana-tube-wrap', 'adventurer-mana-header', 'adventurer-mana-text',
+    'adventurer-mana-tube', 'adventurer-mana-bar', 'adventurer-front-stats',
+    'adventurer-front-xp', 'adventurer-front-tonext', 'adventurer-back-grid',
+    'adventurer-card-row', 'adventurer-card-label',
     'adventurer-card-value adventurer-back-title', 'adventurer-card-value adventurer-back-level',
     'adventurer-card-value adventurer-back-xp', 'adventurer-card-value adventurer-back-done',
     'adventurer-card-value adventurer-back-tonext', 'adventurer-back-footer',
-    'adventurer-card-status sr-only',
+    'adventurer-back-edit-btn', 'adventurer-card-status sr-only',
   ];
 
   for (const c of subClasses) {
@@ -283,13 +294,10 @@ test('adventurer card mounts into desk surface and updates progression state acc
     boardName: () => 'THE QUESTBOARD',
   });
 
-  assert.ok(env.deskSurface.children.length >= 2, 'Dock slot and card mounted to deskSurface');
-  const dockSlot = env.deskSurface.children.find(c => c.classList.contains('adventurer-dock-slot'));
+  assert.ok(env.deskSurface.children.length >= 1, 'Card mounted to deskSurface');
   const cardEl = env.deskSurface.children.find(c => c.classList.contains('adventurer-card'));
 
-  assert.ok(dockSlot, 'Dock slot mounted');
   assert.ok(cardEl, 'Adventurer card mounted');
-  assert.equal(dockSlot.getAttribute('aria-hidden'), 'true');
   assert.equal(cardEl.getAttribute('id'), 'adventurer-card');
 
   // Initial update at 0 XP
@@ -305,10 +313,11 @@ test('adventurer card mounts into desk surface and updates progression state acc
   assert.equal(boardEl.textContent, 'GUILD HQ');
   assert.match(cardEl.getAttribute('aria-label'), /LEVEL 1, 0 XP \(ผู้สมัครกิลด์\)/);
 
-  // Update with cumulative XP and completed quests
-  card.update(1240, { doneCount: 7, emblem: 'swords' });
+  // Update with cumulative XP, completed quests, and custom card name
+  card.update(1240, { doneCount: 7, emblem: 'swords', name: 'KANGFU' });
   assert.equal(levelNum.textContent, '3');
   assert.equal(title.textContent, 'นักสำรวจ');
+  assert.equal(boardEl.textContent, 'KANGFU');
   assert.equal(manaBar.style.width, '48%'); // 240 / 500 = 48%
   assert.match(cardEl.getAttribute('aria-label'), /LEVEL 3, 1,240 XP \(นักสำรวจ\)/);
 
@@ -320,7 +329,7 @@ test('adventurer card mounts into desk surface and updates progression state acc
   assert.equal(backToNext.textContent, 'อีก 260 XP');
 
   card.destroy();
-  assert.equal(env.deskSurface.children.length, 0, 'Card and dock slot clean up on destroy');
+  assert.equal(env.deskSurface.children.length, 0, 'Card cleans up on destroy');
 });
 
 test('adventurer card flips 3D front/back and updates accessible description', () => {
@@ -542,25 +551,30 @@ test('model adventurerCard normalization, persistence and legacy backup import',
   assert.equal(initial.adventurerCard, undefined);
   assert.deepEqual(initial.adventurerCard ?? DEFAULT_ADVENTURER_CARD, DEFAULT_ADVENTURER_CARD);
 
-  // Normalization validates coordinates and docked flag
-  const normalized = normalizeAdventurerCard({ x: 250, y: 350, docked: false });
+  // Normalization validates coordinates, name, emblem, and imageDataUrl
+  const normalized = normalizeAdventurerCard({ x: 250, y: 350, name: 'นักรบแห่งแสง', emblem: 'swords' });
   assert.equal(normalized.x, 250);
   assert.equal(normalized.y, 350);
-  assert.equal(normalized.docked, false);
+  assert.equal(normalized.name, 'นักรบแห่งแสง');
+  assert.equal(normalized.emblem, 'swords');
+  assert.equal(normalized.imageDataUrl, null);
 
-  // Default docked is true if unspecified
-  const defaultDocked = normalizeAdventurerCard({ x: 18, y: 18 });
-  assert.equal(defaultDocked.docked, true);
+  // Default values when optional fields are omitted
+  const defaults = normalizeAdventurerCard({ x: 18, y: 18 });
+  assert.equal(defaults.name, '');
+  assert.equal(defaults.emblem, 'shield');
+  assert.equal(defaults.imageDataUrl, null);
 
   // Throws if out of bounds
   assert.throws(() => normalizeAdventurerCard({ x: -10, y: 50 }));
   assert.throws(() => normalizeAdventurerCard({ x: 50, y: 99999 }));
 
   // updateAdventurerCard updates state cleanly
-  const updated = updateAdventurerCard(initial, { x: 120, y: 340, docked: false });
+  const updated = updateAdventurerCard(initial, { x: 120, y: 340, name: 'จอมเวทคาร์ล', emblem: 'feather' });
   assert.equal(updated.adventurerCard.x, 120);
   assert.equal(updated.adventurerCard.y, 340);
-  assert.equal(updated.adventurerCard.docked, false);
+  assert.equal(updated.adventurerCard.name, 'จอมเวทคาร์ล');
+  assert.equal(updated.adventurerCard.emblem, 'feather');
 
   // Legacy backup import without adventurerCard key parses cleanly without adding redundant key
   const serialized = serializeState(initial);
@@ -571,4 +585,39 @@ test('model adventurerCard normalization, persistence and legacy backup import',
   const imported = parseState(legacyJson);
   assert.equal(imported.adventurerCard, undefined, 'Missing adventurerCard remains undefined in parsed state');
   assert.deepEqual(imported.adventurerCard ?? DEFAULT_ADVENTURER_CARD, DEFAULT_ADVENTURER_CARD, 'Fallback to default matches DEFAULT_ADVENTURER_CARD');
+});
+
+test('clicking edit button, portrait, or back edit button invokes onEdit callback', () => {
+  const env = createMockEnvironment();
+  let editCount = 0;
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+    onEdit: () => { editCount++; },
+  });
+
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+  const editIconBtn = cardEl.querySelector('.adventurer-edit-icon-btn');
+  const portraitFrame = cardEl.querySelector('.adventurer-portrait-frame');
+  const backEditBtn = cardEl.querySelector('.adventurer-back-edit-btn');
+
+  assert.ok(editIconBtn, 'Front edit icon button rendered');
+  assert.ok(portraitFrame, 'Front portrait frame rendered');
+  assert.ok(backEditBtn, 'Back edit button rendered');
+
+  editIconBtn.click();
+  assert.equal(editCount, 1, 'Clicking edit icon button triggers onEdit');
+
+  portraitFrame.click();
+  assert.equal(editCount, 2, 'Clicking portrait frame triggers onEdit');
+
+  backEditBtn.click();
+  assert.equal(editCount, 3, 'Clicking back edit button triggers onEdit');
+
+  card.destroy();
 });
