@@ -520,10 +520,7 @@ export function createAdventurerCard({
 
   function renderCardMotion() {
     if (isReduced()) return;
-    const base = isFlipped ? 'rotateY(180deg) ' : '';
-    if (cardInner) {
-      cardInner.style.transform = `${base}rotate(${sway.toFixed(2)}deg) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.028)`;
-    }
+    card.style.transform = `perspective(1000px) rotate(${sway.toFixed(2)}deg) rotateX(${tiltX.toFixed(2)}deg) rotateY(${tiltY.toFixed(2)}deg) scale(1.028)`;
     if (sheenEl) {
       sheenEl.style.setProperty('--sheen-angle', `${(105 + (tiltY + sway) * 4).toFixed(1)}deg`);
       sheenEl.style.setProperty('--sheen-opacity', `${Math.min(0.55, 0.22 + Math.abs(tiltX + tiltY + sway) * 0.04).toFixed(3)}`);
@@ -597,7 +594,7 @@ export function createAdventurerCard({
     card.classList.add('is-dragging');
     card.style.setProperty('--lift', '3.2');
 
-    cancelMotion(cardInner);
+    cancelMotion(card);
     renderCardMotion();
     startMotionLoop();
   }
@@ -651,46 +648,43 @@ export function createAdventurerCard({
     card.classList.remove('is-dragging');
     card.style.setProperty('--lift', '1');
 
-    if (cardInner) {
-      if (!isReduced()) {
-        const base = isFlipped ? 'rotateY(180deg) ' : '';
-        const settleKeyframes = [
-          {
-            transform: `${base}rotate(${sway * 0.35}deg) rotateX(${tiltX * 0.35}deg) rotateY(${tiltY * 0.35}deg) scale(1.028)`,
-            easing: 'cubic-bezier(.2,.7,.3,1)',
+    if (!isReduced()) {
+      const settleKeyframes = [
+        {
+          transform: `perspective(1000px) rotate(${sway * 0.35}deg) rotateX(${tiltX * 0.35}deg) rotateY(${tiltY * 0.35}deg) scale(1.028)`,
+          easing: 'cubic-bezier(.2,.7,.3,1)',
+        },
+        {
+          transform: `perspective(1000px) rotate(${sway * 0.45}deg) rotateX(${tiltX * 0.45}deg) rotateY(${tiltY * 0.45}deg) scale(1.018)`,
+          offset: 0.18,
+          easing: 'cubic-bezier(.4,0,.6,1)',
+        },
+        {
+          transform: `perspective(1000px) rotate(${-sway * 0.25 - 0.2}deg) rotateX(${-tiltX * 0.2}deg) rotateY(${-tiltY * 0.2}deg) scale(0.998)`,
+          offset: 0.72,
+          easing: 'ease-out',
+        },
+        {
+          transform: `perspective(1000px) rotate(${sway * 0.08}deg) scale(1.002)`,
+          offset: 0.88,
+          easing: 'ease-out',
+        },
+        {
+          transform: 'perspective(1000px) rotate(0deg) scale(1)',
+        },
+      ];
+      animateTransient(
+        card,
+        settleKeyframes,
+        { duration: 240, easing: 'linear' },
+        {
+          onFinish: () => {
+            card.style.transform = '';
           },
-          {
-            transform: `${base}rotate(${sway * 0.45}deg) rotateX(${tiltX * 0.45}deg) rotateY(${tiltY * 0.45}deg) scale(1.018)`,
-            offset: 0.18,
-            easing: 'cubic-bezier(.4,0,.6,1)',
-          },
-          {
-            transform: `${base}rotate(${-sway * 0.25 - 0.2}deg) rotateX(${-tiltX * 0.2}deg) rotateY(${-tiltY * 0.2}deg) scale(0.998)`,
-            offset: 0.72,
-            easing: 'ease-out',
-          },
-          {
-            transform: `${base}rotate(${sway * 0.08}deg) scale(1.002)`,
-            offset: 0.88,
-            easing: 'ease-out',
-          },
-          {
-            transform: `${base}rotate(0deg) scale(1)`,
-          },
-        ];
-        animateTransient(
-          cardInner,
-          settleKeyframes,
-          { duration: 240, easing: 'linear' },
-          {
-            onFinish: () => {
-              if (cardInner) cardInner.style.transform = '';
-            },
-          },
-        );
-      } else {
-        cardInner.style.transform = '';
-      }
+        },
+      );
+    } else {
+      card.style.transform = '';
     }
     sway = 0;
     tiltX = 0;
@@ -715,10 +709,8 @@ export function createAdventurerCard({
     currentX = initialCardX;
     currentY = initialCardY;
     applyPosition();
-    if (cardInner) {
-      cancelMotion(cardInner);
-      cardInner.style.transform = '';
-    }
+    cancelMotion(card);
+    card.style.transform = '';
     sway = 0;
     tiltX = 0;
     tiltY = 0;

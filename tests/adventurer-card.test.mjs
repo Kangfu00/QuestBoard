@@ -707,8 +707,9 @@ test('card dragging lifts with --lift 3.2, tracks tactile sway and tilts, and se
 
   assert.equal(cardEl.classList.contains('is-dragging'), true, 'Enters is-dragging state');
   assert.equal(cardEl.style.getPropertyValue('--lift'), '3.2', 'Desk elevation lift increases to 3.2 for expanded shadow');
-  assert.match(cardInner.style.transform, /scale\(1\.028\)/, 'Card inner scales up to lift off table');
-  assert.match(cardInner.style.transform, /rotate\(/, 'Card inner has rotational sway');
+  assert.match(cardEl.style.transform, /scale\(1\.028\)/, 'Card element scales up to lift off table');
+  assert.match(cardEl.style.transform, /rotate\(/, 'Card element has rotational sway');
+  assert.equal(cardInner.style.transform || '', '', 'cardInner transform remains clean to preserve 3D face orientation');
 
   // Pointerup releases card onto desk
   const animsBefore = env.createdAnimations.length;
@@ -720,10 +721,30 @@ test('card dragging lifts with --lift 3.2, tracks tactile sway and tilts, and se
   assert.ok(env.soundCues.filter(c => c === 'cardDrop').length > cuesBefore, 'cardDrop cue played on landing');
   assert.ok(env.savedPositions.length > 0, 'New position committed');
 
-  // Settle animation keyframes triggered on cardInner
-  const settleAnims = env.createdAnimations.slice(animsBefore).filter(a => a.element === cardInner);
-  assert.equal(settleAnims.length, 1, 'WAAPI settle animation triggered on cardInner');
+  // Settle animation keyframes triggered on cardEl
+  const settleAnims = env.createdAnimations.slice(animsBefore).filter(a => a.element === cardEl);
+  assert.equal(settleAnims.length, 1, 'WAAPI settle animation triggered on cardEl');
   assert.ok(settleAnims[0].keyframes.length >= 4, 'Settle keyframes include anticipation and rebound');
+
+  // Now test lifting while card is on the back face (is-flipped)
+  card.flip();
+  assert.equal(cardEl.classList.contains('is-flipped'), true, 'Card flipped to back face');
+  assert.equal(cardInner.style.transform || '', '', 'cardInner has clean transform for 3D flip');
+
+  // Drag while on back face
+  cardEl.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 200, clientY: 300, preventDefault() {} });
+  env.window.dispatchEvent({ type: 'pointermove', clientX: 230, clientY: 280 });
+
+  assert.equal(cardEl.classList.contains('is-dragging'), true, 'Card enters is-dragging while on back face');
+  assert.equal(cardEl.classList.contains('is-flipped'), true, 'Card remains on back face while dragging');
+  assert.equal(cardInner.style.transform || '', '', 'cardInner 3D orientation is not corrupted by dragging');
+  assert.match(cardEl.style.transform, /scale\(1\.028\)/, 'Card element scales up and tilts');
+
+  // Release while on back face
+  env.window.dispatchEvent({ type: 'pointerup' });
+  assert.equal(cardEl.classList.contains('is-dragging'), false, 'Exits is-dragging');
+  assert.equal(cardEl.classList.contains('is-flipped'), true, 'Card remains on back face after drop');
+  assert.equal(cardInner.style.transform || '', '', 'cardInner remains clean without upside-down artifacts');
 
   card.destroy();
 });
