@@ -23,32 +23,33 @@ export function dragTilt(previous, current) {
 const motions=new WeakMap();
 
 export function cancelMotion(element) {
-  motions.get(element)?.finish();
+  motions.get(element)?.finish(true,false);
 }
 
-// The returned promise always resolves, including cancellation and unavailable
-// WAAPI. Replacing a motion retires its cleanup: only the newest motion may
-// remove the element or invoke its completion callback.
-export function animateTransient(element, keyframes, options, {remove=false,onFinish}={}) {
-  motions.get(element)?.finish(false);
+// The returned promise always resolves (true when finished naturally, false
+// when cancelled or unavailable). Replacing a motion retires its cleanup: only
+// the newest motion may remove the element or invoke its completion callback.
+export function animateTransient(element, keyframes, options, {remove=false,onFinish,onStart}={}) {
+  motions.get(element)?.finish(false,false);
   return new Promise(resolve=>{
     let animation,settled=false;
-    const state={finish(cleanup=true){
+    const state={finish(cleanup=true,completed=false){
       if(settled)return;
       settled=true;
       if(motions.get(element)===state)motions.delete(element);
       try{animation?.cancel();}catch{}
       if(cleanup){
         try{if(remove)element?.remove();}catch{}
-        try{Promise.resolve(onFinish?.()).catch(()=>{});}catch{}
+        try{Promise.resolve(onFinish?.(completed)).catch(()=>{});}catch{}
       }
-      resolve();
+      resolve(completed);
     }};
     try{
-      if(typeof element?.animate!=='function'){state.finish();return;}
+      if(typeof element?.animate!=='function'){state.finish(true,false);return;}
       motions.set(element,state);
       animation=element.animate(keyframes,options);
-      Promise.resolve(animation.finished).then(()=>state.finish(),()=>state.finish());
-    }catch{state.finish();}
+      try{onStart?.(animation);}catch{}
+      Promise.resolve(animation.finished).then(()=>state.finish(true,true),()=>state.finish(true,false));
+    }catch{state.finish(true,false);}
   });
 }

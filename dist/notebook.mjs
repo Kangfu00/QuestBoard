@@ -1,6 +1,8 @@
 import {MAX_NOTEBOOK_PAGES,MAX_NOTEBOOK_PAGE_TEXT} from './model.mjs';
 import {NOTEBOOK_SIZE} from './paper-format.mjs';
 import {leatherDyeMarkup,paintLeatherDye} from './leather-colors.mjs';
+import {animateTransient} from './desk-motion.mjs';
+import {MOTION_TIMING} from './motion-tokens.mjs';
 
 const escape=value=>String(value).replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
 
@@ -142,10 +144,11 @@ export function createNotebookWindows({document,window,windows,getBook,writePage
       spread=next;
       showPages();
       onCue('paperSlide');
-      if(!reducedMotion()&&typeof fields[0].animate==='function'){
-        panel.querySelectorAll('.notebook-leaf').forEach(leaf=>leaf.animate(
+      if(!reducedMotion()){
+        panel.querySelectorAll('.notebook-leaf').forEach(leaf=>animateTransient(
+          leaf,
           [{opacity:.45,transform:`perspective(580px) rotateY(${direction===-1?8:-8}deg) translateY(3px)`},{opacity:1,transform:'none'}],
-          {duration:240,easing:'ease-out'}
+          MOTION_TIMING.notebookLeaf
         ));
       }
       if(direction==='append'||document.activeElement?.disabled)fields[0].focus({preventScroll:true});

@@ -1,3 +1,6 @@
+import {animateTransient,cancelMotion} from './desk-motion.mjs';
+import {MOTION_DURATION,MOTION_TIMING} from './motion-tokens.mjs';
+
 /** Temporary curved paper strips. No quest data or permanent transforms owned here. */
 export function createPaperTurn({document=globalThis.document,reducedMotion=()=>false,onCue=()=>{}}={}){
   let active=null;
@@ -8,11 +11,11 @@ export function createPaperTurn({document=globalThis.document,reducedMotion=()=>
     if(from===to)return Promise.resolve(true);
     if(reducedMotion()||typeof scene?.animate!=='function'){try{onCommit(to);}catch{return Promise.resolve(false);}cue('paperSlide',undefined,0);return Promise.resolve(true);}
     return new Promise(resolve=>{
-      const controller=new AbortController(),animations=[];let ghost,settled=false;
+      const controller=new AbortController(),animatedNodes=[];let ghost,settled=false;
       const current={finish(completed){
         if(settled)return;settled=true;
         if(!completed)controller.abort();
-        for(const animation of animations){try{animation.cancel();}catch{}}
+        for(const node of animatedNodes)cancelMotion(node);
         ghost?.remove();scene.classList.remove('paper-is-turning');
         if(active===current)active=null;
         let committed=completed;
@@ -45,24 +48,27 @@ export function createPaperTurn({document=globalThis.document,reducedMotion=()=>
         }
         scene.append(ghost);restorers.forEach(restore=>restore());scene.classList.add('paper-is-turning');
         const start=from==='front'?0:-180,end=to==='back'?-180:0,direction=to==='back'?-1:1;
-        const animation=ghost.animate([
+        animatedNodes.push(ghost);
+        let started=false;
+        const done=animateTransient(ghost,[
           {transform:`translateY(0) rotateZ(0deg) rotateY(${start}deg)`},
           {transform:`translateY(-15px) rotateZ(${direction*.9}deg) rotateY(${start+direction*18}deg)`,offset:.18},
           {transform:`translateY(-24px) rotateZ(${direction*.5}deg) rotateY(${start+direction*91}deg)`,offset:.52},
           {transform:`translateY(-6px) rotateZ(${-direction*.3}deg) rotateY(${end-direction*14}deg)`,offset:.86},
           {transform:`translateY(0) rotateZ(0deg) rotateY(${end}deg)`},
-        ],{duration:780,easing:'cubic-bezier(.32,.05,.24,1)',fill:'both'});
-        animations.push(animation);
+        ],MOTION_TIMING.paperTurn,{onStart(){started=true;}});
+        if(!started){current.finish(true);return;}
         [...ghost.children].forEach((strip,index)=>{
           const bend=(index-2)*direction;
-          animations.push(strip.animate([
+          animatedNodes.push(strip);
+          animateTransient(strip,[
             {transform:'translateZ(0) rotateY(0) skewY(0)'},
             {transform:`translateZ(${(4-Math.abs(index-2))*5}px) rotateY(${bend*2.4}deg) skewY(${bend*.45}deg)`,offset:.48},
             {transform:'translateZ(0) rotateY(0) skewY(0)'},
-          ],{duration:780,easing:'ease-in-out',fill:'both'}));
+          ],{duration:MOTION_DURATION.paperTurn,easing:'ease-in-out',fill:'both'});
         });
         cue('paperUnfold',controller.signal,0);cue('paperDrop',controller.signal,650);
-        Promise.resolve(animation.finished).then(()=>current.finish(true),()=>current.finish(false));
+        done.then(completed=>current.finish(completed));
       }catch{current.finish(true);}
     });
   }

@@ -1,6 +1,8 @@
 import {DEFAULT_PAPERWEIGHT, PAPERWEIGHT_SIZE, updatePaperweight} from './model.mjs';
 import {PAPER, STAMP_SPACE} from './paper-format.mjs';
 import {resolveStampSurface, stampSurfacePoint} from './stamp-surfaces.mjs';
+import {animateTransient} from './desk-motion.mjs';
+import {MOTION_TIMING} from './motion-tokens.mjs';
 
 const selector = '[data-paperweight]';
 const half = PAPERWEIGHT_SIZE / 2;
@@ -68,9 +70,10 @@ export function createPaperweight({canvas, viewport, getState, getLayout, save, 
     weightButton.style.top = `${position.y}px`;
     weightButton.style.setProperty('--paperweight-size', `${PAPERWEIGHT_SIZE}px`);
     weightButton.innerHTML = `<span class="paperweight-metal"><span class="paperweight-face">${paperweightFace(weight,icon)}</span></span>`;
-    if (landed && !reducedMotion()) weightButton.querySelector('.paperweight-metal').animate(
+    if (landed && !reducedMotion()) animateTransient(
+      weightButton.querySelector('.paperweight-metal'),
       [{transform:'translateY(-8px) scale(1.04)',opacity:.88},{transform:'translateY(1px) scale(.99)',offset:.68},{transform:'none',opacity:1}],
-      {duration:210,easing:'ease-out'},
+      MOTION_TIMING.paperweightLand,
     );
     if (focus) weightButton.focus({preventScroll:true});
   }

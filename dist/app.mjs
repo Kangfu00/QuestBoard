@@ -3,6 +3,8 @@ import {NOTEBOOK_SIZE,PAPER,toPaperStampPosition,photoSheetSize} from './paper-f
 import { chooseStampTool, applyHeldStamp } from './stamp-tools.mjs';
 import { dragPosition, containsPoint, drawerReveal, shouldOpenDrawer, rotatedOrigin, canvasLayout, rotatedClampPosition, storedDropPosition, drawerForDraggedItem, storageTrayAccepts } from './interactions.mjs';
 import { grabPoint, ghostPose, dragTilt, animateTransient, cancelMotion } from './desk-motion.mjs';
+import { MOTION_TIMING } from './motion-tokens.mjs';
+import { createMotionDebug } from './motion-debug.mjs';
 import {paperGripPose} from './paper-grip.mjs';
 import {createFolioWindows} from './folio-windows.mjs';
 import {createDeskWindows} from './desk-windows.mjs';
@@ -812,7 +814,7 @@ function returnStamp(animate=true){
   if(animate&&!reducedMotion()&&cursor?.classList.contains('is-visible')){
     const ghost=cursor.cloneNode(true),handle=$('#tool-drawer-handle').getBoundingClientRect();ghost.removeAttribute('id');document.body.append(ghost);
     const destination=`${handle.left+handle.width/2}px ${handle.top+handle.height/2}px`;
-    ghost.animate([{translate:cursor.style.translate,opacity:1},{translate:destination,transform:'translate(-50%,-50%) scale(.12)',opacity:0}],{duration:320,easing:'ease-in',fill:'forwards'}).finished.catch(()=>{}).then(()=>ghost.remove());
+    animateTransient(ghost,[{translate:cursor.style.translate,opacity:1},{translate:destination,transform:'translate(-50%,-50%) scale(.12)',opacity:0}],MOTION_TIMING.stampReturn,{remove:true});
   }
   heldStamp=null;clearTimeout(stampPressTimer);document.body.classList.remove('is-stamping');cursor?.classList.remove('is-pressing');
   hideStampPointer();refreshStampToolButtons();
@@ -1634,6 +1636,7 @@ if(saveUnavailable){
   startBoard();
 }
 function startBoard(){
+  createMotionDebug({document,window});
   state=ensureDailyBook(ensureNotebook(ensureTrayPositions(state)));
   shell();persist();
   window.addEventListener('online',()=>backupClient.retry());

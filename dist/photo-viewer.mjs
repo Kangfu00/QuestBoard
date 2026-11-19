@@ -1,3 +1,6 @@
+import {animateTransient,cancelMotion} from './desk-motion.mjs';
+import {MOTION_DURATION,MOTION_EASING} from './motion-tokens.mjs';
+
 // The viewer only accepts the raster data URLs used by saved quest photos.
 function raster(value){
   if(typeof value!=='string'||value.length>2796244)return false;
@@ -16,7 +19,7 @@ export function createPhotoViewer({document=globalThis.document,window=globalThi
   const cue=name=>{try{onCue(name);}catch{/* Sound is optional. */}};
   const motion=()=>{try{return !(typeof reducedMotion==='function'?reducedMotion():reducedMotion);}catch{return false;}};
   const active=entry=>current===entry&&!destroyed;
-  function cancelAnimation(entry){const animation=entry.animation;entry.animation=null;try{animation?.cancel();}catch{}}
+  function cancelAnimation(entry){entry.animation=null;cancelMotion(image);}
   function restoreSources(entry){for(const [node,visibility] of entry.hidden){if(node.style.visibility==='hidden')node.style.visibility=visibility;}entry.hidden.clear();}
   function hideSource(entry,node){if(node&&!entry.hidden.has(node)){entry.hidden.set(node,node.style.visibility??'');node.style.visibility='hidden';}}
   function source(entry){
@@ -48,13 +51,13 @@ export function createPhotoViewer({document=globalThis.document,window=globalThi
   }
   function animate(entry,keyframes,duration,done){
     if(!motion()||typeof image.animate!=='function'){done();return;}
-    let animation;
-    try{animation=image.animate(keyframes,{duration,easing:'cubic-bezier(.2,.75,.25,1)',fill:'both'});entry.animation=animation;}
-    catch{done();return;}
-    // Both failure and cancellation settle the action; stale completions cannot
-    // affect another photo or a subsequent open/close action.
-    const settle=()=>{if(!active(entry)||entry.animation!==animation)return;entry.animation=null;try{animation.cancel();}catch{}done();};
-    Promise.resolve(animation.finished).then(settle,settle);
+    let token=Symbol('viewer-motion'),started=false;
+    entry.animation=token;
+    animateTransient(image,keyframes,{duration,easing:MOTION_EASING.hover,fill:'both'},{
+      onStart(){started=true;},
+      onFinish(){if(!active(entry)||entry.animation!==token)return;entry.animation=null;done();},
+    });
+    if(!started&&active(entry)&&entry.animation===token){entry.animation=null;done();}
   }
   function fit(entry){
     const width=entry.width,height=entry.height;
@@ -77,7 +80,7 @@ export function createPhotoViewer({document=globalThis.document,window=globalThi
     image.style.visibility='visible';dialog.removeAttribute('aria-busy');
     const origin=source(entry);hideSource(entry,origin?.node);
     const start=origin&&entry.display?transform(origin.rect,entry.display):'none';
-    animate(entry,[{transform:start,opacity:origin?1:0},{transform:'none',opacity:1}],260,()=>{entry.phase='open';image.style.transform='none';image.style.opacity='1';});
+    animate(entry,[{transform:start,opacity:origin?1:0},{transform:'none',opacity:1}],MOTION_DURATION.photoLift,()=>{entry.phase='open';image.style.transform='none';image.style.opacity='1';});
   }
   function resize(){
     const entry=current;if(!entry)return;

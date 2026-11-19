@@ -1,4 +1,6 @@
 import {PAPER} from './paper-format.mjs';
+import {animateTransient,cancelMotion} from './desk-motion.mjs';
+import {MOTION_DURATION,MOTION_EASING} from './motion-tokens.mjs';
 
 const positive=(value,fallback)=>Number.isFinite(value)&&value>0?value:fallback;
 
@@ -19,21 +21,13 @@ export function createPaperEffects({
   };
 
   function motion(state,element,keyframes,options){
-    return new Promise(resolve=>{
-      let animation,settled=false;
-      const finish=completed=>{
-        if(settled)return;settled=true;
-        if(state.cancelAnimation===cancel)state.cancelAnimation=null;
-        try{animation?.cancel();}catch{}
-        resolve(completed&&!state.stopped);
-      };
-      const cancel=()=>finish(false);
-      state.cancelAnimation=cancel;
-      try{
-        if(state.stopped||typeof element?.animate!=='function'){finish(false);return;}
-        animation=element.animate(keyframes,options);
-        Promise.resolve(animation.finished).then(()=>finish(true),()=>finish(false));
-      }catch{finish(false);}
+    if(state.stopped||typeof element?.animate!=='function')return Promise.resolve(false);
+    let cancelled=false;
+    const cancel=()=>{cancelled=true;cancelMotion(element);};
+    state.cancelAnimation=cancel;
+    return animateTransient(element,keyframes,options).then(completed=>{
+      if(state.cancelAnimation===cancel)state.cancelAnimation=null;
+      return completed&&!cancelled&&!state.stopped;
     });
   }
 
@@ -90,7 +84,7 @@ export function createPaperEffects({
       const mouth=slot.bottom-12;
       const approach={left:`${slot.left+slot.width/2-width*fit/2-grab.x*(1-fit)}px`,
         top:`${mouth-paperHeight*fit-grab.y*(1-fit)}px`,transform:`rotate(0deg) scale(${fit})`,transformOrigin:origin};
-      if(!await motion(state,ghost,[from,approach],{duration:180,easing:'cubic-bezier(.2,.72,.3,1)',fill:'forwards'})||!valid())return;
+      if(!await motion(state,ghost,[from,approach],{duration:MOTION_DURATION.approach,easing:MOTION_EASING.approach,fill:'forwards'})||!valid())return;
 
       // Freeze the reached viewport pose before moving the fixed ghost into a
       // viewport-sized clip. No origin reset or wrapper transform can jump it.
@@ -103,7 +97,7 @@ export function createPaperEffects({
       document.body.append(mask);mask.append(ghost);
       const swallowed={...approach,top:`${parseFloat(approach.top)+paperHeight*fit+14}px`};
       cue(slide,state.cues);
-      state.completed=await motion(state,ghost,[approach,swallowed],{duration:300,easing:'cubic-bezier(.36,.08,.5,1)',fill:'forwards'});
+      state.completed=await motion(state,ghost,[approach,swallowed],{duration:MOTION_DURATION.storeFeed,easing:MOTION_EASING.feed,fill:'forwards'});
     }catch{
       // Unavailable layout/WAAPI affects only the flourish, never the quest.
     }finally{state.cancel();}
@@ -134,13 +128,13 @@ export function createPaperEffects({
       const dx=(source.x-rect.left-rect.width/2)/zoom,dy=(source.y-rect.top-rect.height/2)/zoom;
       if(!Number.isFinite(dx)||!Number.isFinite(dy))return;
       const angle=Number.isFinite(rotation)?rotation:0;
-      paper.style.setProperty('--paper-arrival-duration','600ms');paper.classList?.add('paper-arriving');
+      paper.style.setProperty('--paper-arrival-duration',`${MOTION_DURATION.retrieve}ms`);paper.classList?.add('paper-arriving');
       cue('paperUnfold',state.cues);cue('paperDrop',state.cues,456);
       state.completed=await motion(state,paper,[
         {transform:`translate(${dx}px, ${dy}px) rotate(0deg) scale(0.18, 0.08)`,transformOrigin:'50% 50%'},
         {transform:`translate(${dx*.04}px, ${dy*.04}px) rotate(${angle+.7}deg) scale(0.98, 1.04)`,transformOrigin:'50% 50%',offset:.76},
         {transform:`translate(0px, 0px) rotate(${angle}deg) scale(1)`,transformOrigin:'50% 50%'},
-      ],{duration:600,easing:'cubic-bezier(.16,.75,.28,1)',fill:'both'});
+      ],{duration:MOTION_DURATION.retrieve,easing:MOTION_EASING.unfold,fill:'both'});
     }catch{
       // Keep the real paper usable even if the visual animation cannot start.
     }finally{state.cancel();}

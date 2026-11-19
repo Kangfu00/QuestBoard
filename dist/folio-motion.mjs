@@ -1,8 +1,10 @@
 // Match the cover, paper and cord phases in folio-spread.css. The hinge opens
 // for 700ms after untying; closing first squares the paper, then ties the cord.
+import {MOTION_DURATION} from './motion-tokens.mjs';
+
 export const FOLIO_MOTION_TIMING=Object.freeze({
-  open:1020,
-  close:880,
+  open:MOTION_DURATION.folioOpen,
+  close:MOTION_DURATION.folioClose,
   unfold:180,
   refold:130,
   tie:690,

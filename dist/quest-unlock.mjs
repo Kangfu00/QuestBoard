@@ -1,8 +1,10 @@
 import {resolveStampSurface} from './stamp-surfaces.mjs';
+import {animateTransient,cancelMotion} from './desk-motion.mjs';
+import {MOTION_DURATION,MOTION_TIMING} from './motion-tokens.mjs';
 
 const ghosts='.quest-drag-ghost,.quest-bundle-ghost,.paper-turn-ghost,.paper-turn-strip,.folio-closing-ghost,.folder-drag-ghost';
 const availability=['hidden','inert','aria-hidden','style','class','data-side','open','data-id','data-storage-id','data-folio-paper','data-reader-quest','data-open-folder'];
-const duration=780;
+const duration=MOTION_DURATION.questUnlock;
 
 /** A short, local release of the dependency knot; paper state never waits for it. */
 export function createQuestUnlockEffects({document=globalThis.document,window=globalThis.window,reducedMotion=()=>false}={}){
@@ -29,7 +31,7 @@ export function createQuestUnlockEffects({document=globalThis.document,window=gl
   function retire(record){
     if(!records.delete(record))return;
     clearLater(record.timer);
-    for(const animation of record.animations)try{animation.cancel();}catch{}
+    for(const node of record.nodes)cancelMotion(node);
     record.effect.remove();
     if(!records.size){observer?.disconnect();observing=false;}
   }
@@ -53,7 +55,7 @@ export function createQuestUnlockEffects({document=globalThis.document,window=gl
     effect.setAttribute('aria-hidden','true');effect.inert=true;effect.style.pointerEvents='none';
     const ring=child(effect,'quest-unlock-ring'),left=child(effect,'quest-unlock-cord quest-unlock-cord-left'),right=child(effect,'quest-unlock-cord quest-unlock-cord-right'),lock=child(effect,'quest-unlock-lock');
     anchor.append(effect);
-    const record={...current,anchor,effect,animations:[],timer:null};records.add(record);
+    const record={...current,anchor,effect,nodes:[],promises:[],timer:null};records.add(record);
     const motion=[
       [ring,[{opacity:0,transform:'scale(.35)',offset:0},{opacity:.65,transform:'scale(.9)',offset:.25},{opacity:0,transform:'scale(1.8)',offset:1}]],
       [left,[{opacity:.8,transform:'translate(0,0) rotate(0deg)',offset:0},{opacity:.7,transform:'translate(-3px,1px) rotate(-23deg)',offset:.38},{opacity:0,transform:'translate(-8px,3px) rotate(-36deg)',offset:1}]],
@@ -63,12 +65,16 @@ export function createQuestUnlockEffects({document=globalThis.document,window=gl
     try{
       for(const [node,keyframes]of motion){
         if(typeof node.animate!=='function')throw new Error('Animation unavailable');
-        const animation=node.animate(keyframes,{duration,easing:'cubic-bezier(.2,.65,.25,1)',fill:'both'});
-        record.animations.push(animation);
-        // Register rejection handling before another animation can fail to start.
-        Promise.resolve(animation.finished).then(()=>{if(records.has(record)&&record.animations.every(item=>item.playState==='finished'))retire(record);},()=>retire(record));
+        let started=false;
+        record.nodes.push(node);
+        const promise=animateTransient(node,keyframes,MOTION_TIMING.questUnlock,{
+          onStart(){started=true;},
+          onFinish(completed){if(!completed)retire(record);},
+        });
+        if(!started)throw new Error('Animation unavailable');
+        record.promises.push(promise);
       }
-      Promise.all(record.animations.map(animation=>animation.finished)).then(()=>retire(record),()=>retire(record));
+      Promise.all(record.promises).then(()=>retire(record));
       record.timer=later(()=>retire(record),duration+120);
       watch();
     }catch{retire(record);}

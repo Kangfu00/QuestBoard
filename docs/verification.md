@@ -1,5 +1,14 @@
 # Verification
 
+## 2026-11-19 — motion phase 1: shared tokens, unified animateTransient, governance tests & ?motion-debug
+
+- Centralized motion durations and easing curves in `dist/motion-tokens.mjs` and mirrored CSS custom properties (`--dur-*`, `--ease-*`) in `dist/motion-tokens.css` (linked in `dist/index.html`).
+- Routed all 7 direct WAAPI `.animate()` call sites (`app.mjs`, `notebook.mjs`, `paperweight.mjs`, `paper-turn.mjs`, `paper-effects.mjs`, `photo-viewer.mjs`, `quest-unlock.mjs`) through `animateTransient` / `cancelMotion` in `dist/desk-motion.mjs`.
+- Added opt-in `?motion-debug` frame/long-task HUD (`dist/motion-debug.mjs`) with zero runtime overhead when inactive.
+- Added automated governance suite `tests/motion-governance.test.mjs` verifying single-point `.animate()` routing, reduced-motion guards, token sync, `?motion-debug` lifecycle, and `package.json` `check` coverage. Updated `package.json` `check` to cover all 43 `dist/*.mjs` modules and updated `.agent/rules/motion-and-interaction.md`.
+- Full `npm test`: **671 passed, 0 failed, 7 skipped** (native Chromium tests skipped in headless VM without browser env vars). `npm run check`: all 43 `dist/*.mjs` modules plus `server.mjs` and `backup-store.mjs` passed.
+- **Not yet visually verified in a live browser:** rendered animation smoothness, real pointer drag feel, and `?motion-debug` visual HUD layout have not been inspected in a live Chromium window.
+
 ## 2026-11-16 — exact stamping, drawer feed and new quest arrival
 
 - Held pointer stamps persist a paper-local centre. Affine inversion includes current paper scale/shear/rotation and board zoom; ink anchors clip at paper edges, including photo and custom-stamp layouts. Keyboard/menu stamping preserves the existing point; resetting to active clears it. Missing legacy positions normalize to null without a version bump.

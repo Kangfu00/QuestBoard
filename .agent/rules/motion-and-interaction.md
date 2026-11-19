@@ -91,3 +91,11 @@
 - ใช้ท่าเดียวกันกับแฟ้ม กระดาษ และป้าย
 - ปล่อย ghost/mask/คลาสชั่วคราวค้างใน DOM หลังเสร็จหรือถูกยกเลิก
 - เปลี่ยนแปลงพิกัดที่เก็บจริงเพื่อให้อนิเมชันสวย (อนิเมชันมีผลทางภาพเท่านั้น)
+---
+
+## 6. กติกากลางและการตรวจสอบอัตโนมัติ (Phase 1)
+
+- **ค่าเวลาและ easing กลาง (`dist/motion-tokens.mjs` + `dist/motion-tokens.css`):** ห้ามตั้งค่าเวลาหรือ `cubic-bezier(...)` ใหม่กระจัดกระจายเอง ให้ import จาก `MOTION_DURATION`, `MOTION_EASING`, `MOTION_TIMING` หรือใช้ตัวแปร CSS (`--dur-*`, `--ease-*`) แทน
+- **ทุก `.animate(` ต้องผ่าน `animateTransient`:** ห้ามเรียก `element.animate(...)` โดยตรงในโมดูลอื่นนอก `dist/desk-motion.mjs` เพื่อให้ทุกอนิเมชันมีการยกเลิก (cleanup) ที่ปลอดภัยและถูกตรวจสอบโดย `tests/motion-governance.test.mjs`
+- **ตรวจ reduced-motion เสมอ:** ทุกโมดูลที่เรียก `animateTransient` ต้องตรวจ `reducedMotion` / `prefers-reduced-motion` ก่อนเล่นอนิเมชัน
+- **เครื่องมือวัดเฟรม (`?motion-debug`):** เปิดผ่าน URL `?motion-debug` (`dist/motion-debug.mjs`) เพื่อดู FPS, เฟรมที่เกิน 24ms, Long Tasks และจำนวน WAAPI ที่ทำงานอยู่ โดยไม่มีค่าใช้จ่ายเมื่อไม่ได้เปิดพารามิเตอร์นี้
