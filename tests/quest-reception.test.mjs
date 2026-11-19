@@ -58,10 +58,16 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
 
     const node = {
       tagName: tag.toUpperCase(),
+      offsetWidth: tag.toLowerCase() === 'aside' ? 440 : 396,
+      offsetHeight: 620,
       style: {
         setProperty: (k, v) => customProps.set(k, String(v)),
         getPropertyValue: k => customProps.get(k) || '',
+        removeProperty: k => customProps.delete(k),
       },
+      setPointerCapture: () => {},
+      hasPointerCapture: () => false,
+      releasePointerCapture: () => {},
       parentNode: null,
       children,
       classList: {
@@ -123,15 +129,15 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       },
       getBoundingClientRect: () => {
         if (node.classList.contains('reception-tray')) {
-          return { left: 18, top: 90, width: 334, height: 420, right: 352, bottom: 510 };
+          return { left: 20, top: 85, width: 388, height: 450, right: 408, bottom: 535 };
         }
         if (node.classList.contains('reception-slot')) {
-          return { left: 24, top: 96, width: 322, height: 408, right: 346, bottom: 504 };
+          return { left: 24, top: 90, width: 380, height: 440, right: 404, bottom: 530 };
         }
         if (node.classList.contains('reception-drawer-handle')) {
-          return { left: 370, top: 54, width: 44, height: 140, right: 414, bottom: 194 };
+          return { left: 396, top: 50, width: 44, height: 150, right: 440, bottom: 200 };
         }
-        return { left: 0, top: 18, width: 370, height: 620, right: 370, bottom: 638 };
+        return { left: 0, top: 18, width: 440, height: 630, right: 440, bottom: 648 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
@@ -386,13 +392,13 @@ test('checkDrop detects drop coordinates over tray or drawer handle', () => {
     window: env.window,
   });
 
-  // Tray bounds: left: 18, top: 90, width: 334, height: 420 (right: 352, bottom: 510)
+  // Tray bounds: left: 20, top: 85, width: 388, height: 450 (right: 408, bottom: 535)
   assert.equal(reception.checkDrop({ x: 50, y: 150 }), true, 'Point inside tray accepted');
-  assert.equal(reception.checkDrop({ x: 18, y: 90 }), true, 'Top-left of tray accepted');
-  assert.equal(reception.checkDrop({ x: 352, y: 510 }), true, 'Bottom-right of tray accepted');
+  assert.equal(reception.checkDrop({ x: 20, y: 85 }), true, 'Top-left of tray accepted');
+  assert.equal(reception.checkDrop({ x: 408, y: 535 }), true, 'Bottom-right of tray accepted');
 
-  // Handle bounds: left: 370, top: 54, right: 414, bottom: 194
-  assert.equal(reception.checkDrop({ x: 380, y: 100 }), true, 'Point over handle accepted');
+  // Handle bounds: left: 396, top: 50, right: 440, bottom: 200
+  assert.equal(reception.checkDrop({ x: 410, y: 100 }), true, 'Point over handle accepted');
 
   // Far points rejected
   assert.equal(reception.checkDrop({ x: 600, y: 300 }), false, 'Point in center desk rejected');
@@ -503,6 +509,54 @@ test('ringing bell with quest triggers turnin, stamp impact, mana origin, and di
   assert.equal(env.turnedIn.length, 1, 'onTurnIn callback called');
   assert.equal(env.turnedIn[0].quest.id, 'quest-404', 'Turned in quest matches');
   assert.ok(env.turnedIn[0].meta?.origin, 'Origin point passed for blue mana arc');
+
+  reception.destroy();
+});
+
+test('dragging reception drawer handle pulls open and pushes closed', () => {
+  const env = createMockEnvironment();
+  const reception = createQuestReception({
+    surface: env.rootSurface,
+    document: env.document,
+    window: env.window,
+    onCue: env.onCue,
+  });
+
+  const handle = reception.element.querySelector('.reception-drawer-handle');
+  assert.equal(reception.isOpen, false, 'Initially closed');
+
+  // 1. Pull open past 45% threshold (travel is 440 - 44 = 396px; 45% is ~178px; pull by 220px)
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 1, clientX: 0 });
+  assert.equal(reception.element.classList.contains('is-pulling'), true, 'Marked is-pulling while dragging');
+
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 1, clientX: 220 });
+  assert.equal(reception.element.style.getPropertyValue('--reception-reveal'), '220px', 'Sets reveal CSS variable');
+
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 1, clientX: 220 });
+  assert.equal(reception.element.classList.contains('is-pulling'), false, 'is-pulling removed on release');
+  assert.equal(reception.isOpen, true, 'Drawer snapped open');
+  assert.ok(env.soundCues.includes('drawerOpen'), 'drawerOpen sound cue triggered');
+
+  // 2. Drag to close (push left from 396 to 100px, which is < 45% threshold)
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 2, clientX: 396 });
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 2, clientX: 100 });
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 2, clientX: 100 });
+  assert.equal(reception.isOpen, false, 'Drawer snapped closed');
+  assert.ok(env.soundCues.includes('drawerClose'), 'drawerClose sound cue triggered');
+
+  // 3. Small pull below threshold (pull by 60px < 178px) snaps back to closed
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 3, clientX: 0 });
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 3, clientX: 60 });
+  handle.dispatchEvent({ type: 'pointerup', pointerId: 3, clientX: 60 });
+  assert.equal(reception.isOpen, false, 'Drawer remained closed because pull was below 45%');
+
+  // 4. Cancelled pointer restores previous state
+  reception.open();
+  assert.equal(reception.isOpen, true);
+  handle.dispatchEvent({ type: 'pointerdown', button: 0, pointerId: 4, clientX: 396 });
+  handle.dispatchEvent({ type: 'pointermove', pointerId: 4, clientX: 50 });
+  handle.dispatchEvent({ type: 'pointercancel', pointerId: 4 });
+  assert.equal(reception.isOpen, true, 'Drawer remains open when gesture cancelled');
 
   reception.destroy();
 });

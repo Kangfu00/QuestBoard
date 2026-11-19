@@ -1,6 +1,6 @@
 /* ==========================================================================
-   The Questboard — Guild Quest Reception Drawer (ลิ้นชักเคาน์เตอร์ส่งเควส)
-   Left-rim slide-out drawer with counter service bell & velvet turn-in tray.
+   The Questboard — Guild Quest Reception Counter Drawer (ลิ้นชักเคาน์เตอร์ส่งเควส)
+   Left-rim slide-out drawer with service bell & spacious velvet turn-in tray.
    ========================================================================== */
 
 /* --------------------------------------------------------------------------
@@ -12,21 +12,21 @@
   left: 0;
   right: auto;
   bottom: auto;
-  width: min(370px, calc(100vw - 48px));
-  height: min(680px, calc(100dvh - 220px));
+  width: min(440px, calc(100vw - 44px));
+  height: min(640px, calc(100dvh - 220px));
   display: flex;
   flex-direction: row;
   align-items: stretch;
   z-index: 150;
   pointer-events: none;
-  transform: translateX(calc(-100% + 44px));
-  transition: transform 380ms cubic-bezier(.22, .8, .24, 1);
-  filter: drop-shadow(6px 0 16px rgba(16, 9, 4, 0.45));
+  --reception-reveal: 0px;
+  transform: translateX(calc(-100% + 44px + var(--reception-reveal, 0px)));
+  transition: transform 340ms cubic-bezier(.22, .8, .24, 1);
+  filter: drop-shadow(6px 0 18px rgba(16, 9, 4, 0.45));
 }
 
-.quest-drawer.left-reception.is-open,
-.quest-drawer.left-reception.receiving {
-  transform: translateX(0);
+.quest-drawer.left-reception.is-open {
+  transform: translateX(calc(var(--reception-reveal, 0px)));
 }
 
 .quest-drawer.left-reception.is-pulling {
@@ -36,15 +36,15 @@
 /* Drawer Handle (Vertical brass/leather tab peeking out on desk's left rim) */
 .reception-drawer-handle {
   width: 44px;
-  height: 140px;
+  height: 150px;
   min-height: 0;
   flex: 0 0 44px;
-  margin: 36px 0 0 0;
+  margin: 32px 0 0 0;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 12px 6px;
+  padding: 14px 6px;
   gap: 10px;
   border: 1.5px solid #5a3818;
   border-left: 0;
@@ -57,11 +57,16 @@
     inset -2px 0 0 #cc9e5a47,
     inset 3px 0 3px #24160d75,
     3px 2px 8px rgba(16, 9, 4, 0.35);
-  cursor: pointer;
+  cursor: grab;
+  touch-action: none;
   pointer-events: auto;
   user-select: none;
   outline: none;
   transition: color 180ms ease, background 180ms ease, box-shadow 180ms ease;
+}
+
+.quest-drawer.left-reception.is-pulling .reception-drawer-handle {
+  cursor: grabbing;
 }
 
 .reception-drawer-handle:hover {
@@ -126,7 +131,7 @@
   height: 100%;
   width: auto;
   box-sizing: border-box;
-  padding: 16px 16px 14px 18px;
+  padding: 16px 18px 14px 20px;
   border: 5px solid #51341e;
   border-left: 0;
   border-radius: 0 8px 8px 0;
@@ -136,7 +141,7 @@
     inset 0 2px 4px rgba(255, 235, 190, 0.1);
   pointer-events: auto;
   overflow: hidden;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* Header */
@@ -151,7 +156,7 @@
 
 .reception-header-title h2 {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 600;
   color: #ebd1a2;
   margin: 0;
@@ -196,7 +201,7 @@
   background: linear-gradient(180deg, #3d2311 0%, #291609 100%);
   border: 1px solid #5c3716;
   border-radius: 8px;
-  padding: 8px 12px;
+  padding: 8px 14px;
   box-shadow: inset 0 1px 2px rgba(255, 235, 190, 0.12), 0 2px 4px rgba(0, 0, 0, 0.35);
   position: relative;
 }
@@ -204,7 +209,7 @@
 .reception-bell-wrap {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 /* --------------------------------------------------------------------------
@@ -306,7 +311,7 @@
 
 .reception-bell-hint {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 11px;
+  font-size: 11.5px;
   color: #d8bc88;
   white-space: nowrap;
 }
@@ -344,7 +349,7 @@
 }
 
 /* --------------------------------------------------------------------------
-   4. Velvet Turn-In Bed (Spacious enough to hold full A4 Quest Paper)
+   4. Velvet Turn-In Bed (Spacious, Wide & Balanced Proportion)
    -------------------------------------------------------------------------- */
 .reception-tray-container {
   flex: 1;
@@ -356,7 +361,9 @@
 .reception-tray {
   position: relative;
   flex: 1;
-  min-height: 380px;
+  width: 100%;
+  min-height: 420px;
+  max-height: 490px;
   border-radius: 8px;
   background: linear-gradient(135deg, #4d2f16 0%, #301a08 50%, #1e0e03 100%);
   border: 2px solid #94713c;
@@ -364,7 +371,7 @@
     inset 0 1px 1px #ffebbe66,
     inset 0 -2px 4px #1a0c04aa,
     0 4px 14px rgba(16, 9, 4, 0.4);
-  padding: 8px;
+  padding: 10px;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -385,7 +392,7 @@
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 5px;
+  border-radius: 6px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -405,15 +412,15 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: 10px;
   pointer-events: none;
-  padding: 20px;
+  padding: 24px;
   text-align: center;
 }
 
 .reception-tray-rune {
-  width: 54px;
-  height: 54px;
+  width: 58px;
+  height: 58px;
   opacity: 0.22;
   color: #cbb47b;
   display: flex;
@@ -434,21 +441,21 @@
 
 .reception-tray-label {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 11px;
-  letter-spacing: 2px;
+  font-size: 12px;
+  letter-spacing: 2.2px;
   color: #c6ab76;
-  opacity: 0.65;
+  opacity: 0.7;
 }
 
 .reception-tray-instruction {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 11px;
+  font-size: 12px;
   color: #8fa389;
-  opacity: 0.6;
+  opacity: 0.65;
 }
 
 /* --------------------------------------------------------------------------
-   5. Resting Quest Paper Preview (Full A4 proportion & rich parchment)
+   5. Resting Quest Paper Preview (Wide & Proportional to Real Quest Sheet)
    -------------------------------------------------------------------------- */
 .reception-slot {
   position: relative;
@@ -462,10 +469,10 @@
 
 .reception-paper-preview {
   position: relative;
-  width: 100%;
-  max-width: 290px;
+  width: min(320px, 100%);
   height: calc(100% - 10px);
   min-height: 380px;
+  max-height: 450px;
   box-sizing: border-box;
   background:
     radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.4) 0%, transparent 40%),
@@ -476,7 +483,7 @@
     0 8px 24px rgba(10, 5, 2, 0.65),
     inset 0 0 0 1px #ffebc688,
     inset 0 0 12px #3d230e20;
-  padding: 16px 14px;
+  padding: 18px 16px;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -500,7 +507,7 @@
 
 .reception-paper-tag {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 9px;
+  font-size: 9.5px;
   letter-spacing: 1.2px;
   color: #6e461f;
   font-weight: 700;
@@ -513,7 +520,7 @@
   color: #2e5920;
   background: #e0eed2;
   border: 1px solid #76a862;
-  padding: 1px 6px;
+  padding: 1px 7px;
   border-radius: 4px;
 }
 
@@ -522,13 +529,13 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  padding: 12px 0;
-  gap: 8px;
+  padding: 14px 0;
+  gap: 10px;
 }
 
 .reception-paper-title {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: #241306;
   line-height: 1.4;
@@ -537,11 +544,11 @@
 
 .reception-paper-desc {
   font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 11px;
+  font-size: 11.5px;
   color: #593e22;
-  line-height: 1.5;
+  line-height: 1.55;
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 5;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -556,7 +563,7 @@
 
 .reception-withdraw-btn {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 10px;
+  font-size: 10.5px;
   color: #7d4924;
   background: #f3dfba;
   border: 1px solid #94693b;
@@ -576,7 +583,7 @@
 
 .reception-paper-prompt {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 10px;
+  font-size: 10.5px;
   font-weight: 600;
   color: #8c5b20;
 }
@@ -589,8 +596,8 @@
   top: 45%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-8deg) scale(0.9);
-  width: 220px;
-  height: 64px;
+  width: 230px;
+  height: 68px;
   border: 3.5px double #a8201a;
   border-radius: 8px;
   background: rgba(220, 40, 30, 0.08);
@@ -607,7 +614,7 @@
 
 .reception-stamp-mark {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   letter-spacing: 3px;
   color: #a8201a;

@@ -1,6 +1,6 @@
 /**
  * The Questboard — Guild Quest Reception Counter Drawer
- * Left-rim slide-out drawer with service bell & velvet turn-in tray.
+ * Left-rim draggable slide-out drawer with service bell & velvet turn-in tray.
  */
 
 import { pickReceptionistQuote, canReceiveQuest } from './quest-reception-model.mjs';
@@ -61,7 +61,11 @@ export function createQuestReception({
   let isSubmitting = false;
   let speechTimer = null;
   let autoCloseTimer = null;
+  let dissolveTimer = null;
+  let finishTimer = null;
   let isOpen = false;
+  let gesture = null;
+  let suppressClickUntil = 0;
 
   // Root Drawer Element
   const drawer = document.createElement('aside');
@@ -109,7 +113,7 @@ export function createQuestReception({
         </div>
       </div>
     </div>
-    <button type="button" class="reception-drawer-handle" id="reception-drawer-handle" aria-label="เปิดลิ้นชักเคาน์เตอร์ส่งเควส" aria-expanded="false" aria-controls="reception-drawer-content">
+    <button type="button" class="reception-drawer-handle" id="reception-drawer-handle" aria-label="ดึงเพื่อเปิด/ปิดลิ้นชักเคาน์เตอร์ส่งเควส" aria-expanded="false" aria-controls="reception-drawer-content">
       <div class="reception-handle-icon">${shieldIcon}</div>
       <span class="reception-handle-text">ส่งมอบเควส</span>
       <b class="reception-handle-badge" id="reception-badge" hidden>1</b>
@@ -126,20 +130,37 @@ export function createQuestReception({
   const speechBubble = drawer.querySelector('.reception-speech-bubble');
   const badgeEl = drawer.querySelector('.reception-handle-badge');
 
+  const travel = () => Math.max(0, (drawer.offsetWidth || 396) - 44);
+
+  const setReveal = px => {
+    drawer.style.setProperty('--reception-reveal', `${Math.round(px)}px`);
+  };
+
+  const sync = open => {
+    isOpen = open;
+    drawer.classList.toggle('is-open', open);
+    handleBtn.setAttribute('aria-expanded', String(open));
+    if (open) {
+      setReveal(travel());
+    } else {
+      if (typeof drawer.style?.removeProperty === 'function') {
+        drawer.style.removeProperty('--reception-reveal');
+      } else if (drawer.style) {
+        delete drawer.style['--reception-reveal'];
+      }
+    }
+  };
+
   function openDrawer() {
     if (isOpen) return;
-    isOpen = true;
-    drawer.classList.add('is-open');
-    handleBtn.setAttribute('aria-expanded', 'true');
     onCue?.('drawerOpen');
+    sync(true);
   }
 
   function closeDrawer() {
     if (!isOpen) return;
-    isOpen = false;
-    drawer.classList.remove('is-open');
-    handleBtn.setAttribute('aria-expanded', 'false');
     onCue?.('drawerClose');
+    sync(false);
   }
 
   function toggleDrawer() {
@@ -147,8 +168,66 @@ export function createQuestReception({
     else openDrawer();
   }
 
+  // Drag-to-pull & Drag-to-push Gesture Handling on Handle
+  handleBtn.addEventListener('pointerdown', e => {
+    if (e.button !== 0) return;
+    const currentTravel = travel();
+    const currentReveal = isOpen ? currentTravel : 0;
+    gesture = {
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startReveal: currentReveal,
+      currentReveal,
+      moved: false,
+    };
+    drawer.classList.add('is-pulling');
+    setReveal(currentReveal);
+    try {
+      handleBtn.setPointerCapture(e.pointerId);
+    } catch {}
+  });
+
+  handleBtn.addEventListener('pointermove', e => {
+    if (!gesture || e.pointerId !== gesture.pointerId) return;
+    const dx = e.clientX - gesture.startX;
+    if (Math.abs(dx) > 4) {
+      gesture.moved = true;
+    }
+    const currentTravel = travel();
+    gesture.currentReveal = Math.max(0, Math.min(currentTravel, gesture.startReveal + dx));
+    setReveal(gesture.currentReveal);
+  });
+
+  const finishPull = (e, cancelled = false) => {
+    if (!gesture || e.pointerId !== gesture.pointerId) return;
+    const prev = gesture;
+    gesture = null;
+    try {
+      if (handleBtn.hasPointerCapture(e.pointerId)) {
+        handleBtn.releasePointerCapture(e.pointerId);
+      }
+    } catch {}
+    drawer.classList.remove('is-pulling');
+
+    const currentTravel = travel();
+    if (prev.moved && !cancelled) {
+      suppressClickUntil = performance.now() + 350;
+      const shouldOpen = prev.currentReveal >= currentTravel * 0.45;
+      if (shouldOpen !== isOpen) {
+        onCue?.(shouldOpen ? 'drawerOpen' : 'drawerClose');
+      }
+      sync(shouldOpen);
+    } else if (cancelled) {
+      sync(isOpen);
+    }
+  };
+
+  handleBtn.addEventListener('pointerup', e => finishPull(e, false));
+  handleBtn.addEventListener('pointercancel', e => finishPull(e, true));
+
   handleBtn.addEventListener('click', e => {
     e.stopPropagation();
+    if (performance.now() < suppressClickUntil) return;
     toggleDrawer();
   });
 
@@ -285,10 +364,12 @@ export function createQuestReception({
         onTurnIn?.(quest, { origin });
 
         // Trigger paper dissolving animation
-        setTimeout(() => {
+        clearTimeout(dissolveTimer);
+        clearTimeout(finishTimer);
+        dissolveTimer = setTimeout(() => {
           previewEl.classList.add('is-dissolving');
 
-          setTimeout(() => {
+          finishTimer = setTimeout(() => {
             currentQuest = null;
             slotEl.innerHTML = '';
             bellBtn.classList.remove('has-quest');
@@ -343,7 +424,7 @@ export function createQuestReception({
   }
 
   function setScale(newScale) {
-    // Left drawer scales naturally with viewport
+    // Drawer scales naturally with viewport
   }
 
   function destroy() {
@@ -354,6 +435,14 @@ export function createQuestReception({
     if (autoCloseTimer) {
       clearTimeout(autoCloseTimer);
       autoCloseTimer = null;
+    }
+    if (dissolveTimer) {
+      clearTimeout(dissolveTimer);
+      dissolveTimer = null;
+    }
+    if (finishTimer) {
+      clearTimeout(finishTimer);
+      finishTimer = null;
     }
     cancelMotion(drawer);
     try {
