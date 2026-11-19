@@ -33,7 +33,7 @@ import {bindCoverEditor,renderCoverEditorFields} from './cover-editor.mjs';
 import {createPaperweight,paperweightFace} from './paperweight.mjs';
 import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './photo-sheet.mjs';
 import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
-import {burnStage,burnVariant,msUntilNextMidnight} from './burn-model.mjs';
+import {burnStage,burnVariant,msUntilNextMidnight,installBurnLayers} from './burn-model.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -1705,6 +1705,7 @@ function syncBurnStages(){
 }
 function startBoard(){
   createMotionDebug({document,window});
+  installBurnLayers(document);
   state=ensureDailyBook(ensureNotebook(ensureTrayPositions(state)));
   shell();persist();
   syncBurnStages();

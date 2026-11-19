@@ -6,9 +6,12 @@ import {
   burnStage,
   burnVariant,
   msUntilNextMidnight,
-  generateBurnMaskSvg,
-  burnMaskDataUri,
-  BURN_MASKS,
+  BURN_VARIANTS,
+  burnEdgePoints,
+  generateBurnLayerSvg,
+  svgDataUri,
+  burnLayerCss,
+  installBurnLayers,
 } from '../dist/burn-model.mjs';
 
 test('burnStage returns 0 for non-active quests regardless of due date', () => {
@@ -97,29 +100,78 @@ test('msUntilNextMidnight calculates milliseconds until next local midnight', ()
   assert.equal(msNear, 2000);
 });
 
-test('generateBurnMaskSvg produces valid, deterministic SVG masks', () => {
-  const svg0 = generateBurnMaskSvg(0);
-  const svg0Again = generateBurnMaskSvg(0);
-  assert.equal(svg0, svg0Again, 'Same variant must generate identical SVG');
-
-  const svg1 = generateBurnMaskSvg(1);
-  assert.notEqual(svg0, svg1, 'Different variants should produce distinct SVG paths');
-
-  for (let v = 0; v < 4; v++) {
-    const svg = generateBurnMaskSvg(v);
-    assert.ok(svg.startsWith('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 420">'));
-    assert.ok(svg.includes('fill-rule="evenodd"'));
-    assert.ok(svg.endsWith('</svg>'));
+test('burnEdgePoints is deterministic, distinct per variant and stays on the paper', () => {
+  const a = burnEdgePoints(0, 20);
+  assert.deepEqual(a, burnEdgePoints(0, 20));
+  assert.notDeepEqual(a, burnEdgePoints(1, 20));
+  assert.equal(a.length, 48);
+  for (const [x, y] of a) {
+    assert.ok(x >= 0 && x <= 300 && y >= 0 && y <= 424, `point ${x},${y} left the paper`);
   }
 });
 
-test('burnMaskDataUri and BURN_MASKS provide usable data URIs', () => {
-  assert.equal(BURN_MASKS.length, 4);
-  for (let i = 0; i < 4; i++) {
-    const uri = burnMaskDataUri(i);
-    assert.ok(uri.startsWith('data:image/svg+xml;charset=utf-8,'));
-    assert.equal(BURN_MASKS[i], uri);
-    const decoded = decodeURIComponent(uri.replace('data:image/svg+xml;charset=utf-8,', ''));
-    assert.ok(decoded.includes('<svg'));
+test('a deeper burn edge sits further inside the paper on average', () => {
+  const mean = points => points.reduce((sum, [x, y]) => sum + Math.min(x, 300 - x, y, 424 - y), 0) / points.length;
+  assert.ok(mean(burnEdgePoints(2, 30)) > mean(burnEdgePoints(2, 8)));
+});
+
+test('generateBurnLayerSvg draws halo for stages 1-4 but char and ember only for stages 3-4', () => {
+  for (let v = 0; v < BURN_VARIANTS; v++) {
+    for (let stage = 1; stage <= 4; stage++) {
+      const halo = generateBurnLayerSvg('halo', v, stage);
+      assert.ok(halo.startsWith("<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 424'"));
+      assert.ok(halo.endsWith('</svg>'));
+      for (const layer of ['char', 'ember']) {
+        const svg = generateBurnLayerSvg(layer, v, stage);
+        assert.equal(svg === '', stage < 3, `${layer} stage ${stage}`);
+      }
+    }
   }
+  assert.equal(generateBurnLayerSvg('halo', 0, 0), '');
+  assert.throws(() => generateBurnLayerSvg('smoke', 0, 3), RangeError);
+});
+
+test('burn layers are deterministic and differ by variant and by stage', () => {
+  assert.equal(generateBurnLayerSvg('halo', 1, 2), generateBurnLayerSvg('halo', 1, 2));
+  assert.notEqual(generateBurnLayerSvg('halo', 0, 2), generateBurnLayerSvg('halo', 1, 2));
+  assert.notEqual(generateBurnLayerSvg('char', 0, 3), generateBurnLayerSvg('char', 0, 4));
+});
+
+test('char and ember share the same edge so the glow sits on the char line', () => {
+  const char = generateBurnLayerSvg('char', 2, 3);
+  const ember = generateBurnLayerSvg('ember', 2, 3);
+  const fray = svg => svg.match(/seed='(\d+)'/)[1];
+  assert.equal(fray(char), fray(ember));
+});
+
+test('svgDataUri is safe inside a double-quoted CSS url()', () => {
+  const uri = svgDataUri(generateBurnLayerSvg('halo', 0, 3));
+  assert.ok(uri.startsWith('data:image/svg+xml,'));
+  assert.doesNotMatch(uri.slice('data:image/svg+xml,'.length), /[#<>"]/);
+});
+
+test('burnLayerCss binds every stage and variant to its layers', () => {
+  const css = burnLayerCss();
+  for (let stage = 1; stage <= 4; stage++) {
+    for (let v = 0; v < BURN_VARIANTS; v++) {
+      assert.ok(css.includes(`.paper-burn[data-burn="${stage}"][data-burn-variant="${v}"]`), `stage ${stage} variant ${v}`);
+    }
+  }
+  assert.equal(css.split('\n').length, 16 + 8 + 8);
+  assert.equal(css.match(/\)::before\{/g).length, 8);
+  assert.equal(css.match(/\)::after\{/g).length, 8);
+});
+
+test('installBurnLayers adds the style once and tolerates a missing document', () => {
+  const added = [];
+  const doc = {
+    head: { querySelector: () => added[0] ?? null, append: el => added.push(el) },
+    createElement: () => ({ attrs: {}, setAttribute(k, v) { this.attrs[k] = v; } }),
+  };
+  assert.equal(installBurnLayers(doc), true);
+  assert.equal(installBurnLayers(doc), false);
+  assert.equal(added.length, 1);
+  assert.ok('data-burn-layers' in added[0].attrs);
+  assert.ok(added[0].textContent.includes('data-burn="4"'));
+  assert.equal(installBurnLayers(null), false);
 });

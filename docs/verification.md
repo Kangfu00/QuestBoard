@@ -1,5 +1,15 @@
 # Verification
 
+## 2026-11-19 — paper burn visual rework: scorch / char / ember layers along one frayed edge
+
+- **Why:** the first version cut a ragged line into a soft brown shadow and drew a straight copper line on the paper's outer border, so it read as torn, aged paper rather than fire. The ragged line had no visual edge of its own and the ember did not follow it.
+- **Layers (`dist/burn-model.mjs`):** `generateBurnLayerSvg(layer, variant, stage)` draws `halo` (yellow toasting then brown scorch fading inward, stages 1–4), `char` (black crust hugging the edge, stages 3–4) and `ember` (broken glowing line with a few hot specks, stages 3–4). All three use the same seeded outline (`burnEdgePoints`: slow waves, a few deep bites — two at corners — and jitter, smoothed with a closed Catmull-Rom spline) and the same `feTurbulence` + `feDisplacementMap` seed, so the ember sits exactly on the char line and the edge frays instead of curving smoothly.
+- **Stages:** 1–2 are soft toasting with no edge line; 3 adds a thin char band and a flickering ember; 4 has a thick char rim and a dulled, non-animated ember.
+- **Wiring:** images are generated at startup by `installBurnLayers(document)` (`app.mjs`, `startBoard`) into one `<style data-burn-layers>` (about 146 KB, about 21 ms). `dist/paper-burn.css` now holds only structure and motion. No new data fields, no new build step, no new files in the `check` script.
+- **Stacking:** the burn layer moved from `z-index: 2` to `0`, so positioned text (date, metadata, description) and the ink layer paint above it and the overdue date stays readable.
+- **Tests:** `node --test` — 694 pass, 0 fail, 7 skipped (browser-dependent). `npm run check` passes. New tests cover the edge outline, layer availability per stage, shared fray seed, data URI safety, the 16 + 8 + 8 generated rules and `installBurnLayers` idempotence. Old tests for the removed mask helpers were replaced.
+- **Not verified:** the result has **not** been viewed in a real browser. Only the SVG layers were rendered with resvg and composited over a flat paper colour to judge shape and colour. CSS compositing on the real paper (`paper-noise`, the three `paper-N` backgrounds), the flicker animation, the extinguish flourish and drag behaviour still need a look in the browser. Edge depth, ember brightness and scorch alpha are constants at the top of `burn-model.mjs` (`HALO_DEPTH`, `CHAR_DEPTH`, `HALO_ALPHA`).
+
 ## 2026-11-19 — paper burn & urgency system: pure calculation model, deterministic masks, CSS char/ember, midnight/visibility sync & extinguish flourish
 
 - **Pure calculation burn model (`dist/burn-model.mjs`):** `burnStage(due, today, status)` computes stages 0–4 (none, upcoming 2–3 days, tomorrow, today, overdue) using local dates and UTC midday to eliminate DST skew. Pure and ephemeral; no extra state stored in database or backups.
