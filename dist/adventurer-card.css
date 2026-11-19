@@ -1,6 +1,6 @@
 /* ==========================================================================
-   The Questboard — Adventurer Card (บัตรนักผจญภัย)
-   ID-1 format engraved metal card, magnetic desk dock, 3D flip, and blue mana light.
+   The Questboard — Adventurer Identification Card (บัตรประจำตัวนักผจญภัย)
+   Substantial fantasy guild ID card, magnetic desk dock, 3D flip, and blue mana light.
    ========================================================================== */
 
 /* Magnetic Dock Slot on Desk Surface Frame */
@@ -8,11 +8,11 @@
   position: absolute;
   left: 18px;
   bottom: 18px;
-  width: 160px;
-  height: 101px;
-  border-radius: 8px;
+  width: 260px;
+  height: 164px;
+  border-radius: 10px;
   border: 1.5px dashed #7a583255;
-  box-shadow: inset 0 0 10px #180e0766;
+  box-shadow: inset 0 0 12px #180e0766;
   pointer-events: none;
   z-index: 38;
   box-sizing: border-box;
@@ -23,24 +23,24 @@
 }
 
 .adventurer-dock-slot::after {
-  content: "ช่องเก็บบัตร";
+  content: "✦ ช่องเก็บบัตรประจำตัวนักผจญภัย ✦";
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 10px;
-  color: #7a583244;
-  letter-spacing: 0.5px;
+  font-size: 11px;
+  color: #7a583255;
+  letter-spacing: 0.8px;
 }
 
 .adventurer-dock-slot.is-hovered {
-  border-color: #b89b62aa;
-  box-shadow: inset 0 0 14px #b89b6233, 0 0 8px #b89b6244;
+  border-color: #ecd08faa;
+  box-shadow: inset 0 0 16px #b89b6244, 0 0 12px #e2bf7566;
 }
 
 /* Adventurer Card Interactive Container */
 .adventurer-card {
   position: absolute;
-  width: 160px;
-  height: 101px;
-  border-radius: 8px;
+  width: 260px;
+  height: 164px;
+  border-radius: 10px;
   z-index: 40;
   cursor: grab;
   user-select: none;
@@ -48,7 +48,7 @@
   margin: 0;
   background: transparent;
   border: none;
-  perspective: 600px;
+  perspective: 1000px;
   -webkit-tap-highlight-color: transparent;
   box-sizing: border-box;
   touch-action: none;
@@ -65,13 +65,14 @@
   outline-offset: 3px;
 }
 
-/* 3D Flippable Card Plane */
+/* 3D Flippable Card Plane (Strictly Y-Axis Flip) */
 .adventurer-card-inner {
   position: relative;
   width: 100%;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 10px;
   transform-style: preserve-3d;
+  transform: rotateY(0deg);
   transition: transform var(--dur-card-flip, 520ms) cubic-bezier(.22, .8, .24, 1);
   will-change: transform;
 }
@@ -80,160 +81,328 @@
   transform: rotateY(180deg);
 }
 
-/* Front and Back Metallic Sheet Faces */
+/* Front and Back Card Faces */
 .adventurer-card-face {
   position: absolute;
   inset: 0;
   backface-visibility: hidden;
-  border-radius: 8px;
-  border: 1px solid #3c2512;
+  -webkit-backface-visibility: hidden;
+  transform-style: preserve-3d;
+  border-radius: 10px;
+  border: 1.5px solid #5a3818;
   box-sizing: border-box;
   overflow: hidden;
-  background: linear-gradient(142deg, #dfc88f 0%, #b89b62 30%, #825f36 70%, #4d3a22 100%);
+  background: linear-gradient(138deg, #f7eed7 0%, #ecd9b3 35%, #dfc594 70%, #caa66d 100%);
   box-shadow:
-    inset 1px 1px 1px #fff0b880,
-    inset -1px -1px 2px #261608bb,
-    calc(var(--light-x, 2px) * var(--lift, 1)) calc(var(--light-y, 3px) * var(--lift, 1)) 8px #150c0799;
+    inset 0 0 0 1px #ecd19d,
+    inset 0 0 0 2.5px #7a502640,
+    inset 0 0 16px #3d230e25,
+    calc(var(--light-x, 2px) * var(--lift, 1)) calc(var(--light-y, 3px) * var(--lift, 1)) 12px #120a0588;
   padding: 8px 10px;
   display: flex;
   flex-direction: column;
+}
+
+.adventurer-card-face.front {
+  transform: rotateY(0deg);
+}
+
+.adventurer-card-face.back {
+  transform: rotateY(180deg);
   justify-content: space-between;
 }
 
-/* Ornate Inner Border Line */
-.adventurer-card-face::before {
-  content: "";
+/* Ornate Inner Filigree Border */
+.adventurer-card-rune-border {
   position: absolute;
   inset: 3px;
-  border: 1px solid #3d271466;
-  border-radius: 5px;
+  border: 1px solid #734c2250;
+  border-radius: 7px;
   pointer-events: none;
-  box-shadow: inset 0 1px 0 #fff3c933;
+  box-shadow: inset 0 1px 0 #fff8dc80, 0 1px 0 #fff8dc40;
 }
 
-/* Dynamic Specular Sheen (moves with tilt angle) */
+/* Corner Filigree Ornaments */
+.adventurer-corner {
+  position: absolute;
+  width: 9px;
+  height: 9px;
+  border-color: #633f1b;
+  border-style: solid;
+  pointer-events: none;
+  z-index: 3;
+}
+.adventurer-corner.tl { top: 5px; left: 5px; border-width: 2px 0 0 2px; border-top-left-radius: 3px; }
+.adventurer-corner.tr { top: 5px; right: 5px; border-width: 2px 2px 0 0; border-top-right-radius: 3px; }
+.adventurer-corner.bl { bottom: 5px; left: 5px; border-width: 0 0 2px 2px; border-bottom-left-radius: 3px; }
+.adventurer-corner.br { bottom: 5px; right: 5px; border-width: 0 2px 2px 0; border-bottom-right-radius: 3px; }
+
+/* Dynamic Specular Sheen (Gleam moves with tilt) */
 .adventurer-card-sheen {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  border-radius: 8px;
-  z-index: 5;
-  opacity: var(--sheen-opacity, 0.3);
-  background: linear-gradient(var(--sheen-angle, 105deg), transparent 25%, #fff7d977 50%, transparent 75%);
+  border-radius: 10px;
+  z-index: 10;
+  opacity: var(--sheen-opacity, 0.25);
+  background: linear-gradient(var(--sheen-angle, 105deg), transparent 25%, #fffbf088 50%, transparent 75%);
   mix-blend-mode: overlay;
   transition: opacity 250ms ease;
 }
 
-/* FRONT FACE: Header, Circular Seal Chip, Level Info & Mana Tube */
-.adventurer-card-board {
-  font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 8.5px;
-  font-weight: 600;
-  color: #3d2915;
-  letter-spacing: 0.5px;
+/* Header Area */
+.adventurer-card-header {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  margin-bottom: 4px;
+}
+
+.adventurer-card-board,
+.adventurer-card-board-back {
+  display: block;
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: #3b230d;
+  letter-spacing: 1.2px;
   text-transform: uppercase;
+  text-shadow: 0 1px 0 #fff4d188;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 135px;
   line-height: 1.2;
-  text-shadow: 0 1px 0 #fff1c955;
-  position: relative;
-  z-index: 2;
 }
 
-.adventurer-card-middle {
+.adventurer-card-type {
+  display: block;
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 7.5px;
+  font-weight: 600;
+  color: #6a4c28;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+  text-shadow: 0 0.5px 0 #fff8e3;
+}
+
+.adventurer-card-divider {
+  position: relative;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #7a502666 20%, #7a5026 50%, #7a502666 80%, transparent);
+  margin-top: 2px;
+}
+.adventurer-card-divider::after {
+  content: "♦";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 6px;
+  color: #633d18;
+  background: #ecd6ac;
+  padding: 0 4px;
+}
+
+/* FRONT FACE: 2-Column Guild Layout */
+.adventurer-card-body {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  position: relative;
-  z-index: 2;
-  margin-top: -2px;
+  flex: 1;
+  gap: 8px;
+  align-items: stretch;
 }
 
-/* Circular Seal (Smart-Card Chip Position) */
+/* Left Column: Portrait Frame & Rank Banner */
+.adventurer-card-left {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 78px;
+  flex-shrink: 0;
+}
+
+.adventurer-portrait-frame {
+  position: relative;
+  width: 66px;
+  height: 66px;
+  border-radius: 8px;
+  padding: 2px;
+  background: linear-gradient(145deg, #c5a468, #6d4b23 60%, #3d240d 100%);
+  box-shadow: 0 2px 5px #1a0f0744, inset 0 1px 1px #fff0bb88;
+  box-sizing: border-box;
+}
+
 .adventurer-card-seal {
   position: relative;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, #ecd28f, #9c7743 65%, #4a3118 100%);
-  border: 1.2px solid #3d2613;
-  box-shadow: inset 1px 1px 1px #fff3cb99, 0 1px 2px #180d0680;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  background: radial-gradient(circle at 40% 35%, #ebd193, #aa824a 65%, #4e3218 100%);
+  border: 1px solid #3d230d;
+  box-sizing: border-box;
+  overflow: hidden;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #28170b;
-  flex-shrink: 0;
-  transition: box-shadow var(--dur-mana-absorb, 300ms) ease, filter var(--dur-mana-absorb, 300ms) ease;
-}
-
-.adventurer-card-seal svg {
-  width: 20px;
-  height: 20px;
-  stroke: currentColor;
-  fill: none;
-}
-
-.adventurer-card-seal img {
-  width: 22px;
-  height: 22px;
-  object-fit: contain;
-  border-radius: 50%;
+  box-shadow: inset 1px 1px 3px #1f1107;
+  transition: box-shadow 250ms ease, filter 250ms ease;
 }
 
 .adventurer-card-seal.is-absorbing {
-  box-shadow: 0 0 14px var(--mana-mid), 0 0 4px var(--mana-core);
-  filter: brightness(1.35);
+  box-shadow: inset 1px 1px 3px #1f1107, 0 0 16px var(--mana-mid), 0 0 28px var(--mana-core);
+  filter: brightness(1.25);
 }
 
-/* Level Numeral and Title */
-.adventurer-card-rank {
+.adventurer-portrait-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.adventurer-seal-emblem {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2e1a0a;
+  filter: drop-shadow(0 1px 0 #fff3cb99);
+}
+.adventurer-seal-emblem svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Rank Ribbon Banner below Portrait */
+.adventurer-rank-banner {
+  margin-top: 4px;
+  width: 100%;
+  background: linear-gradient(180deg, #5c3b1a 0%, #3a220e 100%);
+  border: 1px solid #8e6837;
+  border-radius: 3px;
+  box-shadow: 0 1px 3px #180d0566, inset 0 1px 0 #baa06f55;
+  text-align: center;
+  padding: 1px 2px;
+  box-sizing: border-box;
+}
+
+.adventurer-rank-label {
+  display: block;
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 6.5px;
+  font-weight: 700;
+  color: #d1b88a;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.adventurer-card-title {
+  display: block;
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 9px;
+  font-weight: 700;
+  color: #fff6de;
+  text-shadow: 0 1px 2px #000000bb;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Right Column: Level Crest, Mana Tube & Stats */
+.adventurer-card-right {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
-  text-align: right;
-  line-height: 1.2;
+  justify-content: space-between;
+  flex: 1;
+  min-width: 0;
+  padding-left: 2px;
 }
 
-.adventurer-card-level-label {
+/* Top Row: Level Crest + Completed Badge */
+.adventurer-right-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.adventurer-level-crest {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.adventurer-level-tag {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 13px;
+  font-size: 9px;
   font-weight: 700;
-  color: #28190d;
-  text-shadow: 0 1px 0 #fff1c966;
+  color: #523417;
   letter-spacing: 0.5px;
 }
 
 .adventurer-card-level-num {
-  font-size: 16px;
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 20px;
   font-weight: 800;
+  color: #2b1807;
+  line-height: 1;
+  text-shadow: 0 1px 0 #fff5d7;
 }
 
-.adventurer-card-title {
-  font-family: var(--serif, 'Noto Serif Thai', serif);
+.adventurer-badge-done {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 8.5px;
+  color: #4b3117;
+  background: #dfc28d66;
+  border: 1px solid #7c542a44;
+  border-radius: 4px;
+  padding: 1px 5px;
+  line-height: 1.3;
+}
+.adventurer-badge-done b {
+  font-family: var(--display, 'Cinzel', serif);
   font-size: 10px;
-  font-weight: 600;
-  color: #432e18;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 95px;
-  line-height: 1.4;
-  text-shadow: 0 1px 0 #fff1c955;
+  color: #2b1807;
 }
 
-/* Recessed Mana Tube ("หลอดมานา") */
+/* Middle: Alchemical Mana Tube (Recessed Glass Gauge) */
+.adventurer-mana-tube-wrap {
+  margin: 3px 0;
+}
+
+.adventurer-mana-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5px;
+  font-weight: 600;
+  color: #55371a;
+  margin-bottom: 2px;
+  letter-spacing: 0.3px;
+}
+
+.adventurer-mana-header .mana-lbl {
+  font-family: var(--display, 'Cinzel', serif);
+  font-weight: 700;
+}
+
+.adventurer-mana-text {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 8px;
+  font-weight: 700;
+  color: #2b1807;
+}
+
 .adventurer-mana-tube {
   width: 100%;
-  height: 8px;
-  border-radius: 4px;
-  background: #1a110a;
-  box-shadow: inset 0 1px 3px #0c0603, 0 1px 0 #fff1c944;
-  border: 1px solid #3c2613;
+  height: 9px;
+  border-radius: 5px;
+  background: #101620;
+  box-shadow: inset 0 2px 3px #04080e, 0 1px 0 #fff8dc88;
+  border: 1.5px solid #4a3219;
   overflow: hidden;
   position: relative;
-  z-index: 2;
   box-sizing: border-box;
 }
 
@@ -242,7 +411,7 @@
   width: 0%;
   border-radius: 3px;
   background: linear-gradient(90deg, var(--mana-deep) 0%, var(--mana-mid) 70%, var(--mana-core) 100%);
-  box-shadow: 0 0 6px var(--mana-mid), inset 0 1px 1px #ffffffaa;
+  box-shadow: 0 0 8px var(--mana-mid), inset 0 1px 1px #ffffffbb;
   transition: width 350ms cubic-bezier(.22, .8, .24, 1);
 }
 
@@ -250,12 +419,48 @@
   filter: brightness(1.4);
 }
 
-/* BACK FACE: Statistics Layout */
-.adventurer-card-face.back {
-  transform: rotateY(180deg);
-  padding: 10px 12px;
-  justify-content: center;
-  gap: 4px;
+/* Bottom Stats Row on Front */
+.adventurer-front-stats {
+  display: flex;
+  justify-content: space-between;
+  border-top: 1px dashed #7a502640;
+  padding-top: 3px;
+}
+
+.adventurer-stat-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.adventurer-stat-col .lbl {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 7.5px;
+  color: #634320;
+}
+
+.adventurer-stat-col .val {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 10px;
+  font-weight: 700;
+  color: #291708;
+  line-height: 1.2;
+}
+
+.adventurer-stat-col.sub .val {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #4f3316;
+}
+
+/* BACK FACE: Detailed Career Record Ledger */
+.adventurer-back-grid {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 0 4px;
 }
 
 .adventurer-card-row {
@@ -263,12 +468,10 @@
   justify-content: space-between;
   align-items: baseline;
   width: 100%;
-  font-size: 10.5px;
-  line-height: 1.4;
-  border-bottom: 1px dashed #4e351d38;
-  padding-bottom: 2px;
-  position: relative;
-  z-index: 2;
+  font-size: 9.5px;
+  line-height: 1.35;
+  border-bottom: 1px dashed #7a502635;
+  padding-bottom: 1.5px;
 }
 
 .adventurer-card-row:last-child {
@@ -278,92 +481,101 @@
 
 .adventurer-card-label {
   font-family: var(--body, 'Noto Sans Thai', sans-serif);
-  font-size: 10px;
-  color: #4d351e;
-  text-shadow: 0 0.5px 0 #fff2cc40;
+  font-size: 8.5px;
+  color: #55371a;
+  text-shadow: 0 0.5px 0 #fff8e3;
 }
 
 .adventurer-card-value {
   font-family: var(--display, 'Cinzel', serif);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   color: #241407;
-  text-shadow: 0 0.5px 0 #fff2cc50;
 }
 
-.adventurer-card-row.sub .adventurer-card-value {
+.adventurer-back-title {
   font-family: var(--serif, 'Noto Serif Thai', serif);
-  font-size: 10px;
-  font-weight: 600;
-  color: #3b2512;
+  font-size: 9.5px;
 }
 
-/* Blue Mana Particles in Flight */
+.adventurer-back-footer {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-top: 1px solid #7a502640;
+  padding-top: 3px;
+  margin-top: 2px;
+}
+
+.adventurer-stamp-text {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 7px;
+  font-weight: 700;
+  color: #6a441e;
+  letter-spacing: 0.8px;
+}
+
+.adventurer-flip-hint {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 7.5px;
+  color: #7a5833;
+}
+
+/* Flying Mana Light Particle */
 .mana-particle {
   position: fixed;
-  pointer-events: none;
-  z-index: 1000;
-  width: 10px;
-  height: 10px;
+  width: 9px;
+  height: 9px;
   border-radius: 50%;
-  box-sizing: border-box;
-  background: radial-gradient(circle at 40% 40%, var(--mana-core) 0%, var(--mana-mid) 50%, var(--mana-deep) 90%);
-  box-shadow: 0 0 8px var(--mana-core), 0 0 16px var(--mana-mid);
-  mix-blend-mode: screen;
+  pointer-events: none;
+  z-index: 9000;
+  background: radial-gradient(circle, var(--mana-core) 0%, var(--mana-mid) 50%, var(--mana-deep) 100%);
+  box-shadow:
+    0 0 6px var(--mana-core),
+    0 0 14px var(--mana-mid),
+    0 0 24px var(--mana-deep);
   will-change: transform, opacity;
 }
 
-.mana-particle::after {
-  content: "";
-  position: absolute;
-  top: 2px;
-  left: -8px;
-  width: 12px;
-  height: 6px;
-  border-radius: 3px;
-  background: linear-gradient(90deg, transparent, var(--mana-mid));
-  opacity: 0.75;
-}
-
-/* Level-Up Shockwave Ring */
+/* Mana Shockwave Expanding Outward */
 .mana-shockwave {
   position: absolute;
-  left: 12px;
-  top: 22px;
-  width: 32px;
-  height: 32px;
+  top: 48px;
+  left: 45px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
-  border: 2px solid var(--mana-mid);
-  box-shadow: 0 0 12px var(--mana-core);
   pointer-events: none;
-  z-index: 10;
+  z-index: 8;
   opacity: 0;
+  border: 2px solid var(--mana-core);
+  box-shadow:
+    0 0 12px var(--mana-mid),
+    inset 0 0 8px var(--mana-deep);
+  transform-origin: center center;
 }
 
-/* Accessibility & Reduced Motion */
+/* Reduced Motion Fallback */
 @media (prefers-reduced-motion: reduce) {
   .adventurer-card-inner {
-    transition: none !important;
-  }
-  .adventurer-mana-bar {
-    transition: none !important;
+    transition: transform 120ms ease;
   }
   .mana-particle {
     display: none !important;
   }
-  .mana-shockwave {
-    display: none !important;
-  }
 }
 
+/* High Contrast & Forced Colors Support */
 @media (forced-colors: active) {
-  .adventurer-card-face {
+  .adventurer-card-face,
+  .adventurer-dock-slot,
+  .adventurer-portrait-frame,
+  .adventurer-mana-tube {
     border: 2px solid ButtonText;
   }
   .adventurer-mana-bar {
     background: Highlight;
-  }
-  .mana-particle {
-    display: none !important;
   }
 }

@@ -1,5 +1,5 @@
 import { xpSummary, manaCount } from './adventurer-model.mjs';
-import { animateTransient, cancelMotion, reducedMotionCrossfade, settleTiltKeyframes } from './desk-motion.mjs';
+import { animateTransient, cancelMotion, reducedMotionCrossfade } from './desk-motion.mjs';
 import { MOTION_DURATION, MOTION_EASING } from './motion-tokens.mjs';
 import { DEFAULT_ADVENTURER_CARD, ADVENTURER_CARD_SIZE } from './model.mjs';
 
@@ -61,40 +61,102 @@ export function createAdventurerCard({
   card.type = 'button';
   card.className = 'adventurer-card';
   card.id = 'adventurer-card';
-  card.setAttribute('aria-label', 'บัตรนักผจญภัย');
+  card.setAttribute('aria-label', 'บัตรประจำตัวนักผจญภัย');
   card.setAttribute('title', 'คลิกเพื่อพลิกดูสถิติ · ลากเพื่อย้าย');
 
   card.innerHTML = `
     <div class="adventurer-card-inner">
       <div class="adventurer-card-face front">
+        <span class="adventurer-card-rune-border" aria-hidden="true"></span>
+        <span class="adventurer-corner tl" aria-hidden="true"></span>
+        <span class="adventurer-corner tr" aria-hidden="true"></span>
+        <span class="adventurer-corner bl" aria-hidden="true"></span>
+        <span class="adventurer-corner br" aria-hidden="true"></span>
         <span class="adventurer-card-sheen" aria-hidden="true"></span>
         <span class="mana-shockwave" aria-hidden="true"></span>
-        <div class="adventurer-card-board">THE QUESTBOARD</div>
-        <div class="adventurer-card-middle">
-          <div class="adventurer-card-seal" aria-hidden="true"></div>
-          <div class="adventurer-card-rank">
-            <span class="adventurer-card-level-label">LV. <strong class="adventurer-card-level-num">1</strong></span>
-            <span class="adventurer-card-title">ผู้สมัครกิลด์</span>
+        <header class="adventurer-card-header">
+          <span class="adventurer-card-board">THE QUESTBOARD</span>
+          <span class="adventurer-card-type">GUILD REGISTRATION CARD · บัตรประจำตัวนักผจญภัย</span>
+          <div class="adventurer-card-divider" aria-hidden="true"></div>
+        </header>
+        <div class="adventurer-card-body">
+          <div class="adventurer-card-left">
+            <div class="adventurer-portrait-frame">
+              <div class="adventurer-card-seal" aria-hidden="true"></div>
+            </div>
+            <div class="adventurer-rank-banner">
+              <span class="adventurer-rank-label">RANK</span>
+              <strong class="adventurer-card-title">ผู้สมัครกิลด์</strong>
+            </div>
           </div>
-        </div>
-        <div class="adventurer-mana-tube" aria-hidden="true">
-          <div class="adventurer-mana-bar"></div>
+          <div class="adventurer-card-right">
+            <div class="adventurer-right-top">
+              <div class="adventurer-level-crest">
+                <span class="adventurer-level-tag">LV.</span>
+                <strong class="adventurer-card-level-num">1</strong>
+              </div>
+              <span class="adventurer-badge-done">สำเร็จ <b class="adventurer-front-done">0</b> เควส</span>
+            </div>
+            <div class="adventurer-mana-tube-wrap">
+              <div class="adventurer-mana-header">
+                <span class="mana-lbl">MANA GAUGE</span>
+                <span class="adventurer-mana-text">0 / 500 XP (0%)</span>
+              </div>
+              <div class="adventurer-mana-tube" aria-hidden="true">
+                <div class="adventurer-mana-bar"></div>
+              </div>
+            </div>
+            <div class="adventurer-front-stats">
+              <div class="adventurer-stat-col">
+                <span class="lbl">XP รวม</span>
+                <strong class="val adventurer-front-xp">0 XP</strong>
+              </div>
+              <div class="adventurer-stat-col sub">
+                <span class="lbl">สู่ขั้นถัดไป</span>
+                <span class="val adventurer-front-tonext">อีก 500 XP</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       <div class="adventurer-card-face back" aria-hidden="true">
+        <span class="adventurer-card-rune-border" aria-hidden="true"></span>
+        <span class="adventurer-corner tl" aria-hidden="true"></span>
+        <span class="adventurer-corner tr" aria-hidden="true"></span>
+        <span class="adventurer-corner bl" aria-hidden="true"></span>
+        <span class="adventurer-corner br" aria-hidden="true"></span>
         <span class="adventurer-card-sheen" aria-hidden="true"></span>
-        <div class="adventurer-card-row">
-          <span class="adventurer-card-label">XP รวม</span>
-          <strong class="adventurer-card-value adventurer-back-xp">0 XP</strong>
+        <header class="adventurer-card-header">
+          <span class="adventurer-card-board-back">THE QUESTBOARD GUILD</span>
+          <span class="adventurer-card-type">CAREER DOSSIER · บันทึกประวัตินักผจญภัย</span>
+          <div class="adventurer-card-divider" aria-hidden="true"></div>
+        </header>
+        <div class="adventurer-back-grid">
+          <div class="adventurer-card-row">
+            <span class="adventurer-card-label">ฉายานักผจญภัย</span>
+            <strong class="adventurer-card-value adventurer-back-title">ผู้สมัครกิลด์</strong>
+          </div>
+          <div class="adventurer-card-row">
+            <span class="adventurer-card-label">ระดับเลเวล</span>
+            <strong class="adventurer-card-value adventurer-back-level">LEVEL 1</strong>
+          </div>
+          <div class="adventurer-card-row">
+            <span class="adventurer-card-label">XP สะสมทั้งหมด</span>
+            <strong class="adventurer-card-value adventurer-back-xp">0 XP</strong>
+          </div>
+          <div class="adventurer-card-row">
+            <span class="adventurer-card-label">ภารกิจที่สำเร็จ</span>
+            <span class="adventurer-card-value adventurer-back-done">0 เควส</span>
+          </div>
+          <div class="adventurer-card-row sub">
+            <span class="adventurer-card-label">สู่เลเวลถัดไป</span>
+            <span class="adventurer-card-value adventurer-back-tonext">อีก 500 XP</span>
+          </div>
         </div>
-        <div class="adventurer-card-row">
-          <span class="adventurer-card-label">เควสสำเร็จ</span>
-          <span class="adventurer-card-value adventurer-back-done">0 เควส</span>
-        </div>
-        <div class="adventurer-card-row sub">
-          <span class="adventurer-card-label">สู่เลเวลถัดไป</span>
-          <span class="adventurer-card-value adventurer-back-tonext">อีก 500 XP</span>
-        </div>
+        <footer class="adventurer-back-footer">
+          <span class="adventurer-stamp-text">OFFICIAL GUILD REGISTRAR</span>
+          <span class="adventurer-flip-hint">กด Enter หรือคลิกเพื่อพลิกกลับ</span>
+        </footer>
       </div>
     </div>
     <span class="adventurer-card-status sr-only" role="status" aria-live="polite"></span>
@@ -105,12 +167,19 @@ export function createAdventurerCard({
   // Cached DOM elements
   const cardInner = card.querySelector('.adventurer-card-inner');
   const boardEl = card.querySelector('.adventurer-card-board');
+  const boardBackEl = card.querySelector('.adventurer-card-board-back');
   const sealEl = card.querySelector('.adventurer-card-seal');
   const levelNumEl = card.querySelector('.adventurer-card-level-num');
   const titleEl = card.querySelector('.adventurer-card-title');
   const manaBar = card.querySelector('.adventurer-mana-bar');
+  const manaText = card.querySelector('.adventurer-mana-text');
+  const frontDone = card.querySelector('.adventurer-front-done');
+  const frontXp = card.querySelector('.adventurer-front-xp');
+  const frontToNext = card.querySelector('.adventurer-front-tonext');
   const sheenEl = card.querySelector('.adventurer-card-sheen');
   const shockwaveEl = card.querySelector('.mana-shockwave');
+  const backTitle = card.querySelector('.adventurer-back-title');
+  const backLevel = card.querySelector('.adventurer-back-level');
   const backXp = card.querySelector('.adventurer-back-xp');
   const backDone = card.querySelector('.adventurer-back-done');
   const backToNext = card.querySelector('.adventurer-back-tonext');
@@ -160,6 +229,9 @@ export function createAdventurerCard({
 
   function flip() {
     isFlipped = !isFlipped;
+    if (cardInner) {
+      cardInner.style.transform = '';
+    }
     card.classList.toggle('is-flipped', isFlipped);
     updateAriaLabel();
   }
@@ -172,25 +244,35 @@ export function createAdventurerCard({
     currentSummary = xpSummary(rawXp);
     currentDoneCount = Math.max(0, Number(doneCount) || 0);
 
-    if (boardEl) {
-      boardEl.textContent = String(name || boardName() || 'THE QUESTBOARD').trim() || 'THE QUESTBOARD';
-    }
+    const bName = String(name || boardName() || 'THE QUESTBOARD').trim() || 'THE QUESTBOARD';
+    if (boardEl) boardEl.textContent = bName;
+    if (boardBackEl) boardBackEl.textContent = `${bName} GUILD`;
 
     if (levelNumEl) levelNumEl.textContent = String(currentSummary.level);
     if (titleEl) titleEl.textContent = currentSummary.title;
+    if (backTitle) backTitle.textContent = currentSummary.title;
+    if (backLevel) backLevel.textContent = `LEVEL ${currentSummary.level}`;
 
     if (sealEl) {
       if (emblem === 'custom' && imageDataUrl) {
-        sealEl.innerHTML = `<img src="${imageDataUrl}" alt="">`;
+        sealEl.innerHTML = `<img src="${imageDataUrl}" alt="รูปนักผจญภัย" class="adventurer-portrait-img">`;
       } else {
-        sealEl.innerHTML = icon(emblem === 'custom' ? 'shield' : (emblem || 'shield'));
+        sealEl.innerHTML = `<div class="adventurer-seal-emblem">${icon(emblem === 'custom' ? 'shield' : (emblem || 'shield'))}</div>`;
       }
     }
 
+    const pct = Math.min(100, Math.max(0, (currentSummary.intoLevel / currentSummary.perLevel) * 100));
     if (manaBar) {
-      const pct = Math.min(100, Math.max(0, (currentSummary.intoLevel / currentSummary.perLevel) * 100));
       manaBar.style.width = `${pct}%`;
     }
+
+    if (manaText) {
+      manaText.textContent = `${currentSummary.intoLevel.toLocaleString()} / ${currentSummary.perLevel.toLocaleString()} XP (${Math.round(pct)}%)`;
+    }
+
+    if (frontDone) frontDone.textContent = `${currentDoneCount}`;
+    if (frontXp) frontXp.textContent = `${currentSummary.totalXp.toLocaleString()} XP`;
+    if (frontToNext) frontToNext.textContent = `อีก ${currentSummary.toNext.toLocaleString()} XP`;
 
     if (backXp) backXp.textContent = `${currentSummary.totalXp.toLocaleString()} XP`;
     if (backDone) backDone.textContent = `${currentDoneCount} เควส`;
@@ -208,6 +290,8 @@ export function createAdventurerCard({
   let prevPointerX = 0;
   let prevPointerY = 0;
   let pointerMoveDist = 0;
+  let tiltX = 0;
+  let tiltY = 0;
 
   function getSealCenter() {
     const rect = sealEl?.getBoundingClientRect?.();
@@ -215,7 +299,7 @@ export function createAdventurerCard({
       return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
     }
     const cardRect = card.getBoundingClientRect();
-    return { x: cardRect.left + 28, y: cardRect.top + 38 };
+    return { x: cardRect.left + 50, y: cardRect.top + 76 };
   }
 
   function getDockCenter() {
@@ -231,6 +315,8 @@ export function createAdventurerCard({
     dragStartY = clientY;
     prevPointerX = clientX;
     prevPointerY = clientY;
+    tiltX = 0;
+    tiltY = 0;
 
     // Interrupt any flying mana particles immediately
     if (activeParticles.size > 0) {
@@ -277,8 +363,8 @@ export function createAdventurerCard({
     prevPointerX = clientX;
     prevPointerY = clientY;
 
-    const tiltX = Math.min(6, Math.max(-6, -vy * 0.45));
-    const tiltY = Math.min(6, Math.max(-6, vx * 0.45));
+    tiltX = Math.min(6, Math.max(-6, -vy * 0.45));
+    tiltY = Math.min(6, Math.max(-6, vx * 0.45));
     if (cardInner) {
       cardInner.style.setProperty('--tilt-x', `${tiltX}deg`);
       cardInner.style.setProperty('--tilt-y', `${tiltY}deg`);
@@ -310,15 +396,26 @@ export function createAdventurerCard({
     dockSlot.classList.remove('is-hovered');
 
     if (cardInner) {
-      cardInner.style.transform = isFlipped ? 'rotateY(180deg)' : 'none';
-      if (!isReduced()) {
+      if (!isReduced() && (Math.abs(tiltX) > 0.5 || Math.abs(tiltY) > 0.5)) {
         animateTransient(
           cardInner,
-          settleTiltKeyframes(isFlipped ? 180 : 0, 0),
+          [
+            { transform: isFlipped ? `rotateY(180deg) rotateX(${tiltX}deg) rotateY(${tiltY}deg)` : `rotateX(${tiltX}deg) rotateY(${tiltY}deg)` },
+            { transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)' },
+          ],
           { duration: 210, easing: 'cubic-bezier(.2,.8,.3,1)' },
+          {
+            onFinish: () => {
+              if (cardInner) cardInner.style.transform = '';
+            },
+          },
         );
+      } else {
+        cardInner.style.transform = '';
       }
     }
+    tiltX = 0;
+    tiltY = 0;
 
     // Check if within snap threshold of dock (< 65px)
     const surfaceRect = deskSurface.getBoundingClientRect();
@@ -353,7 +450,9 @@ export function createAdventurerCard({
     currentX = initialCardX;
     currentY = initialCardY;
     applyPosition();
-    if (cardInner) cardInner.style.transform = isFlipped ? 'rotateY(180deg)' : 'none';
+    if (cardInner) cardInner.style.transform = '';
+    tiltX = 0;
+    tiltY = 0;
   }
 
   // Pointer event listeners
@@ -367,8 +466,12 @@ export function createAdventurerCard({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       const wasClick = pointerMoveDist <= 4;
+      if (wasClick) {
+        cancelDrag();
+        flip();
+        return;
+      }
       endDrag();
-      if (wasClick) flip();
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -483,7 +586,6 @@ export function createAdventurerCard({
     for (let s = 0; s <= steps; s++) {
       const t = s / steps;
       // Inward curved flight with accelerating velocity
-      // t * t gives forward acceleration towards the target seal
       const progress = t * t;
       const currentX = x0 + dx * progress - 5;
       const currentY = y0 + dy * progress - 4 * lift * t * (1 - t) - 5;
@@ -652,7 +754,10 @@ export function createAdventurerCard({
     card?.classList.remove('is-mana-absorbing');
 
     cancelMotion(card);
-    if (cardInner) cancelMotion(cardInner);
+    if (cardInner) {
+      cancelMotion(cardInner);
+      cardInner.style.transform = '';
+    }
     if (sheenEl) cancelMotion(sheenEl);
     if (shockwaveEl) cancelMotion(shockwaveEl);
     if (levelNumEl) cancelMotion(levelNumEl);

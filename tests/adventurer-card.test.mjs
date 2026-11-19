@@ -74,15 +74,15 @@ function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) 
       },
       getBoundingClientRect: () => {
         if (node.classList.contains('adventurer-dock-slot')) {
-          return { left: 18, top: 649, width: 160, height: 101, right: 178, bottom: 750 };
+          return { left: 18, top: 586, width: 260, height: 164, right: 278, bottom: 750 };
         }
         if (node.classList.contains('adventurer-card-seal')) {
-          return { left: 30, top: 671, width: 32, height: 32, right: 62, bottom: 703 };
+          return { left: 32, top: 620, width: 60, height: 60, right: 92, bottom: 680 };
         }
         if (node.getAttribute('id') === 'desk-surface') {
           return { left: 0, top: 0, width: 1024, height: 768, right: 1024, bottom: 768 };
         }
-        return { left: 18, top: 649, width: 160, height: 101, right: 178, bottom: 750 };
+        return { left: 18, top: 586, width: 260, height: 164, right: 278, bottom: 750 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
@@ -213,12 +213,20 @@ function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) 
 function buildMockTreeFromHtml(parent, html, createNode) {
   const subClasses = [
     'adventurer-card-inner', 'adventurer-card-face front', 'adventurer-card-face back',
-    'adventurer-card-sheen', 'mana-shockwave', 'adventurer-card-board',
-    'adventurer-card-middle', 'adventurer-card-seal', 'adventurer-card-rank',
-    'adventurer-card-level-label', 'adventurer-card-level-num', 'adventurer-card-title',
-    'adventurer-mana-tube', 'adventurer-mana-bar', 'adventurer-card-row',
-    'adventurer-card-label', 'adventurer-card-value adventurer-back-xp',
-    'adventurer-card-value adventurer-back-done', 'adventurer-card-value adventurer-back-tonext',
+    'adventurer-card-rune-border', 'adventurer-card-sheen', 'mana-shockwave',
+    'adventurer-card-header', 'adventurer-card-board', 'adventurer-card-board-back',
+    'adventurer-card-type', 'adventurer-card-divider', 'adventurer-card-body',
+    'adventurer-card-left', 'adventurer-portrait-frame', 'adventurer-card-seal',
+    'adventurer-rank-banner', 'adventurer-rank-label', 'adventurer-card-title',
+    'adventurer-card-right', 'adventurer-right-top', 'adventurer-level-crest',
+    'adventurer-level-tag', 'adventurer-card-level-num', 'adventurer-badge-done',
+    'adventurer-front-done', 'adventurer-mana-tube-wrap', 'adventurer-mana-header',
+    'adventurer-mana-text', 'adventurer-mana-tube', 'adventurer-mana-bar',
+    'adventurer-front-stats', 'adventurer-front-xp', 'adventurer-front-tonext',
+    'adventurer-back-grid', 'adventurer-card-row', 'adventurer-card-label',
+    'adventurer-card-value adventurer-back-title', 'adventurer-card-value adventurer-back-level',
+    'adventurer-card-value adventurer-back-xp', 'adventurer-card-value adventurer-back-done',
+    'adventurer-card-value adventurer-back-tonext', 'adventurer-back-footer',
     'adventurer-card-status sr-only',
   ];
 
@@ -342,6 +350,16 @@ test('adventurer card flips 3D front/back and updates accessible description', (
   card.flip();
   assert.equal(cardEl.classList.contains('is-flipped'), false);
   assert.match(cardEl.getAttribute('aria-label'), /LEVEL 2/);
+
+  // Pointer click on card triggers flip without triggering 2D upside-down rotate(180deg) animation
+  const cardInner = cardEl.querySelector('.adventurer-card-inner');
+  const animCountBefore = env.createdAnimations.length;
+  cardEl.dispatchEvent({ type: 'pointerdown', button: 0, clientX: 50, clientY: 600, preventDefault() {} });
+  env.window.dispatchEvent({ type: 'pointerup' });
+  assert.equal(cardEl.classList.contains('is-flipped'), true, 'Pointer click flipped card');
+  assert.equal(cardInner.style.transform || '', '', 'cardInner transform is clean without 2D upside-down rotate()');
+  const animsOnInner = env.createdAnimations.slice(animCountBefore).filter(a => a.element === cardInner);
+  assert.equal(animsOnInner.length, 0, 'No upside-down animation triggered on cardInner on click');
 
   card.destroy();
 });
