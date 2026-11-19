@@ -47,7 +47,7 @@ export const BOARD_LIMIT = Object.freeze({ width: 20000, height: 20000 });
 export const PAPERWEIGHT_SIZE = 62;
 export const PAPERWEIGHT_EMBLEMS = Object.freeze({shield:'โล่กิลด์', swords:'ดาบไขว้', star:'ดาวนำทาง', feather:'ขนนก'});
 export const DEFAULT_PAPERWEIGHT = Object.freeze({x:1103,y:496,questId:null,corner:null,emblem:'shield',imageDataUrl:null});
-export const ADVENTURER_CARD_SIZE = Object.freeze({ width: 320, height: 202 });
+export const ADVENTURER_CARD_SIZE = Object.freeze({ width: 280, height: 176 });
 export const DEFAULT_ADVENTURER_CARD = Object.freeze({ x: 18, y: 18, name: '', emblem: 'shield', imageDataUrl: null });
 export const STATUS = Object.freeze({
   active: { label: 'กำลังทำ', en: 'IN PROGRESS', color: '#8b713e' },

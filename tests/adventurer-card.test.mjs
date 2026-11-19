@@ -88,7 +88,7 @@ function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) 
         if (node.getAttribute('id') === 'desk-surface' || node.getAttribute('id') === 'board-scroll') {
           return { left: 0, top: 0, width: 1024, height: 768, right: 1024, bottom: 768 };
         }
-        return { left: 18, top: 548, width: 320, height: 202, right: 338, bottom: 750 };
+        return { left: 18, top: 548, width: 280, height: 176, right: 298, bottom: 724 };
       },
       querySelector: sel => queryNode(node, sel),
       querySelectorAll: sel => queryAllNode(node, sel),
@@ -640,8 +640,8 @@ test('enlarged inspection viewer opens on inspect button / dblclick and plays ca
     onSavePosition: env.onSavePosition,
   });
 
-  assert.equal(ADVENTURER_CARD_SIZE.width, 320);
-  assert.equal(ADVENTURER_CARD_SIZE.height, 202);
+  assert.equal(ADVENTURER_CARD_SIZE.width, 280);
+  assert.equal(ADVENTURER_CARD_SIZE.height, 176);
 
   card.update(750, { name: 'KANGFU', emblem: 'swords' });
 
