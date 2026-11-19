@@ -4,6 +4,29 @@
    feathered vignette portrait, 3D flip, blue mana light, and inspection viewer.
    ========================================================================== */
 
+/* Root desk scale fallback for responsive viewports before JS hydrates */
+:root {
+  --desk-scale: 1;
+}
+
+@media (max-width: 900px) {
+  :root {
+    --desk-scale: 0.88;
+  }
+}
+
+@media (max-width: 680px) {
+  :root {
+    --desk-scale: 0.75;
+  }
+}
+
+@media (max-width: 480px) {
+  :root {
+    --desk-scale: 0.65;
+  }
+}
+
 /* Adventurer Card Interactive Container (Under Desk Atmosphere Layer) */
 .adventurer-card {
   position: absolute;
@@ -23,11 +46,14 @@
   touch-action: none;
   outline: none;
   --lift: 1;
+  --card-scale: var(--desk-scale, 1);
+  scale: var(--card-scale, 1);
+  transform-origin: 0 100%;
   box-shadow:
     calc(var(--light-x, 0.4) * 3px * var(--lift, 1)) calc(var(--light-y, 1) * 4.5px * var(--lift, 1)) calc(8px * var(--lift, 1)) rgba(20, 11, 5, 0.42),
     calc(var(--light-x, 0.4) * 1.2px * var(--lift, 1)) calc(var(--light-y, 1) * 2px * var(--lift, 1)) calc(3px * var(--lift, 1)) rgba(18, 9, 4, 0.35),
     0 1px 2px rgba(12, 6, 2, 0.28);
-  transition: box-shadow 220ms ease, transform 180ms ease;
+  transition: box-shadow 220ms ease, transform 180ms ease, scale 220ms ease;
 }
 
 .adventurer-card:hover:not(.is-dragging) {
@@ -534,6 +560,7 @@
   cursor: pointer;
   border-radius: 18px;
   user-select: none;
+  scale: 1 !important;
 }
 
 .adventurer-viewer-card .adventurer-card-inner {

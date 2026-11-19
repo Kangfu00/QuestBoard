@@ -30,6 +30,7 @@ export function createAdventurerCard({
   icon = () => '',
   boardName = () => 'THE QUESTBOARD',
   maxConcurrentParticles = 24,
+  getScale = () => 1,
 } = {}) {
   if (!deskSurface || !document) {
     return {
@@ -194,6 +195,9 @@ export function createAdventurerCard({
   const activeParticles = new Set();
   const pendingTimers = new Set();
 
+  let currentCardScale = (typeof getScale === 'function' ? getScale() : 1) || 1;
+  card.style.setProperty('--card-scale', String(currentCardScale));
+
   // Position state (persisted)
   const savedCard = getState()?.adventurerCard ?? DEFAULT_ADVENTURER_CARD;
   let currentX = Number.isFinite(savedCard.x) ? savedCard.x : DEFAULT_ADVENTURER_CARD.x;
@@ -205,10 +209,36 @@ export function createAdventurerCard({
       card.style.left = `${currentX}px`;
       card.style.bottom = '18px';
       card.style.top = 'auto';
+      card.style.transformOrigin = 'bottom left';
     } else {
       card.style.left = `${currentX}px`;
       card.style.top = `${currentY}px`;
       card.style.bottom = 'auto';
+      card.style.transformOrigin = 'top left';
+    }
+  }
+
+  function reclampPosition() {
+    if (useBottom) {
+      applyPosition();
+      return;
+    }
+    const surfaceRect = deskSurface.getBoundingClientRect();
+    const scale = currentCardScale || 1;
+    const cardWidth = Math.round(ADVENTURER_CARD_SIZE.width * scale);
+    const cardHeight = Math.round(ADVENTURER_CARD_SIZE.height * scale);
+    const maxX = Math.max(10, surfaceRect.width - cardWidth - 12);
+    const maxY = Math.max(10, surfaceRect.height - cardHeight - 12);
+    currentX = Math.min(maxX, Math.max(10, currentX));
+    currentY = Math.min(maxY, Math.max(10, currentY));
+    applyPosition();
+  }
+
+  function setScale(newScale) {
+    if (typeof newScale === 'number' && Number.isFinite(newScale) && newScale > 0) {
+      currentCardScale = newScale;
+      card.style.setProperty('--card-scale', String(newScale));
+      reclampPosition();
     }
   }
 
@@ -443,7 +473,10 @@ export function createAdventurerCard({
    * Synchronizes adventurer state with current cumulative XP, card name and avatar.
    * Pure data updates; zero animation side-effects.
    */
-  function update(rawXp, { doneCount = 0, emblem = 'shield', imageDataUrl = null, name = '', boardName: bName = '' } = {}) {
+  function update(rawXp, { doneCount = 0, emblem = 'shield', imageDataUrl = null, name = '', boardName: bName = '', scale = null } = {}) {
+    if (typeof scale === 'number' && Number.isFinite(scale) && scale > 0) {
+      setScale(scale);
+    }
     currentSummary = xpSummary(rawXp);
     currentDoneCount = Math.max(0, Number(doneCount) || 0);
     latestProps = { doneCount, emblem, imageDataUrl, name, boardName: bName };
@@ -590,6 +623,7 @@ export function createAdventurerCard({
     card.style.left = `${currentX}px`;
     card.style.top = `${currentY}px`;
     card.style.bottom = 'auto';
+    card.style.transformOrigin = 'top left';
 
     card.classList.add('is-dragging');
     card.style.setProperty('--lift', '3.2');
@@ -605,8 +639,11 @@ export function createAdventurerCard({
     const dy = clientY - dragStartY;
 
     const surfaceRect = deskSurface.getBoundingClientRect();
-    const maxX = Math.max(10, surfaceRect.width - ADVENTURER_CARD_SIZE.width - 12);
-    const maxY = Math.max(10, surfaceRect.height - ADVENTURER_CARD_SIZE.height - 12);
+    const scale = currentCardScale || 1;
+    const cardWidth = Math.round(ADVENTURER_CARD_SIZE.width * scale);
+    const cardHeight = Math.round(ADVENTURER_CARD_SIZE.height * scale);
+    const maxX = Math.max(10, surfaceRect.width - cardWidth - 12);
+    const maxY = Math.max(10, surfaceRect.height - cardHeight - 12);
 
     currentX = Math.min(maxX, Math.max(10, initialCardX + dx));
     currentY = Math.min(maxY, Math.max(10, initialCardY + dy));
@@ -783,13 +820,17 @@ export function createAdventurerCard({
       e.preventDefault();
       const step = e.shiftKey ? 50 : 10;
       const surfaceRect = deskSurface.getBoundingClientRect();
-      const maxX = Math.max(10, surfaceRect.width - ADVENTURER_CARD_SIZE.width - 12);
-      const maxY = Math.max(10, surfaceRect.height - ADVENTURER_CARD_SIZE.height - 12);
+      const scale = currentCardScale || 1;
+      const cardWidth = Math.round(ADVENTURER_CARD_SIZE.width * scale);
+      const cardHeight = Math.round(ADVENTURER_CARD_SIZE.height * scale);
+      const maxX = Math.max(10, surfaceRect.width - cardWidth - 12);
+      const maxY = Math.max(10, surfaceRect.height - cardHeight - 12);
 
       if (useBottom) {
         useBottom = false;
         currentX = 18;
-        currentY = surfaceRect.height - ADVENTURER_CARD_SIZE.height - 18;
+        currentY = surfaceRect.height - cardHeight - 18;
+        card.style.transformOrigin = 'top left';
       }
 
       if (e.key === 'ArrowLeft') currentX = Math.max(10, currentX - step);
@@ -1056,6 +1097,10 @@ export function createAdventurerCard({
       return card;
     },
     update,
+    setScale,
+    get scale() {
+      return currentCardScale;
+    },
     flip,
     openViewer,
     closeViewer,

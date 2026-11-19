@@ -748,3 +748,36 @@ test('card dragging lifts with --lift 3.2, tracks tactile sway and tilts, and se
 
   card.destroy();
 });
+
+test('card dynamically adapts scale to match desk and screen scale', () => {
+  const env = createMockEnvironment();
+  let currentDeskScale = 0.85;
+
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    getState: () => ({ adventurerCard: { x: 18, y: 18, name: 'SCALE_HERO', emblem: 'shield' } }),
+    getScale: () => currentDeskScale,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+  });
+
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+  assert.ok(cardEl, 'Card element mounted');
+  assert.equal(card.scale, 0.85, 'Initial scale reflects getScale callback');
+  assert.equal(cardEl.style.getPropertyValue('--card-scale'), '0.85', '--card-scale CSS property applied to card');
+
+  // Change scale via setScale (e.g. on window resize / board resize)
+  card.setScale(0.72);
+  assert.equal(card.scale, 0.72, 'Scale updated via setScale');
+  assert.equal(cardEl.style.getPropertyValue('--card-scale'), '0.72', '--card-scale property updated');
+
+  // Update scale via update() options
+  card.update(500, { scale: 1.15 });
+  assert.equal(card.scale, 1.15, 'Scale updated via card.update() options');
+  assert.equal(cardEl.style.getPropertyValue('--card-scale'), '1.15', '--card-scale property updated to 1.15');
+
+  card.destroy();
+});

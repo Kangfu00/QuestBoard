@@ -288,7 +288,7 @@ function shell(){
   });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   adventurerCard?.destroy();
-  adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
+  adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,getScale:()=>currentScale,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
   $('#sound-volume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);refreshSoundControls();};
@@ -698,7 +698,7 @@ function renderCounts(){
   document.querySelectorAll('[data-count]').forEach(e=>e.textContent=e.dataset.count==='all'?quests.length:statCount(e.dataset.count));
   $('#active-count').textContent=statCount('active');$('#done-count').textContent=done;$('#xp-count').textContent=xp.toLocaleString();$('#all-badge').textContent=quests.length;
   $('#adventurer-level').textContent=`LEVEL ${Math.floor(xp/500)+1} · ${xp.toLocaleString()} XP`;
-  adventurerCard?.update(xp,{doneCount:done,name:state?.adventurerCard?.name,emblem:state?.adventurerCard?.emblem||state?.paperweight?.emblem||'shield',imageDataUrl:state?.adventurerCard?.emblem==='custom'?state?.adventurerCard?.imageDataUrl:(state?.adventurerCard?.emblem?null:state?.paperweight?.imageDataUrl),boardName:state?.settings?.boardName});
+  adventurerCard?.update(xp,{doneCount:done,name:state?.adventurerCard?.name,emblem:state?.adventurerCard?.emblem||state?.paperweight?.emblem||'shield',imageDataUrl:state?.adventurerCard?.emblem==='custom'?state?.adventurerCard?.imageDataUrl:(state?.adventurerCard?.emblem?null:state?.paperweight?.imageDataUrl),boardName:state?.settings?.boardName,scale:currentScale});
   renderDrawer();
 }
 function resizeBoard(){
@@ -721,6 +721,8 @@ function resizeBoard(){
   $('#board-canvas').style.width=layout.width+'px';$('#board-canvas').style.height=layout.height+'px';$('#board-canvas').style.transform=`scale(${currentScale})`;
   $('#canvas-size').style.width=layout.width*currentScale+'px';$('#canvas-size').style.height=layout.height*currentScale+'px';
   $('.zoom-percent').textContent=Math.round(zoom*100)+'%';
+  viewport.style.setProperty('--desk-scale',String(currentScale));
+  adventurerCard?.setScale?.(currentScale);
 }
 
 function drawerTravel(id='quest-drawer'){return id==='tool-drawer'?Math.max(0,($('#'+id)?.offsetHeight||144)-30):Math.max(0,($('#'+id)?.offsetWidth||376)-44);}
