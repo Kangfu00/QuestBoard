@@ -1,0 +1,369 @@
+/* ==========================================================================
+   The Questboard — Adventurer Card (บัตรนักผจญภัย)
+   ID-1 format engraved metal card, magnetic desk dock, 3D flip, and blue mana light.
+   ========================================================================== */
+
+/* Magnetic Dock Slot on Desk Surface Frame */
+.adventurer-dock-slot {
+  position: absolute;
+  left: 18px;
+  bottom: 18px;
+  width: 160px;
+  height: 101px;
+  border-radius: 8px;
+  border: 1.5px dashed #7a583255;
+  box-shadow: inset 0 0 10px #180e0766;
+  pointer-events: none;
+  z-index: 38;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 200ms ease, box-shadow 200ms ease;
+}
+
+.adventurer-dock-slot::after {
+  content: "ช่องเก็บบัตร";
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 10px;
+  color: #7a583244;
+  letter-spacing: 0.5px;
+}
+
+.adventurer-dock-slot.is-hovered {
+  border-color: #b89b62aa;
+  box-shadow: inset 0 0 14px #b89b6233, 0 0 8px #b89b6244;
+}
+
+/* Adventurer Card Interactive Container */
+.adventurer-card {
+  position: absolute;
+  width: 160px;
+  height: 101px;
+  border-radius: 8px;
+  z-index: 40;
+  cursor: grab;
+  user-select: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  perspective: 600px;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  touch-action: none;
+  outline: none;
+}
+
+.adventurer-card.is-dragging {
+  cursor: grabbing;
+  z-index: 55;
+}
+
+.adventurer-card:focus-visible {
+  outline: 2px solid var(--gold, #c3ae78);
+  outline-offset: 3px;
+}
+
+/* 3D Flippable Card Plane */
+.adventurer-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 8px;
+  transform-style: preserve-3d;
+  transition: transform var(--dur-card-flip, 520ms) cubic-bezier(.22, .8, .24, 1);
+  will-change: transform;
+}
+
+.adventurer-card.is-flipped .adventurer-card-inner {
+  transform: rotateY(180deg);
+}
+
+/* Front and Back Metallic Sheet Faces */
+.adventurer-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  border-radius: 8px;
+  border: 1px solid #3c2512;
+  box-sizing: border-box;
+  overflow: hidden;
+  background: linear-gradient(142deg, #dfc88f 0%, #b89b62 30%, #825f36 70%, #4d3a22 100%);
+  box-shadow:
+    inset 1px 1px 1px #fff0b880,
+    inset -1px -1px 2px #261608bb,
+    calc(var(--light-x, 2px) * var(--lift, 1)) calc(var(--light-y, 3px) * var(--lift, 1)) 8px #150c0799;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+/* Ornate Inner Border Line */
+.adventurer-card-face::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1px solid #3d271466;
+  border-radius: 5px;
+  pointer-events: none;
+  box-shadow: inset 0 1px 0 #fff3c933;
+}
+
+/* Dynamic Specular Sheen (moves with tilt angle) */
+.adventurer-card-sheen {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: 8px;
+  z-index: 5;
+  opacity: var(--sheen-opacity, 0.3);
+  background: linear-gradient(var(--sheen-angle, 105deg), transparent 25%, #fff7d977 50%, transparent 75%);
+  mix-blend-mode: overlay;
+  transition: opacity 250ms ease;
+}
+
+/* FRONT FACE: Header, Circular Seal Chip, Level Info & Mana Tube */
+.adventurer-card-board {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 8.5px;
+  font-weight: 600;
+  color: #3d2915;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 135px;
+  line-height: 1.2;
+  text-shadow: 0 1px 0 #fff1c955;
+  position: relative;
+  z-index: 2;
+}
+
+.adventurer-card-middle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: relative;
+  z-index: 2;
+  margin-top: -2px;
+}
+
+/* Circular Seal (Smart-Card Chip Position) */
+.adventurer-card-seal {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #ecd28f, #9c7743 65%, #4a3118 100%);
+  border: 1.2px solid #3d2613;
+  box-shadow: inset 1px 1px 1px #fff3cb99, 0 1px 2px #180d0680;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #28170b;
+  flex-shrink: 0;
+  transition: box-shadow var(--dur-mana-absorb, 300ms) ease, filter var(--dur-mana-absorb, 300ms) ease;
+}
+
+.adventurer-card-seal svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+}
+
+.adventurer-card-seal img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  border-radius: 50%;
+}
+
+.adventurer-card-seal.is-absorbing {
+  box-shadow: 0 0 14px var(--mana-mid), 0 0 4px var(--mana-core);
+  filter: brightness(1.35);
+}
+
+/* Level Numeral and Title */
+.adventurer-card-rank {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  text-align: right;
+  line-height: 1.2;
+}
+
+.adventurer-card-level-label {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 13px;
+  font-weight: 700;
+  color: #28190d;
+  text-shadow: 0 1px 0 #fff1c966;
+  letter-spacing: 0.5px;
+}
+
+.adventurer-card-level-num {
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.adventurer-card-title {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 10px;
+  font-weight: 600;
+  color: #432e18;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 95px;
+  line-height: 1.4;
+  text-shadow: 0 1px 0 #fff1c955;
+}
+
+/* Recessed Mana Tube ("หลอดมานา") */
+.adventurer-mana-tube {
+  width: 100%;
+  height: 8px;
+  border-radius: 4px;
+  background: #1a110a;
+  box-shadow: inset 0 1px 3px #0c0603, 0 1px 0 #fff1c944;
+  border: 1px solid #3c2613;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+  box-sizing: border-box;
+}
+
+.adventurer-mana-bar {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--mana-deep) 0%, var(--mana-mid) 70%, var(--mana-core) 100%);
+  box-shadow: 0 0 6px var(--mana-mid), inset 0 1px 1px #ffffffaa;
+  transition: width 350ms cubic-bezier(.22, .8, .24, 1);
+}
+
+.adventurer-card.is-mana-absorbing .adventurer-mana-bar {
+  filter: brightness(1.4);
+}
+
+/* BACK FACE: Statistics Layout */
+.adventurer-card-face.back {
+  transform: rotateY(180deg);
+  padding: 10px 12px;
+  justify-content: center;
+  gap: 4px;
+}
+
+.adventurer-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  width: 100%;
+  font-size: 10.5px;
+  line-height: 1.4;
+  border-bottom: 1px dashed #4e351d38;
+  padding-bottom: 2px;
+  position: relative;
+  z-index: 2;
+}
+
+.adventurer-card-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.adventurer-card-label {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 10px;
+  color: #4d351e;
+  text-shadow: 0 0.5px 0 #fff2cc40;
+}
+
+.adventurer-card-value {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 11px;
+  font-weight: 700;
+  color: #241407;
+  text-shadow: 0 0.5px 0 #fff2cc50;
+}
+
+.adventurer-card-row.sub .adventurer-card-value {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 10px;
+  font-weight: 600;
+  color: #3b2512;
+}
+
+/* Blue Mana Particles in Flight */
+.mana-particle {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  background: radial-gradient(circle at 40% 40%, var(--mana-core) 0%, var(--mana-mid) 50%, var(--mana-deep) 90%);
+  box-shadow: 0 0 8px var(--mana-core), 0 0 16px var(--mana-mid);
+  mix-blend-mode: screen;
+  will-change: transform, opacity;
+}
+
+.mana-particle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: -8px;
+  width: 12px;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, transparent, var(--mana-mid));
+  opacity: 0.75;
+}
+
+/* Level-Up Shockwave Ring */
+.mana-shockwave {
+  position: absolute;
+  left: 12px;
+  top: 22px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid var(--mana-mid);
+  box-shadow: 0 0 12px var(--mana-core);
+  pointer-events: none;
+  z-index: 10;
+  opacity: 0;
+}
+
+/* Accessibility & Reduced Motion */
+@media (prefers-reduced-motion: reduce) {
+  .adventurer-card-inner {
+    transition: none !important;
+  }
+  .adventurer-mana-bar {
+    transition: none !important;
+  }
+  .mana-particle {
+    display: none !important;
+  }
+  .mana-shockwave {
+    display: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .adventurer-card-face {
+    border: 2px solid ButtonText;
+  }
+  .adventurer-mana-bar {
+    background: Highlight;
+  }
+  .mana-particle {
+    display: none !important;
+  }
+}

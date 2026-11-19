@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { XP_PER_LEVEL, ADVENTURER_TITLES, xpSummary, coinCount } from '../dist/adventurer-model.mjs';
+import { XP_PER_LEVEL, ADVENTURER_TITLES, xpSummary, manaCount } from '../dist/adventurer-model.mjs';
 
 test('XP_PER_LEVEL is 500 and titles cover ranks 1 through 8+', () => {
   assert.equal(XP_PER_LEVEL, 500);
@@ -130,35 +130,37 @@ test('xpSummary safely handles negative, NaN, null and non-numeric inputs', () =
   });
 });
 
-test('coinCount correctly converts delta XP to physical coin count', () => {
+test('manaCount correctly converts delta XP to blue mana particle count', () => {
   // Non-positive or invalid returns 0
-  assert.equal(coinCount(0), 0);
-  assert.equal(coinCount(-100), 0);
-  assert.equal(coinCount(NaN), 0);
-  assert.equal(coinCount(null), 0);
-  assert.equal(coinCount('invalid'), 0);
+  assert.equal(manaCount(0), 0);
+  assert.equal(manaCount(-100), 0);
+  assert.equal(manaCount(NaN), 0);
+  assert.equal(manaCount(null), 0);
+  assert.equal(manaCount('invalid'), 0);
 
-  // 1 to 50 XP gives 1 coin
-  assert.equal(coinCount(1), 1);
-  assert.equal(coinCount(25), 1);
-  assert.equal(coinCount(50), 1);
+  // Minimum floor clamp is 3 particles for any positive XP
+  assert.equal(manaCount(1), 3);
+  assert.equal(manaCount(25), 3);
+  assert.equal(manaCount(60), 3);
+  assert.equal(manaCount(61), 3);
+  assert.equal(manaCount(120), 3);
+  assert.equal(manaCount(180), 3);
 
-  // 51 to 100 XP gives 2 coins
-  assert.equal(coinCount(51), 2);
-  assert.equal(coinCount(100), 2);
+  // Increments past 180 XP (ceil(delta / 60))
+  assert.equal(manaCount(181), 4);
+  assert.equal(manaCount(240), 4);
+  assert.equal(manaCount(300), 5);
+  assert.equal(manaCount(360), 6);
+  assert.equal(manaCount(420), 7);
+  assert.equal(manaCount(480), 8);
+  assert.equal(manaCount(540), 9);
+  assert.equal(manaCount(600), 10);
+  assert.equal(manaCount(660), 11);
+  assert.equal(manaCount(720), 12);
 
-  // Increments
-  assert.equal(coinCount(101), 3);
-  assert.equal(coinCount(150), 3);
-  assert.equal(coinCount(200), 4);
-  assert.equal(coinCount(250), 5);
-  assert.equal(coinCount(300), 6);
-  assert.equal(coinCount(350), 7);
-  assert.equal(coinCount(400), 8);
-
-  // Clamped at 8 maximum coins
-  assert.equal(coinCount(450), 8);
-  assert.equal(coinCount(500), 8);
-  assert.equal(coinCount(1000), 8);
-  assert.equal(coinCount(9999), 8);
+  // Clamped at 12 maximum particles
+  assert.equal(manaCount(721), 12);
+  assert.equal(manaCount(800), 12);
+  assert.equal(manaCount(1000), 12);
+  assert.equal(manaCount(9999), 12);
 });

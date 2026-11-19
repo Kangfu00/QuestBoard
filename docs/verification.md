@@ -1,28 +1,40 @@
 # Verification
 
-## 2026-11-19 — ป้ายนักผจญภัย + ถุงเหรียญ XP บนกรอบโต๊ะ (Brass Adventurer Plate & Leather Coin Pouch)
+## 2026-11-19 — บัตรนักผจญภัยแบบลากได้ + เอฟเฟกต์มานาแสงสีฟ้า (Draggable Adventurer Card & Blue Mana Light Effect)
 
-- **ความต้องการ:** ย้ายข้อมูล XP และ LEVEL ออกจากข้อความในเมนูเครื่องมือ มาเป็นวัตถุจริงบนโต๊ะนายทะเบียนกิลด์: ป้ายทองเหลืองโบราณแขวนด้วยสายหนัง พร้อมถุงเหรียญหนังที่พองตามความคืบหน้าของเลเวล
-- **ตำแหน่งและเลเยอร์:** วางบนกรอบโต๊ะ `#desk-surface` ที่มุมซ้ายล่าง (`left: 18px; bottom: 18px; z-index: 40;`) อยู่นอก `#board-scroll` ทำให้ไม่เลื่อนหรือซูมตามโต๊ะ และไม่ชนกับรางเครื่องมือ (บน), ลิ้นชักเก็บของ (ขวา), ม่านโต๊ะ (ล่าง), หรือข้อความแจ้งเตือน (`#toast` ล่างกลาง) คลิกทะลุชั้นบรรยากาศได้ตามปกติ
-- **โมเดลบริสุทธิ์ (`dist/adventurer-model.mjs`):**
-  - `XP_PER_LEVEL = 500`
-  - `ADVENTURER_TITLES`: 1: ผู้สมัครกิลด์, 2: ผู้ฝึกหัด, 3: นักสำรวจ, 4: นักผจญภัย, 5: ผู้กล้า, 6: ผู้เชี่ยวชาญ, 7: ผู้พิทักษ์, 8+: ตำนานแห่งกิลด์
-  - `xpSummary(rawXp)`: คำนวณ `{ level, intoLevel, perLevel: 500, toNext, title, totalXp }` รับค่า NaN/ติดลบ/ไม่ใช่ตัวเลขได้อย่างปลอดภัย
-  - `coinCount(rawDeltaXp)`: คำนวณจำนวนเหรียญบิน `clamp(ceil(delta / 50), 1, 8)` คืนค่า 0 หาก delta <= 0
-- **คอมโพเนนต์และการโต้ตอบ (`dist/adventurer-plate.mjs` และ `dist/adventurer-plate.css`):**
-  - ป้ายเป็น `<button>` คลิกหรือกด Enter เพื่อพลิกดูสถิติด้านหลังแบบ 3D (XP รวม, จำนวนเควสสำเร็จ, XP ที่ขาด) เป้าแตะ ≥ 40px พร้อม `aria-label` และ live region `role="status"`
-  - ด้านหน้ามีตราประจำตัว (ซิงก์กับตราที่ทับกระดาษ), เลขเลเวล (`Cinzel`), ฉายาภาษาไทย (`Noto Serif Thai`), และร่องสลักทองเหลืองแสดงแถบความคืบหน้าสู่เลเวลถัดไป
-  - เมื่อประทับตรา "สำเร็จ": เหรียญทอง 1–8 เหรียญบินเป็นเส้นโค้งพาราโบลาจากจุดประทับตราเข้าถุงเหรียญ (420–560ms, stagger 50ms, easing slide) ถุงยุบแล้วเด้งคืน ~160ms พร้อมเสียงเคาะโลหะ (`paperweightDrop`) จำกัดเหรียญที่บินพร้อมกันไม่เกิน 8 เหรียญ
-  - เมื่อขึ้นเลเวล: ข้อมูลเปลี่ยนก่อนเสมอ ป้ายยกตัวขึ้น ประกายทองวาบข้ามหน้าป้าย (800ms) เลขใหม่ตอกลงด้วยท่า `stamp-in` (380ms) รวม ~900ms พร้อมประกาศเสียงสำหรับ screen reader
-  - XP ลด: อัปเดตเงียบ ๆ ไม่มีเหรียญย้อน ไม่มีพิธี
-  - ลดการเคลื่อนไหว (`prefers-reduced-motion`): ไม่บินเหรียญ ถุงไม่เด้ง เปลี่ยนเลขเลเวลด้วย `reducedMotionCrossfade` (120ms)
-- **การทดสอบ:**
-  - `tests/adventurer-model.test.mjs`: 4 tests (XP milestones, negative/NaN sanitization, rank boundaries, coin count limits) — ผ่าน 100%
-  - `tests/adventurer-plate.test.mjs`: 8 tests (DOM mounting, 3D flip card, coin flight lifecycle, cancelAll cleanup, level up celebration, reduced motion, graceful degradation without WAAPI, serialization immutability) — ผ่าน 100%
-  - `tests/motion-governance.test.mjs`: ผ่าน 5/5 (ไร้ direct WAAPI .animate(), มี reduced-motion guard ทุกจุด, package.json check ครบทุกไฟล์)
-  - `npm run check`: ทุกไฟล์ใน `dist/` รวมทั้งไฟล์ใหม่ผ่านไวยากรณ์ Node 100%
-  - ผลรวมชุดทดสอบทั้งโปรเจกต์: **718 tests passed** (เมื่อรัน browser suite แยกตามปกติ)
-- **สิ่งที่ยังไม่ได้ดูในเบราว์เซอร์จริง:** ความลื่นไหลของอนิเมชันเหรียญบินบนหน้าจอจริง, ความรู้สึกของการคลิกพลิกป้าย 3D, และการซ้อนทับจริงกับสภาพแสงบรรยากาศโต๊ะในเบราว์เซอร์สด (ตรวจผ่าน unit test, governance test, DOM test และ static verification แล้ว)
+- **ความต้องการ:** เปลี่ยน "ป้ายนักผจญภัย + ถุงเหรียญ" เดิม ให้เป็น "บัตรนักผจญภัย" (Adventurer Card) ที่หยิบลากได้อย่างอิสระบนกรอบโต๊ะ พร้อมช่องจอดแม่เหล็กที่มุมกรอบโต๊ะ และเปลี่ยนเอฟเฟกต์เหรียญบิน/ถุงเหรียญเป็น "ละอองมานาแสงสีฟ้า" (Blue Mana Light Particle Flight) บินเข้าชิปตราประทับบนบัตร ลบโค้ด/CSS/เทสต์ถุงเหรียญและเหรียญบินทั้งหมดให้เกลี้ยง
+- **สัดส่วนและรูปลักษณ์ (`dist/adventurer-card.css`):**
+  - สัดส่วนบัตรมาตรฐาน ID-1 (85.6 : 54, 160×101 px, รัศมีมุม 8 px)
+  - แผ่นทองเหลืองและพิวเตอร์โบราณ พร้อมชิปตราประทับวงกลมทองเหลือง 32×32 px ตรงตำแหน่งชิปสมาร์ตการ์ด (`left: 12px; top: 22px;`)
+  - ฟอนต์ `Cinzel` สำหรับตัวเลขเลเวล, `Noto Serif Thai` สำหรับฉายานักผจญภัย, ชื่อกระดานจาก `boardName`
+  - หลอดมานาแกะสลัก (Mana Tube) บรรจุมานาแสงสีฟ้าที่ไหลเวียนตามสัดส่วน XP สู่เลเวลถัดไป (ยกเว้นระบบสีพิเศษ: `--mana-core: #bfe6ff; --mana-mid: #7fc4ff; --mana-deep: #3d7fd0;` ใช้เฉพาะบัตรและมานาเท่านั้น)
+- **การลากและการดูดเข้าช่องจอดแม่เหล็ก (`dist/adventurer-card.mjs`):**
+  - วางบน `#desk-surface` นอก `#board-scroll` (ไม่ซูมตามโต๊ะ)
+  - ลากได้อิสระทั่วกรอบโต๊ะ พร้อมเอียง 3 มิติ (Perspective Tilt) สูงสุด ±6 องศาตามทิศทางและความเร็วในการลาก พร้อมประกายแสงเงาสะท้อน (Specular Gold Sheen) ที่กวาดตามองศาเอียง
+  - ช่องจอดแม่เหล็ก `.adventurer-dock-slot` ที่มุมซ้ายล่าง (`left: 18px; bottom: 18px;`) เมื่อปล่อยใกล้ช่องจอด (ระยะห่าง < 65 px) จะดูดเข้าล็อกด้วย easing settle พร้อมเล่นเสียง `paperweightDrop`
+  - ควบคุมด้วยคีย์บอร์ด: Arrow keys เลื่อนครั้งละ 10 px, Shift + Arrow keys เลื่อนครั้งละ 50 px, Esc ยกเลิกการลาก, Enter/Space พลิกบัตร
+- **การบันทึกตำแหน่งบัตร (`dist/model.mjs`):**
+  - เพิ่มฟิลด์เสริม `adventurerCard: { x, y, docked }` ใน state โดยไม่เพิ่มเลขเวอร์ชันของโมเดล
+  - คืนค่า default `{ x: 18, y: 18, docked: true }` เมื่อไม่มีฟิลด์ โดยไม่รั่วไหลคีย์ลงในไฟล์สำรอง (zero legacy key leakage) พร้อมทดสอบการนำเข้าไฟล์สำรองรุ่นเก่า
+  - คำนวณ XP และ Level สดจากเควสสถานะ done เสมอ ไม่บันทึก XP/Level เป็นฟิลด์ในฐานข้อมูล
+- **ละอองมานาแสงสีฟ้า (`flyMana`):**
+  - ฟังก์ชันบริสุทธิ์ `manaCount(rawDeltaXp)`: คืนค่า `clamp(ceil(delta / 60), 3, 12)` ละออง (3–12 ดวง) พุ่งเป็นเส้นโค้งเร่งความเร็ว (520–700ms, stagger 45ms) เข้าสู่จุดกึ่งกลางชิปตราประทับ
+  - เมื่อละอองแสงสัมผัสชิป เกิดแสงวาบดูดซับมานาเข้าหลอด (`is-absorbing`, `is-mana-absorbing`) และเล่นเสียง `paperweightDrop`
+  - จำกัดละอองที่บินพร้อมกันสูงสุด 24 ดวง
+  - หากหยิบลากบัตรขณะที่มานากำลังบิน ละอองจะสลายและถูกดูดซับเข้าตำแหน่งปัจจุบันของบัตรทันทีโดยไม่มี DOM ตกค้าง
+- **การเฉลิมฉลองขึ้นเลเวล (`celebrateLevelUp`):**
+  - ประกาศสถานะเลเวลและฉายาใหม่ใน live region `role="status"`
+  - วงแหวนคลื่นกระแทกมานา (Mana Shockwave) กระจายออกจากชิปขยายตัว 5.5 เท่า
+  - บัตรทองเหลืองยกตัวขึ้นเล็กน้อย ประกายทองวาบข้ามหน้าบัตร และตัวเลขเลเวลใหม่ตอกประทับลงเนื้อทองเหลืองด้วยท่า `stamp-in` (380ms)
+- **โหมดลดการเคลื่อนไหว (`prefers-reduced-motion`):**
+  - ปิดการบินของละอองมานา และเปลี่ยนผ่านเลเวล/การดูดซับด้วย `reducedMotionCrossfade` (120ms)
+- **การตรวจสอบและชุดทดสอบ:**
+  - `tests/adventurer-model.test.mjs`: 4 tests (XP milestones, negative/NaN sanitization, rank boundaries, mana count clamping 3..12) — ผ่าน 100%
+  - `tests/adventurer-card.test.mjs`: 9 tests (DOM mounting, 3D flip card, keyboard navigation 10px/50px, mana flight lifecycle, cancelAll cleanup, level-up shockwave celebration, reduced motion, graceful degradation without WAAPI, model persistence & legacy backup import) — ผ่าน 100%
+  - `tests/motion-governance.test.mjs`: ผ่าน 5/5
+  - `npm run check`: ทุกไฟล์ใน `dist/` รวมทั้ง `adventurer-card.mjs` ผ่านไวยากรณ์ Node 100%
+  - `npm test`: ผ่านการทดสอบทั้งหมด
+- **สิ่งที่ยังไม่ได้ดูในเบราว์เซอร์จริง:** ความลื่นไหลของอนิเมชันละอองมานาแสงสีฟ้าบนหน้าจอจริง, ความรู้สึกของการคลิกพลิกบัตร 3D และการดูดติดแม่เหล็ก (ตรวจผ่าน unit test, governance test, DOM test และ static verification แล้ว)
 
 ## 2026-11-19 — paper burn visual rework: scorch / char / ember layers along one frayed edge
 

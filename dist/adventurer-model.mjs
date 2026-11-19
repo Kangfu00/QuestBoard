@@ -35,12 +35,12 @@ export function xpSummary(rawXp) {
 }
 
 /**
- * Pure function mapping earned XP delta to physical coin count (0 or 1..8).
+ * Pure function mapping earned XP delta to blue mana particle count (0 or 3..12).
  * @param {unknown} rawDeltaXp - XP gained from stamping a quest.
- * @returns {number} Integer between 0 and 8.
+ * @returns {number} Integer between 0 and 12.
  */
-export function coinCount(rawDeltaXp) {
+export function manaCount(rawDeltaXp) {
   const delta = Number(rawDeltaXp);
   if (!Number.isFinite(delta) || delta <= 0) return 0;
-  return Math.min(8, Math.max(1, Math.ceil(delta / 50)));
+  return Math.min(12, Math.max(3, Math.ceil(delta / 60)));
 }

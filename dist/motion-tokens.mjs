@@ -22,6 +22,9 @@ export const MOTION_DURATION = Object.freeze({
   folioClose: 880,
   folioOpen: 1020,
   reducedFade: 120,
+  cardFlip: 520,
+  manaFlight: 580,
+  manaAbsorb: 300,
 });
 
 export const MOTION_EASING = Object.freeze({

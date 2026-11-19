@@ -1,0 +1,556 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { createAdventurerCard } from '../dist/adventurer-card.mjs';
+import { createInitialState, createQuest, serializeState, parseState, updateAdventurerCard, normalizeAdventurerCard, DEFAULT_ADVENTURER_CARD, ADVENTURER_CARD_SIZE } from '../dist/model.mjs';
+import { applyHeldStamp } from '../dist/stamp-tools.mjs';
+
+function createMockEnvironment({ hasWaapi = true, reducedMotion = false } = {}) {
+  const createdAnimations = [];
+  const soundCues = [];
+  const savedPositions = [];
+
+  function createNode(tag = 'div') {
+    const classSet = new Set();
+    const attrs = new Map();
+    const listeners = new Map();
+    const children = [];
+    const customProps = new Map();
+
+    const node = {
+      tagName: tag.toUpperCase(),
+      style: {
+        setProperty: (k, v) => customProps.set(k, String(v)),
+        getPropertyValue: k => customProps.get(k) || '',
+      },
+      parentNode: null,
+      children,
+      classList: {
+        add: (...names) => names.forEach(n => classSet.add(n)),
+        remove: (...names) => names.forEach(n => classSet.delete(n)),
+        contains: n => classSet.has(n),
+        toggle: (n, force) => {
+          const has = classSet.has(n);
+          const next = force !== undefined ? Boolean(force) : !has;
+          if (next) classSet.add(n); else classSet.delete(n);
+          return next;
+        },
+      },
+      setAttribute: (k, v) => attrs.set(k, String(v)),
+      getAttribute: k => attrs.get(k) ?? null,
+      hasAttribute: k => attrs.has(k),
+      removeAttribute: k => attrs.delete(k),
+      appendChild: child => {
+        if (child.parentNode) child.parentNode.removeChild(child);
+        child.parentNode = node;
+        children.push(child);
+        return child;
+      },
+      removeChild: child => {
+        const idx = children.indexOf(child);
+        if (idx !== -1) children.splice(idx, 1);
+        child.parentNode = null;
+        return child;
+      },
+      remove: () => {
+        if (node.parentNode) node.parentNode.removeChild(node);
+      },
+      addEventListener: (evt, handler) => {
+        if (!listeners.has(evt)) listeners.set(evt, []);
+        listeners.get(evt).push(handler);
+      },
+      removeEventListener: (evt, handler) => {
+        const list = listeners.get(evt);
+        if (list) {
+          const idx = list.indexOf(handler);
+          if (idx !== -1) list.splice(idx, 1);
+        }
+      },
+      dispatchEvent: evt => {
+        const list = listeners.get(evt.type) || [];
+        for (const h of list) h(evt);
+      },
+      click: () => {
+        node.dispatchEvent({ type: 'click', button: 0, preventDefault() {}, stopPropagation() {} });
+      },
+      getBoundingClientRect: () => {
+        if (node.classList.contains('adventurer-dock-slot')) {
+          return { left: 18, top: 649, width: 160, height: 101, right: 178, bottom: 750 };
+        }
+        if (node.classList.contains('adventurer-card-seal')) {
+          return { left: 30, top: 671, width: 32, height: 32, right: 62, bottom: 703 };
+        }
+        if (node.getAttribute('id') === 'desk-surface') {
+          return { left: 0, top: 0, width: 1024, height: 768, right: 1024, bottom: 768 };
+        }
+        return { left: 18, top: 649, width: 160, height: 101, right: 178, bottom: 750 };
+      },
+      querySelector: sel => queryNode(node, sel),
+      querySelectorAll: sel => queryAllNode(node, sel),
+    };
+
+    if (hasWaapi) {
+      node.animate = (keyframes, options) => {
+        let finishPromiseResolve;
+        const finished = new Promise(resolve => {
+          finishPromiseResolve = resolve;
+        });
+        const anim = {
+          element: node,
+          keyframes,
+          options,
+          cancelled: false,
+          finished,
+          cancel() {
+            this.cancelled = true;
+          },
+          finish() {
+            if (!this.cancelled) finishPromiseResolve();
+          },
+        };
+        createdAnimations.push(anim);
+        return anim;
+      };
+    }
+
+    let _innerHTML = '';
+    let _textContent = '';
+
+    Object.defineProperty(node, 'id', {
+      get() { return attrs.get('id') || ''; },
+      set(val) {
+        if (val) attrs.set('id', String(val));
+        else attrs.delete('id');
+      },
+    });
+
+    Object.defineProperty(node, 'className', {
+      get() { return Array.from(classSet).join(' '); },
+      set(val) {
+        classSet.clear();
+        String(val).split(/\s+/).filter(Boolean).forEach(n => classSet.add(n));
+      },
+    });
+
+    Object.defineProperty(node, 'innerHTML', {
+      get() { return _innerHTML; },
+      set(html) {
+        _innerHTML = html;
+        buildMockTreeFromHtml(node, html, createNode);
+      },
+    });
+
+    Object.defineProperty(node, 'textContent', {
+      get() {
+        if (_textContent !== '') return _textContent;
+        return children.map(c => c.textContent).join('');
+      },
+      set(text) {
+        _textContent = String(text);
+        children.length = 0;
+      },
+    });
+
+    return node;
+  }
+
+  const deskSurface = createNode('div');
+  deskSurface.setAttribute('id', 'desk-surface');
+
+  const listeners = new Map();
+  const windowListeners = new Map();
+
+  const document = {
+    body: createNode('body'),
+    createElement: tag => createNode(tag),
+    getElementById: id => (id === 'desk-surface' ? deskSurface : null),
+    addEventListener: (evt, handler) => {
+      if (!listeners.has(evt)) listeners.set(evt, []);
+      listeners.get(evt).push(handler);
+    },
+    removeEventListener: (evt, handler) => {
+      const list = listeners.get(evt);
+      if (list) {
+        const idx = list.indexOf(handler);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+    },
+  };
+
+  const window = {
+    innerWidth: 1024,
+    innerHeight: 768,
+    addEventListener: (evt, handler) => {
+      if (!windowListeners.has(evt)) windowListeners.set(evt, []);
+      windowListeners.get(evt).push(handler);
+    },
+    removeEventListener: (evt, handler) => {
+      const list = windowListeners.get(evt);
+      if (list) {
+        const idx = list.indexOf(handler);
+        if (idx !== -1) list.splice(idx, 1);
+      }
+    },
+    dispatchEvent: evt => {
+      const list = windowListeners.get(evt.type) || [];
+      for (const h of list) h(evt);
+    },
+  };
+
+  return {
+    document,
+    window,
+    deskSurface,
+    createdAnimations,
+    soundCues,
+    savedPositions,
+    reducedMotion: () => reducedMotion,
+    onCue: name => soundCues.push(name),
+    icon: name => `<svg class="icon-${name}"></svg>`,
+    onSavePosition: pos => savedPositions.push(pos),
+  };
+}
+
+function buildMockTreeFromHtml(parent, html, createNode) {
+  const subClasses = [
+    'adventurer-card-inner', 'adventurer-card-face front', 'adventurer-card-face back',
+    'adventurer-card-sheen', 'mana-shockwave', 'adventurer-card-board',
+    'adventurer-card-middle', 'adventurer-card-seal', 'adventurer-card-rank',
+    'adventurer-card-level-label', 'adventurer-card-level-num', 'adventurer-card-title',
+    'adventurer-mana-tube', 'adventurer-mana-bar', 'adventurer-card-row',
+    'adventurer-card-label', 'adventurer-card-value adventurer-back-xp',
+    'adventurer-card-value adventurer-back-done', 'adventurer-card-value adventurer-back-tonext',
+    'adventurer-card-status sr-only',
+  ];
+
+  for (const c of subClasses) {
+    if (html.includes(c)) {
+      const child = createNode('div');
+      c.split(' ').forEach(name => child.classList.add(name));
+      parent.appendChild(child);
+    }
+  }
+}
+
+function queryNode(root, sel) {
+  const all = queryAllNode(root, sel);
+  return all.length ? all[0] : null;
+}
+
+function queryAllNode(root, sel) {
+  const result = [];
+  function walk(node) {
+    for (const child of node.children) {
+      if (matches(child, sel)) result.push(child);
+      walk(child);
+    }
+  }
+  walk(root);
+  return result;
+}
+
+function matches(node, sel) {
+  const parts = sel.split(',').map(s => s.trim());
+  for (const p of parts) {
+    if (p.startsWith('.')) {
+      if (node.classList.contains(p.slice(1))) return true;
+    } else if (p.startsWith('#')) {
+      if (node.getAttribute('id') === p.slice(1)) return true;
+    } else if (p.toUpperCase() === node.tagName) {
+      return true;
+    }
+  }
+  return false;
+}
+
+test('adventurer card mounts into desk surface and updates progression state accurately', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+    boardName: () => 'THE QUESTBOARD',
+  });
+
+  assert.ok(env.deskSurface.children.length >= 2, 'Dock slot and card mounted to deskSurface');
+  const dockSlot = env.deskSurface.children.find(c => c.classList.contains('adventurer-dock-slot'));
+  const cardEl = env.deskSurface.children.find(c => c.classList.contains('adventurer-card'));
+
+  assert.ok(dockSlot, 'Dock slot mounted');
+  assert.ok(cardEl, 'Adventurer card mounted');
+  assert.equal(dockSlot.getAttribute('aria-hidden'), 'true');
+  assert.equal(cardEl.getAttribute('id'), 'adventurer-card');
+
+  // Initial update at 0 XP
+  card.update(0, { doneCount: 0, emblem: 'shield', boardName: 'GUILD HQ' });
+  const levelNum = cardEl.querySelector('.adventurer-card-level-num');
+  const title = cardEl.querySelector('.adventurer-card-title');
+  const manaBar = cardEl.querySelector('.adventurer-mana-bar');
+  const boardEl = cardEl.querySelector('.adventurer-card-board');
+
+  assert.equal(levelNum.textContent, '1');
+  assert.equal(title.textContent, 'ผู้สมัครกิลด์');
+  assert.equal(manaBar.style.width, '0%');
+  assert.equal(boardEl.textContent, 'GUILD HQ');
+  assert.match(cardEl.getAttribute('aria-label'), /LEVEL 1, 0 XP \(ผู้สมัครกิลด์\)/);
+
+  // Update with cumulative XP and completed quests
+  card.update(1240, { doneCount: 7, emblem: 'swords' });
+  assert.equal(levelNum.textContent, '3');
+  assert.equal(title.textContent, 'นักสำรวจ');
+  assert.equal(manaBar.style.width, '48%'); // 240 / 500 = 48%
+  assert.match(cardEl.getAttribute('aria-label'), /LEVEL 3, 1,240 XP \(นักสำรวจ\)/);
+
+  const backXp = cardEl.querySelector('.adventurer-back-xp');
+  const backDone = cardEl.querySelector('.adventurer-back-done');
+  const backToNext = cardEl.querySelector('.adventurer-back-tonext');
+  assert.equal(backXp.textContent, '1,240 XP');
+  assert.equal(backDone.textContent, '7 เควส');
+  assert.equal(backToNext.textContent, 'อีก 260 XP');
+
+  card.destroy();
+  assert.equal(env.deskSurface.children.length, 0, 'Card and dock slot clean up on destroy');
+});
+
+test('adventurer card flips 3D front/back and updates accessible description', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  card.update(850, { doneCount: 3 });
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+
+  assert.equal(cardEl.classList.contains('is-flipped'), false);
+  assert.match(cardEl.getAttribute('aria-label'), /LEVEL 2/);
+
+  // Flip method
+  card.flip();
+  assert.equal(cardEl.classList.contains('is-flipped'), true);
+  assert.match(cardEl.getAttribute('aria-label'), /รายละเอียดบัตร: รวม 850 XP, สำเร็จ 3 เควส, อีก 150 XP สู่เลเวลถัดไป/);
+
+  // Flip back
+  card.flip();
+  assert.equal(cardEl.classList.contains('is-flipped'), false);
+  assert.match(cardEl.getAttribute('aria-label'), /LEVEL 2/);
+
+  card.destroy();
+});
+
+test('keyboard navigation moves card by 10px / 50px with Shift and flips on Enter/Space', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  card.update(500);
+  const cardEl = env.deskSurface.querySelector('.adventurer-card');
+
+  // Space flips card
+  cardEl.dispatchEvent({ type: 'keydown', key: ' ', preventDefault() {} });
+  assert.equal(cardEl.classList.contains('is-flipped'), true);
+
+  // Enter flips card back
+  cardEl.dispatchEvent({ type: 'keydown', key: 'Enter', preventDefault() {} });
+  assert.equal(cardEl.classList.contains('is-flipped'), false);
+
+  // Arrow keys move card
+  // First arrow undocks card and moves by 10px
+  cardEl.dispatchEvent({ type: 'keydown', key: 'ArrowRight', shiftKey: false, preventDefault() {} });
+  assert.ok(env.savedPositions.length > 0);
+  const lastSaved = env.savedPositions[env.savedPositions.length - 1];
+  assert.equal(typeof lastSaved.x, 'number');
+  assert.equal(typeof lastSaved.y, 'number');
+
+  // Shift + Arrow moves by 50px
+  const countBefore = env.savedPositions.length;
+  cardEl.dispatchEvent({ type: 'keydown', key: 'ArrowRight', shiftKey: true, preventDefault() {} });
+  assert.equal(env.savedPositions.length, countBefore + 1);
+
+  card.destroy();
+});
+
+test('flying mana light lifecycle spawns particles, animates keyframes and triggers seal absorb', async () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+    maxConcurrentParticles: 8,
+  });
+
+  card.update(500);
+
+  // 250 XP -> ceil(250/60) = 5 mana particles
+  card.flyMana({ origin: { x: 400, y: 300 }, deltaXp: 250 });
+
+  // Await particle spawn stagger (5 * 45ms = ~225ms)
+  await new Promise(r => setTimeout(r, 280));
+
+  assert.equal(env.document.body.children.length, 5, '5 mana particles spawned into body');
+  for (const p of env.document.body.children) {
+    assert.ok(p.classList.contains('mana-particle'));
+  }
+
+  // Complete animations
+  for (const anim of env.createdAnimations) {
+    anim.finish();
+  }
+  await new Promise(r => setTimeout(r, 50));
+
+  assert.equal(env.document.body.children.length, 0, 'All particles removed from DOM after absorption');
+  assert.ok(env.soundCues.includes('paperweightDrop'), 'paperweightDrop cue played on mana absorption');
+
+  card.destroy();
+});
+
+test('cancelAll immediately cancels flying mana particles and clears DOM', async () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  card.flyMana({ origin: { x: 300, y: 200 }, deltaXp: 300 });
+  await new Promise(r => setTimeout(r, 120));
+
+  assert.ok(env.document.body.children.length > 0, 'Particles are in-flight');
+
+  card.cancelAll();
+  assert.equal(env.document.body.children.length, 0, 'All particles cancelled and removed from DOM');
+
+  card.destroy();
+});
+
+test('celebrateLevelUp announces rank to live region, lifts card, flashes sheen and shocks wave', () => {
+  const env = createMockEnvironment();
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  card.update(1000, { doneCount: 4 });
+  card.celebrateLevelUp(3);
+
+  const statusEl = env.deskSurface.querySelector('.adventurer-card-status');
+  assert.equal(statusEl.textContent, 'ขึ้นสู่ LEVEL 3 (นักสำรวจ)!');
+
+  // Verify WAAPI animations triggered (shockwave, card lift, sheen flash, numeral stamp-in)
+  assert.ok(env.createdAnimations.length >= 3, 'Created WAAPI animations for celebration');
+
+  card.destroy();
+});
+
+test('reduced motion disables particle flight and uses crossfade for rank transitions', async () => {
+  const env = createMockEnvironment({ reducedMotion: true });
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  card.update(500);
+  card.flyMana({ origin: { x: 200, y: 200 }, deltaXp: 200 });
+
+  await new Promise(r => setTimeout(r, 100));
+  assert.equal(env.document.body.children.length, 0, 'No particles spawned in reduced motion');
+
+  // celebrateLevelUp in reduced motion
+  card.celebrateLevelUp(2);
+  const statusEl = env.deskSurface.querySelector('.adventurer-card-status');
+  assert.equal(statusEl.textContent, 'ขึ้นสู่ LEVEL 2 (ผู้ฝึกหัด)!');
+
+  card.destroy();
+});
+
+test('gracefully degrades without WAAPI support without throwing errors', () => {
+  const env = createMockEnvironment({ hasWaapi: false });
+  const card = createAdventurerCard({
+    deskSurface: env.deskSurface,
+    document: env.document,
+    window: env.window,
+    reducedMotion: env.reducedMotion,
+    onCue: env.onCue,
+    icon: env.icon,
+    onSavePosition: env.onSavePosition,
+  });
+
+  assert.doesNotThrow(() => {
+    card.update(750, { doneCount: 2 });
+    card.flyMana({ origin: { x: 100, y: 100 }, deltaXp: 100 });
+    card.celebrateLevelUp(2);
+    card.flip();
+    card.cancelAll();
+    card.destroy();
+  });
+});
+
+test('model adventurerCard normalization, persistence and legacy backup import', () => {
+  const initial = createInitialState();
+  // Optional field: undefined by default to preserve zero legacy key leakage
+  assert.equal(initial.adventurerCard, undefined);
+  assert.deepEqual(initial.adventurerCard ?? DEFAULT_ADVENTURER_CARD, DEFAULT_ADVENTURER_CARD);
+
+  // Normalization validates coordinates and docked flag
+  const normalized = normalizeAdventurerCard({ x: 250, y: 350, docked: false });
+  assert.equal(normalized.x, 250);
+  assert.equal(normalized.y, 350);
+  assert.equal(normalized.docked, false);
+
+  // Default docked is true if unspecified
+  const defaultDocked = normalizeAdventurerCard({ x: 18, y: 18 });
+  assert.equal(defaultDocked.docked, true);
+
+  // Throws if out of bounds
+  assert.throws(() => normalizeAdventurerCard({ x: -10, y: 50 }));
+  assert.throws(() => normalizeAdventurerCard({ x: 50, y: 99999 }));
+
+  // updateAdventurerCard updates state cleanly
+  const updated = updateAdventurerCard(initial, { x: 120, y: 340, docked: false });
+  assert.equal(updated.adventurerCard.x, 120);
+  assert.equal(updated.adventurerCard.y, 340);
+  assert.equal(updated.adventurerCard.docked, false);
+
+  // Legacy backup import without adventurerCard key parses cleanly without adding redundant key
+  const serialized = serializeState(initial);
+  const parsed = JSON.parse(serialized);
+  delete parsed.adventurerCard;
+  const legacyJson = JSON.stringify(parsed);
+
+  const imported = parseState(legacyJson);
+  assert.equal(imported.adventurerCard, undefined, 'Missing adventurerCard remains undefined in parsed state');
+  assert.deepEqual(imported.adventurerCard ?? DEFAULT_ADVENTURER_CARD, DEFAULT_ADVENTURER_CARD, 'Fallback to default matches DEFAULT_ADVENTURER_CARD');
+});

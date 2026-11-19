@@ -47,6 +47,8 @@ export const BOARD_LIMIT = Object.freeze({ width: 20000, height: 20000 });
 export const PAPERWEIGHT_SIZE = 62;
 export const PAPERWEIGHT_EMBLEMS = Object.freeze({shield:'โล่กิลด์', swords:'ดาบไขว้', star:'ดาวนำทาง', feather:'ขนนก'});
 export const DEFAULT_PAPERWEIGHT = Object.freeze({x:1103,y:496,questId:null,corner:null,emblem:'shield',imageDataUrl:null});
+export const ADVENTURER_CARD_SIZE = Object.freeze({ width: 160, height: 101 });
+export const DEFAULT_ADVENTURER_CARD = Object.freeze({ x: 18, y: 18, docked: true });
 export const STATUS = Object.freeze({
   active: { label: 'กำลังทำ', en: 'IN PROGRESS', color: '#8b713e' },
   done: { label: 'สำเร็จแล้ว', en: 'COMPLETED', color: '#4f6d4d' },
@@ -458,6 +460,23 @@ export function updatePaperweight(state, patch) {
   return next;
 }
 
+export function normalizeAdventurerCard(raw) {
+  record(raw, 'บัตรนักผจญภัย');
+  const docked = raw.docked === undefined ? true : Boolean(raw.docked);
+  const x = number(raw.x ?? DEFAULT_ADVENTURER_CARD.x, 'ตำแหน่งบัตรนักผจญภัย x', 0, 5000);
+  const y = number(raw.y ?? DEFAULT_ADVENTURER_CARD.y, 'ตำแหน่งบัตรนักผจญภัย y', 0, 5000);
+  return { x, y, docked };
+}
+
+export function updateAdventurerCard(state, patch) {
+  record(patch, 'ข้อมูลบัตรนักผจญภัย');
+  const previous = state.adventurerCard ?? DEFAULT_ADVENTURER_CARD;
+  const adventurerCard = normalizeAdventurerCard({ ...previous, ...patch });
+  const next = { ...state, adventurerCard };
+  checkBackupBudget(next);
+  return next;
+}
+
 function checkBackupBudget(state) {
   let imageBytes = 0;
   const items = state.items.map(item => {
@@ -515,6 +534,7 @@ export function validateState(raw) {
   validateDependencies(items);
   const dailyBook = raw.dailyBook === undefined ? undefined : normalizeDailyBook(raw.dailyBook, BOARD_LIMIT);
   const paperweight = raw.paperweight === undefined ? undefined : normalizePaperweight(raw.paperweight, items);
+  const adventurerCard = raw.adventurerCard === undefined ? undefined : normalizeAdventurerCard(raw.adventurerCard);
   const normalized = {
     version: 1,
     items,
@@ -522,6 +542,7 @@ export function validateState(raw) {
     settings,
     ...(dailyBook === undefined ? {} : { dailyBook }),
     ...(paperweight === undefined ? {} : { paperweight }),
+    ...(adventurerCard === undefined ? {} : { adventurerCard }),
   };
   checkBackupBudget(normalized);
   return normalized;

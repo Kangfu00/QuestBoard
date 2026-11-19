@@ -1,4 +1,4 @@
-import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSheet, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask, DEFAULT_PAPERWEIGHT, PAPERWEIGHT_EMBLEMS, updatePaperweight, ensureNotebook } from './model.mjs';
+import { BOARD, BOARD_LIMIT, STATUS, CATEGORIES, uid, createQuest, createPhotoSheet, createLabel, createFolder, moveQuestToFolder, updateItem, deleteItem, setItemStatus, setArchived, filterQuests, addStamp, MAX_BACKUP_BYTES, serializeState, parseState, validateState, DAILY_BOOK_SIZE, ensureDailyBook, updateDailyBookMeta, updateDailyTask, deleteDailyTask, DEFAULT_PAPERWEIGHT, PAPERWEIGHT_EMBLEMS, updatePaperweight, ensureNotebook, updateAdventurerCard } from './model.mjs';
 import {NOTEBOOK_SIZE,PAPER,toPaperStampPosition,photoSheetSize} from './paper-format.mjs';
 import { chooseStampTool, applyHeldStamp } from './stamp-tools.mjs';
 import { dragPosition, containsPoint, drawerReveal, shouldOpenDrawer, rotatedOrigin, canvasLayout, rotatedClampPosition, storedDropPosition, drawerForDraggedItem, storageTrayAccepts } from './interactions.mjs';
@@ -34,7 +34,7 @@ import {createPaperweight,paperweightFace} from './paperweight.mjs';
 import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './photo-sheet.mjs';
 import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
 import {burnStage,burnVariant,paperAgeStage,burnWispAnchors,msUntilNextMidnight,installBurnLayers} from './burn-model.mjs';
-import {createAdventurerPlate} from './adventurer-plate.mjs';
+import {createAdventurerCard} from './adventurer-card.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -99,7 +99,7 @@ let bundleControl=null,atmosphere=null,questPhotos=null,photoViewer=null;
 let questUnlockEffects=null,prerequisitePicker=null;
 let paperweightControl=null;
 let photoResizeControl=null;
-let adventurerPlate=null;
+let adventurerCard=null;
 const stampCues=new Map();
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const onSoundCue=(name,options)=>sound.play(name,options);
@@ -287,8 +287,8 @@ function shell(){
     isBlocked:()=>!!(drag||storedDrag||bookDrag||heldStamp||paperweightControl?.dragging||bundleControl?.dragging||questPhotos?.editing||photoViewer?.isOpen||dialog.open||$('#tool-menu-dialog')?.open),
   });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
-  adventurerPlate?.destroy();
-  adventurerPlate=createAdventurerPlate({deskSurface:$('#desk-surface'),document,window,reducedMotion,onCue:onSoundCue,icon});
+  adventurerCard?.destroy();
+  adventurerCard=createAdventurerCard({deskSurface:$('#desk-surface'),document,window,getState:()=>state,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
   $('#sound-volume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);refreshSoundControls();};
@@ -698,7 +698,7 @@ function renderCounts(){
   document.querySelectorAll('[data-count]').forEach(e=>e.textContent=e.dataset.count==='all'?quests.length:statCount(e.dataset.count));
   $('#active-count').textContent=statCount('active');$('#done-count').textContent=done;$('#xp-count').textContent=xp.toLocaleString();$('#all-badge').textContent=quests.length;
   $('#adventurer-level').textContent=`LEVEL ${Math.floor(xp/500)+1} · ${xp.toLocaleString()} XP`;
-  adventurerPlate?.update(xp,{doneCount:done,emblem:state?.paperweight?.emblem,imageDataUrl:state?.paperweight?.imageDataUrl});
+  adventurerCard?.update(xp,{doneCount:done,emblem:state?.paperweight?.emblem,imageDataUrl:state?.paperweight?.imageDataUrl,boardName:state?.settings?.boardName});
   renderDrawer();
 }
 function resizeBoard(){
@@ -899,7 +899,7 @@ function stampPaper(id,event,source=null){
     const nextXp=typeof questItems==='function'?questItems(true).filter(q=>q.status==='done').reduce((a,q)=>a+q.xp,0):calcDoneXp(next);
     const nextLevel=Math.floor(nextXp/500)+1;
     const deltaXp=nextXp-prevXp;
-    if(heldStamp?.status==='done'&&deltaXp>0&&typeof adventurerPlate!=='undefined'&&adventurerPlate){
+    if(heldStamp?.status==='done'&&deltaXp>0&&typeof adventurerCard!=='undefined'&&adventurerCard){
       let origin=null;
       if(event&&Number.isFinite(event.clientX)&&Number.isFinite(event.clientY)&&event.clientX>0&&event.clientY>0){
         origin={x:event.clientX,y:event.clientY};
@@ -907,9 +907,9 @@ function stampPaper(id,event,source=null){
         const r=surface.paper.getBoundingClientRect();
         origin={x:r.left+r.width/2,y:r.top+r.height/2};
       }
-      adventurerPlate.flyCoins({origin,deltaXp});
+      adventurerCard.flyMana({origin,deltaXp});
       if(nextLevel>prevLevel){
-        adventurerPlate.celebrateLevelUp(nextLevel);
+        adventurerCard.celebrateLevelUp(nextLevel);
       }
     }
     if(previousStage>=1){
@@ -1675,8 +1675,8 @@ document.addEventListener('keydown',e=>{
   if(e.key==='/'&&!dialog.open&&!e.target.matches('input,textarea,select')){e.preventDefault();returnStamp(false);setToolsOpen(true);openToolMenu();$('#search')?.focus();}
   if(e.key==='Escape'){if(drag)cancelDrag();else if(storedDrag)cancelStoredDrag();else if(heldStamp){e.preventDefault();returnStamp();}else if(!dialog.open){setActiveDrawer(null);setToolsOpen(false);closeFolderWindow(true);if(typeof dailyBookWindow!=='undefined')dailyBookWindow?.close?.({animate:true});}}
 });
-window.addEventListener('blur',()=>{if(drag)cancelDrag();if(storedDrag)cancelStoredDrag();for(const cue of stampCues.values())cue.abort();stampCues.clear();paperEffects.cancelAll();if(typeof adventurerPlate!=='undefined'&&adventurerPlate)adventurerPlate.cancelAll();});
-window.addEventListener('pagehide',()=>{if(drag)cancelDrag();if(storedDrag)cancelStoredDrag();for(const cue of stampCues.values())cue.abort();stampCues.clear();finishFolderOpening();folioWindows?.cancelClosing();paperEffects.cancelAll();if(typeof adventurerPlate!=='undefined'&&adventurerPlate)adventurerPlate.cancelAll();returnStamp(false);});
+window.addEventListener('blur',()=>{if(drag)cancelDrag();if(storedDrag)cancelStoredDrag();for(const cue of stampCues.values())cue.abort();stampCues.clear();paperEffects.cancelAll();if(typeof adventurerCard!=='undefined'&&adventurerCard)adventurerCard.cancelAll();});
+window.addEventListener('pagehide',()=>{if(drag)cancelDrag();if(storedDrag)cancelStoredDrag();for(const cue of stampCues.values())cue.abort();stampCues.clear();finishFolderOpening();folioWindows?.cancelClosing();paperEffects.cancelAll();if(typeof adventurerCard!=='undefined'&&adventurerCard)adventurerCard.cancelAll();returnStamp(false);});
 if(saveUnavailable){
   $('#app').innerHTML=`<div class="loading-screen">${crest()}<h1>เปิดสมุดบันทึกไม่ได้</h1><p>${esc(loadError?.message)}<br>ข้อมูลเดิมยังไม่ได้ถูกแทนที่</p><button class="button primary" id="retry-load">${icon('restore')}ลองเปิดอีกครั้ง</button></div>`;
   $('#retry-load').onclick=()=>location.reload();
