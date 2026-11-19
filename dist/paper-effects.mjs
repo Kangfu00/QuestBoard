@@ -13,7 +13,7 @@ export function createPaperEffects({
   cancelAnimationFrame=globalThis.cancelAnimationFrame?.bind(globalThis),
   onCue,
 }={}) {
-  const stores=new Set(),entries=new Map();
+  const stores=new Set(),entries=new Map(),extinguishes=new Map();
   const reduce=()=>typeof reducedMotion==='function'?reducedMotion():!!reducedMotion;
   const viewport=()=>[window?.innerWidth??document?.documentElement?.clientWidth,window?.innerHeight??document?.documentElement?.clientHeight];
   const cue=(name,controller,delay=0)=>{
@@ -103,7 +103,51 @@ export function createPaperEffects({
     }finally{state.cancel();}
   }
 
-  function cancelEntry(paper){entries.get(paper)?.cancel();}
+  function cancelExtinguish(paper){extinguishes.get(paper)?.cancel();}
+
+  async function extinguish(paper,{stage=1,variant=0}={}){
+    if(!paper)return;
+    cancelExtinguish(paper);
+    if(reduce()||typeof paper.animate!=='function')return;
+    const ghost=document.createElement('span');
+    ghost.className='paper-burn paper-burn-extinguishing';
+    ghost.setAttribute('aria-hidden','true');
+    ghost.setAttribute('data-burn',String(stage));
+    ghost.setAttribute('data-burn-variant',String(variant));
+    paper.append(ghost);
+    const state={
+      ghost,
+      cancel(){
+        cancelMotion(ghost);
+        ghost.remove();
+        if(extinguishes.get(paper)===state)extinguishes.delete(paper);
+      }
+    };
+    extinguishes.set(paper,state);
+    try{
+      await animateTransient(
+        ghost,
+        [
+          {opacity:1,filter:'brightness(1.2)'},
+          {opacity:0,filter:'brightness(0.7)'},
+        ],
+        {duration:360,easing:'cubic-bezier(.22,.8,.24,1)',fill:'forwards'},
+        {remove:true}
+      );
+    }catch{
+      // Available WAAPI affects only visual flourish
+    }finally{
+      if(extinguishes.get(paper)===state){
+        ghost.remove();
+        extinguishes.delete(paper);
+      }
+    }
+  }
+
+  function cancelEntry(paper){
+    entries.get(paper)?.cancel();
+    extinguishes.get(paper)?.cancel();
+  }
 
   async function enter(paper,{source,scale=1,rotation=0}={}){
     if(!paper)return;
@@ -143,6 +187,7 @@ export function createPaperEffects({
   function cancelAll(){
     for(const state of [...stores])state.cancel();
     for(const state of [...entries.values()])state.cancel();
+    for(const state of [...extinguishes.values()])state.cancel();
   }
-  return {store,enter,cancelAll,cancelEntry};
+  return {store,enter,extinguish,cancelExtinguish,cancelAll,cancelEntry};
 }

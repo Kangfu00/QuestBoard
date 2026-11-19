@@ -1,5 +1,14 @@
 # Verification
 
+## 2026-11-19 — paper burn & urgency system: pure calculation model, deterministic masks, CSS char/ember, midnight/visibility sync & extinguish flourish
+
+- **Pure calculation burn model (`dist/burn-model.mjs`):** `burnStage(due, today, status)` computes stages 0–4 (none, upcoming 2–3 days, tomorrow, today, overdue) using local dates and UTC midday to eliminate DST skew. Pure and ephemeral; no extra state stored in database or backups.
+- **Stable edge masks:** 4 organic charred edge masks generated deterministically from quest ID hashes (`burnVariant(id)`) via SVG data URIs, bound via `--burn-mask` in CSS.
+- **Physical char & ember styling (`dist/paper-burn.css`):** Multi-layered inset box-shadows (`#7a4a22` → `#5a351a` → `#3a2414` → `#1b110b`), pulsating ember glow on stage 3 (`#d9772f`, paused during drag), and softened `.overdue` text color (`#8c533c`). Center area remains 100% transparent with zero obstruction to text or clicks.
+- **Extinguish flourish & rekindle:** Stamping triggers `paperEffects.extinguish(refreshedPaper, { stage, variant })` which fades out char over 360ms with `cubic-bezier(.22,.8,.24,1)`. Restoring active status smoothly rekindles char over 400ms. Respects reduced-motion and forced-colors accessibility.
+- **Temporal sync:** Single timer schedules to next local midnight (`msUntilNextMidnight()`), refreshed dynamically on `visibilitychange` to update `data-burn` attributes without re-rendering the board.
+- **Testing & governance:** Full unit test suite in `tests/burn-model.test.mjs` and `tests/paper-burn-effects.test.mjs`. All 46 modules verified by `npm run check`, full test suite passes cleanly, and zero WAAPI leaks verified by `tests/motion-governance.test.mjs`.
+
 ## 2026-11-19 — motion phases 2 & 3: directional lighting, release inertia, atmosphere drag suspension, playbackRate fast-forward & reduced-motion crossfade
 
 - Unified directional lighting vectors (`--light-x`, `--light-y`, `--lift`) across all dayparts (`morning`, `day`, `evening`, `night`, `off`) in `dist/atmosphere.mjs`, reflected dynamically into CSS box shadows in `tabletop.css`, `leather-folios.css`, `daily-book.css`, `paperweight.css`, and `motion-tokens.css`.

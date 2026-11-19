@@ -33,6 +33,7 @@ import {bindCoverEditor,renderCoverEditorFields} from './cover-editor.mjs';
 import {createPaperweight,paperweightFace} from './paperweight.mjs';
 import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './photo-sheet.mjs';
 import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
+import {burnStage,burnVariant,msUntilNextMidnight} from './burn-model.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -337,8 +338,13 @@ function renderQuest(q,index){
   const [rank,priority]=priorities[q.priority]||priorities.normal;
   const photo=questPhotoPresentation(q);
   const dependencies=q.prerequisiteIds?.length?dependencyMarkup(q,state.items):'';
-  return `<article class="quest-paper board-item paper-${index%3} ${q.status!=='active'?'has-stamp':''} ${q.imageDataUrl?'has-photo':''} ${photo.className}" data-id="${esc(q.id)}" style="left:${q.x}px;top:${q.y}px;--rotation:${q.rotation}deg;z-index:${q.z}" aria-label="เควส ${esc(q.title)}">
+  const stage=typeof burnStage==='function'?burnStage(q.due,undefined,q.status):0;
+  const variant=typeof burnVariant==='function'?burnVariant(q.id):0;
+  const burnAttrs=stage>=1?` data-burn="${stage}" data-burn-variant="${variant}"`:'';
+  const burnLayer=stage>=1?'<span class="paper-burn" aria-hidden="true"></span>':'';
+  return `<article class="quest-paper board-item paper-${index%3} ${q.status!=='active'?'has-stamp':''} ${q.imageDataUrl?'has-photo':''} ${photo.className}" data-id="${esc(q.id)}"${burnAttrs} style="left:${q.x}px;top:${q.y}px;--rotation:${q.rotation}deg;z-index:${q.z}" aria-label="เควส ${esc(q.title)}">
     <span class="paper-wear" aria-hidden="true"></span>
+    ${burnLayer}
     <button type="button" class="quest-bundle-select" data-bundle-select="${esc(q.id)}" aria-pressed="false" aria-label="เลือกเควส ${esc(q.title)} เพื่อหยิบเป็นมัด" title="เลือกหลายใบด้วย Shift+คลิก หรือกดช่องเลือก">${icon('check')}</button>
     <div class="quest-top drag-handle" tabindex="0" role="button" aria-label="ลากเควส ${esc(q.title)} หรือใช้ปุ่มลูกศรเพื่อย้าย"><span class="quest-type">${icon(q.category==='พัฒนาตัวเอง'?'feather':q.category==='ชีวิตประจำวัน'?'sun':'swords')}${esc(q.category)}</span>${icon('grip')}</div>
     <div class="paper-rule"><span>QUEST No. ${String(state.items.filter(i=>i.type==='quest').findIndex(i=>i.id===q.id)+1).padStart(3,'0')}</span><span class="rank rank-${q.priority}" title="${priority}">${rank}</span></div>
@@ -864,9 +870,15 @@ function stampPaper(id,event,source=null){
       position=stampSurfacePoint(surface,{x:event.clientX,y:event.clientY},{getComputedStyle,Matrix:DOMMatrix});
       if(surface.kind==='board')paperEffects.cancelEntry(surface.paper);
     }
+    const previousStage=Number(surface.paper?.dataset?.burn||0);
+    const variant=Number(surface.paper?.dataset?.burnVariant||0);
     const next=applyHeldStamp(state,id,heldStamp,position,{allowArchived:surface.kind!=='board'});if(next===state)return;
     if(filters.status!=='all'&&filters.status!==heldStamp.status)filters.status='all';
     commit(next);playStampImpact(id,true,surface);updateStampPointer(event?.detail===0?undefined:event);
+    if(previousStage>=1){
+      const refreshed=refreshStampSurface(surface)?.paper;
+      if(refreshed)paperEffects.extinguish(refreshed,{stage:previousStage,variant});
+    }
     if(restoreFocus)refreshStampSurface(surface)?.paper.querySelector('.drag-handle,.quest-top')?.focus({preventScroll:true});
     const cursor=$('#stamp-cursor');cursor.classList.remove('is-pressing');void cursor.offsetWidth;cursor.classList.add('is-pressing');clearTimeout(stampPressTimer);stampPressTimer=setTimeout(()=>cursor.classList.remove('is-pressing'),600);
   }catch(err){showToast(err.message);}
@@ -1639,11 +1651,71 @@ if(saveUnavailable){
 }else{
   startBoard();
 }
+let midnightTimer=null;
+function scheduleMidnightRefresh(){
+  clearTimeout(midnightTimer);
+  const ms=msUntilNextMidnight();
+  midnightTimer=setTimeout(()=>{
+    syncBurnStages();
+    scheduleMidnightRefresh();
+  },ms);
+}
+function syncBurnStages(){
+  const quests=state.items.filter(i=>i.type==='quest');
+  const now=new Date();
+  for(const q of quests){
+    const stage=burnStage(q.due,now,q.status);
+    const variant=burnVariant(q.id);
+    const overdue=isOverdue(q);
+    const elements=document.querySelectorAll(`.quest-paper[data-id="${q.id}"]`);
+    for(const el of elements){
+      const prevStage=Number(el.dataset.burn||0);
+      if(stage!==prevStage){
+        if(stage>=1){
+          el.dataset.burn=String(stage);
+          el.dataset.burnVariant=String(variant);
+          if(!el.querySelector('.paper-burn')){
+            const wear=el.querySelector('.paper-wear');
+            const burn=document.createElement('span');
+            burn.className='paper-burn';
+            burn.setAttribute('aria-hidden','true');
+            if(wear)wear.after(burn);
+            else el.prepend(burn);
+          }
+        }else{
+          delete el.dataset.burn;
+          delete el.dataset.burnVariant;
+          el.querySelector('.paper-burn')?.remove();
+        }
+      }
+      const dateEl=el.querySelector('.quest-date');
+      if(dateEl){
+        dateEl.classList.toggle('overdue',overdue);
+        const small=dateEl.querySelector('small');
+        if(overdue&&!small){
+          const s=document.createElement('small');
+          s.textContent='เลยกำหนด';
+          dateEl.append(s);
+        }else if(!overdue&&small){
+          small.remove();
+        }
+      }
+    }
+  }
+}
 function startBoard(){
   createMotionDebug({document,window});
   state=ensureDailyBook(ensureNotebook(ensureTrayPositions(state)));
   shell();persist();
+  syncBurnStages();
+  scheduleMidnightRefresh();
   window.addEventListener('online',()=>backupClient.retry());
-  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')backupClient.retry();});
+  document.addEventListener('visibilitychange',()=>{
+    if(document.visibilityState==='visible'){
+      backupClient.retry();
+      syncBurnStages();
+      scheduleMidnightRefresh();
+    }
+  });
   setInterval(()=>backupClient.retry(),15000);
 }

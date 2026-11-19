@@ -1,0 +1,135 @@
+/**
+ * The Questboard — Paper Burn & Urgency Stylesheet
+ * Edge char and ember effects based on deadline urgency stages.
+ */
+
+:is(.quest-paper[data-burn-variant="0"], .paper-burn[data-burn-variant="0"], .paper-burn-extinguishing[data-burn-variant="0"]) {
+  --burn-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20420%22%3E%3Cpath%20fill%3D%22%23000%22%20fill-rule%3D%22evenodd%22%20d%3D%22M%200%200%20L%20300%200%20L%20300%20420%20L%200%20420%20Z%20M%2018%2013.1%20L%2040%2020.2%20L%2062%2017.1%20L%2084%2020.8%20L%20106%2018.6%20L%20128%2022.3%20L%20150%2017.7%20L%20172%2022.7%20L%20194%2017.1%20L%20216%2014.1%20L%20238%2022.5%20L%20260%2013.9%20L%20282%2017.4%20L%20285.8%2042%20L%20286.4%2066%20L%20281.7%2090%20L%20278.9%20114%20L%20284.7%20138%20L%20285.7%20162%20L%20281.4%20186%20L%20279.4%20210%20L%20286.5%20234%20L%20279.8%20258%20L%20285.1%20282%20L%20284.8%20306%20L%20283.7%20330%20L%20284.9%20354%20L%20285%20378%20L%20284.4%20402%20L%20260%20402%20L%20238%20402.1%20L%20216%20397.6%20L%20194%20405.2%20L%20172%20405.9%20L%20150%20404.1%20L%20128%20398.9%20L%20106%20400.3%20L%2084%20399.2%20L%2062%20406.6%20L%2040%20403.3%20L%2018%20399.6%20L%2016.9%20378%20L%2014.6%20354%20L%2014.4%20330%20L%2016.8%20306%20L%2016.4%20282%20L%2016.2%20258%20L%2019.7%20234%20L%2014.6%20210%20L%2016.4%20186%20L%2016.9%20162%20L%2013.3%20138%20L%2022.1%20114%20L%2016.8%2090%20L%2018%2066%20L%2013.1%2042%20Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+:is(.quest-paper[data-burn-variant="1"], .paper-burn[data-burn-variant="1"], .paper-burn-extinguishing[data-burn-variant="1"]) {
+  --burn-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20420%22%3E%3Cpath%20fill%3D%22%23000%22%20fill-rule%3D%22evenodd%22%20d%3D%22M%200%200%20L%20300%200%20L%20300%20420%20L%200%20420%20Z%20M%2018%2013.1%20L%2040%2013.5%20L%2062%2013.4%20L%2084%2016.4%20L%20106%2014%20L%20128%2020.2%20L%20150%2016.2%20L%20172%2020.5%20L%20194%2016.3%20L%20216%2014%20L%20238%2014.9%20L%20260%2014.3%20L%20282%2017.8%20L%20282.3%2042%20L%20286.6%2066%20L%20286.8%2090%20L%20280.7%20114%20L%20280.6%20138%20L%20277.8%20162%20L%20286.7%20186%20L%20286.4%20210%20L%20281%20234%20L%20284.6%20258%20L%20280.7%20282%20L%20286.4%20306%20L%20279.5%20330%20L%20284.8%20354%20L%20278.7%20378%20L%20286.4%20402%20L%20260%20405%20L%20238%20399.9%20L%20216%20406.2%20L%20194%20399.6%20L%20172%20405.9%20L%20150%20404.7%20L%20128%20405%20L%20106%20402.3%20L%2084%20398.3%20L%2062%20406.4%20L%2040%20404.5%20L%2018%20402.1%20L%2018.1%20378%20L%2020%20354%20L%2013.2%20330%20L%2022.4%20306%20L%2021.4%20282%20L%2014.8%20258%20L%2021.2%20234%20L%2013.7%20210%20L%2017.1%20186%20L%2020%20162%20L%2013.3%20138%20L%2013.4%20114%20L%2013.2%2090%20L%2018.7%2066%20L%2014.2%2042%20Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+:is(.quest-paper[data-burn-variant="2"], .paper-burn[data-burn-variant="2"], .paper-burn-extinguishing[data-burn-variant="2"]) {
+  --burn-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20420%22%3E%3Cpath%20fill%3D%22%23000%22%20fill-rule%3D%22evenodd%22%20d%3D%22M%200%200%20L%20300%200%20L%20300%20420%20L%200%20420%20Z%20M%2018%2013.1%20L%2040%2016.8%20L%2062%2019.8%20L%2084%2022.1%20L%20106%2019.5%20L%20128%2018.1%20L%20150%2014.8%20L%20172%2018.3%20L%20194%2015.6%20L%20216%2013.9%20L%20238%2017.3%20L%20260%2014.8%20L%20282%2018.1%20L%20278.8%2042%20L%20286.8%2066%20L%20281.9%2090%20L%20282.4%20114%20L%20286.6%20138%20L%20279.9%20162%20L%20282%20186%20L%20283.3%20210%20L%20285.4%20234%20L%20279.5%20258%20L%20286.2%20282%20L%20278%20306%20L%20285.2%20330%20L%20284.8%20354%20L%20282.5%20378%20L%20278.3%20402%20L%20260%20398%20L%20238%20397.7%20L%20216%20404.8%20L%20194%20404.1%20L%20172%20405.8%20L%20150%20405.3%20L%20128%20401.2%20L%20106%20404.3%20L%2084%20397.4%20L%2062%20406.2%20L%2040%20405.6%20L%2018%20404.7%20L%2019.3%20378%20L%2015.4%20354%20L%2022%20330%20L%2018.1%20306%20L%2016.3%20282%20L%2013.4%20258%20L%2022.6%20234%20L%2022.7%20210%20L%2017.8%20186%20L%2013.1%20162%20L%2013.2%20138%20L%2014.7%20114%20L%2019.7%2090%20L%2019.4%2066%20L%2015.3%2042%20Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+:is(.quest-paper[data-burn-variant="3"], .paper-burn[data-burn-variant="3"], .paper-burn-extinguishing[data-burn-variant="3"]) {
+  --burn-mask: url("data:image/svg+xml;charset=utf-8,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%20300%20420%22%3E%3Cpath%20fill%3D%22%23000%22%20fill-rule%3D%22evenodd%22%20d%3D%22M%200%200%20L%20300%200%20L%20300%20420%20L%200%20420%20Z%20M%2018%2013.2%20L%2040%2020.1%20L%2062%2016.2%20L%2084%2017.7%20L%20106%2014.9%20L%20128%2016%20L%20150%2013.3%20L%20172%2016.1%20L%20194%2014.8%20L%20216%2013.8%20L%20238%2019.7%20L%20260%2015.2%20L%20282%2018.5%20L%20285.4%2042%20L%20286.9%2066%20L%20286.9%2090%20L%20284.2%20114%20L%20282.5%20138%20L%20282%20162%20L%20277.2%20186%20L%20280.2%20210%20L%20279.8%20234%20L%20284.3%20258%20L%20281.8%20282%20L%20279.6%20306%20L%20281%20330%20L%20284.7%20354%20L%20286.2%20378%20L%20280.2%20402%20L%20260%20401.1%20L%20238%20405.5%20L%20216%20403.4%20L%20194%20398.6%20L%20172%20405.8%20L%20150%20405.9%20L%20128%20397.3%20L%20106%20406.3%20L%2084%20406.5%20L%2062%20406%20L%2040%20406.8%20L%2018%20397.2%20L%2020.5%20378%20L%2020.7%20354%20L%2020.8%20330%20L%2013.7%20306%20L%2021.3%20282%20L%2022%20258%20L%2014.1%20234%20L%2021.7%20210%20L%2018.5%20186%20L%2016.2%20162%20L%2013.2%20138%20L%2016%20114%20L%2016.1%2090%20L%2020.2%2066%20L%2016.4%2042%20Z%22%2F%3E%3C%2Fsvg%3E");
+}
+
+.paper-burn {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 2;
+  mask-image: var(--burn-mask);
+  -webkit-mask-image: var(--burn-mask);
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-repeat: no-repeat;
+  animation: burn-rekindle 400ms ease-out both;
+}
+
+.paper-burn.paper-burn-extinguishing {
+  animation: none !important;
+}
+
+@keyframes burn-rekindle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Stage 1: Upcoming (2–3 days left) — Warm toast edge */
+:is(.quest-paper[data-burn="1"] .paper-burn, .paper-burn[data-burn="1"], .paper-burn-extinguishing[data-burn="1"]) {
+  box-shadow:
+    inset 0 0 10px 3px rgba(122, 74, 34, 0.45),
+    inset 0 0 3px 1px rgba(90, 53, 26, 0.35);
+  background: radial-gradient(circle at center, transparent 75%, rgba(122, 74, 34, 0.15) 100%);
+}
+
+/* Stage 2: Tomorrow (1 day left) — Medium char rim */
+:is(.quest-paper[data-burn="2"] .paper-burn, .paper-burn[data-burn="2"], .paper-burn-extinguishing[data-burn="2"]) {
+  box-shadow:
+    inset 0 0 16px 5px rgba(90, 53, 26, 0.7),
+    inset 0 0 5px 2px rgba(58, 36, 20, 0.6);
+  background: radial-gradient(circle at center, transparent 70%, rgba(90, 53, 26, 0.3) 100%);
+}
+
+/* Stage 3: Due today (0 days left) — Deep char with ember line & pulse */
+:is(.quest-paper[data-burn="3"] .paper-burn, .paper-burn[data-burn="3"], .paper-burn-extinguishing[data-burn="3"]) {
+  box-shadow:
+    inset 0 0 20px 8px rgba(58, 36, 20, 0.85),
+    inset 0 0 6px 3px rgba(27, 17, 11, 0.75),
+    inset 0 0 2px 1px rgba(217, 119, 47, 0.85);
+  background: radial-gradient(circle at center, transparent 65%, rgba(58, 36, 20, 0.45) 100%);
+}
+
+:is(.quest-paper[data-burn="3"], .paper-burn[data-burn="3"], .paper-burn-extinguishing[data-burn="3"]) .paper-burn::after,
+.paper-burn[data-burn="3"]::after,
+.paper-burn-extinguishing[data-burn="3"]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: inset 0 0 4px 1px #d9772f;
+  opacity: 0.75;
+  animation: burn-ember 2.4s ease-in-out infinite alternate;
+}
+
+@keyframes burn-ember {
+  0% {
+    opacity: 0.4;
+    filter: drop-shadow(0 0 1px #d9772f);
+  }
+  50% {
+    opacity: 0.95;
+    filter: drop-shadow(0 0 3px #d9772f);
+  }
+  100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 1.5px #d9772f);
+  }
+}
+
+/* Stage 4: Overdue (< 0 days) — Charred black crisp edge */
+:is(.quest-paper[data-burn="4"] .paper-burn, .paper-burn[data-burn="4"], .paper-burn-extinguishing[data-burn="4"]) {
+  box-shadow:
+    inset 0 0 26px 10px rgba(27, 17, 11, 0.92),
+    inset 0 0 8px 4px #1b110b;
+  background: radial-gradient(circle at center, transparent 60%, rgba(27, 17, 11, 0.6) 100%);
+}
+
+/* Pause ember pulse while dragging so it feels physically grounded */
+.quest-paper.dragging .paper-burn::after {
+  animation-play-state: paused;
+}
+
+/* Overdue date text color softened to harmonize with char palette */
+.quest-paper[data-burn="4"] .quest-date.overdue,
+.quest-date.overdue {
+  color: #8c533c;
+  opacity: 0.95;
+}
+
+/* Reduced motion preference: eliminate all animations and ember pulsing */
+@media (prefers-reduced-motion: reduce) {
+  .paper-burn,
+  .paper-burn::after,
+  .paper-burn-extinguishing {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* High contrast / forced colors accessibility */
+@media (forced-colors: active) {
+  .paper-burn,
+  .paper-burn-extinguishing {
+    display: none !important;
+  }
+}
