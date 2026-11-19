@@ -251,5 +251,7 @@ export const DESK_SOUNDS=Object.freeze({
   stamp:mix(wood('medium',0,1,2,3,4),{rate:[.96,1.04],peak:-5,rms:-23,interval:65}),
   paperweightDrop:mix(['audio/kenney-impact/impactMetal_light_000.ogg','audio/kenney-impact/impactMetal_light_001.ogg'],{rate:[.87,.95],peak:-10,rms:-29}),
   cardDrop:mix(wood('light',0,1,2,3,4),{rate:[1.06,1.16],peak:-9,rms:-28,interval:85}),
+  bell:mix(['audio/kenney-impact/impactMetal_light_000.ogg','audio/kenney-impact/impactMetal_light_001.ogg'],{rate:[1.24,1.32],peak:-7,rms:-26,interval:120}),
+  receptionStamp:mix(wood('medium',0,1,2,3,4),{rate:[.82,.90],peak:-3,rms:-20,interval:90}),
   pen:mix(paper('pencilScratch1','pencilScratch2','pencilScratch3'),{peak:-12,rms:-29,interval:110}),
 });

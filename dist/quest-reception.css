@@ -1,0 +1,395 @@
+/* ==========================================================================
+   The Questboard — Guild Quest Reception Counter (เคาน์เตอร์ส่งงานกิลด์)
+   Antique brass turn-in tray & counter service bell at the left desk rim.
+   ========================================================================== */
+
+.guild-reception {
+  position: absolute;
+  left: 18px;
+  top: 18px;
+  width: 250px;
+  z-index: 14;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  box-sizing: border-box;
+  --card-scale: var(--desk-scale, 1);
+  scale: var(--card-scale, 1);
+  transform-origin: top left;
+  transition: transform 180ms ease, scale 220ms ease;
+}
+
+/* ==========================================================================
+   1. Brass Guild Turn-In Tray (ถาดทองเหลืองส่งงานกิลด์)
+   ========================================================================== */
+
+.reception-tray {
+  position: relative;
+  width: 100%;
+  height: 160px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5c3b1e 0%, #3e240e 50%, #2a1608 100%);
+  border: 2px solid #94713c;
+  box-shadow:
+    0 8px 24px rgba(16, 9, 4, 0.55),
+    inset 0 1px 1px #ffebbe66,
+    inset 0 -2px 4px #1a0c04aa;
+  padding: 6px;
+  box-sizing: border-box;
+  transition: border-color 220ms ease, box-shadow 220ms ease, background 220ms ease;
+}
+
+/* Drop Target Active State (Hovering quest over tray) */
+.guild-reception.is-drop-target .reception-tray {
+  border-color: #ffd875;
+  box-shadow:
+    0 0 18px rgba(235, 192, 107, 0.65),
+    0 10px 28px rgba(16, 9, 4, 0.65),
+    inset 0 0 12px rgba(255, 235, 179, 0.35);
+}
+
+.reception-tray-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Dark Woodland Velvet Bed */
+.reception-tray-velvet {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, #2a3a28 0%, #172416 65%, #0f180e 100%);
+  border: 1px solid #1a2e18;
+  box-shadow:
+    inset 0 3px 8px rgba(0, 0, 0, 0.75),
+    inset 0 0 16px rgba(10, 16, 10, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  pointer-events: none;
+}
+
+.reception-tray-rune {
+  width: 48px;
+  height: 48px;
+  opacity: 0.18;
+  color: #cbb47b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 220ms ease;
+}
+
+.reception-tray-rune svg {
+  width: 100%;
+  height: 100%;
+}
+
+.guild-reception.is-drop-target .reception-tray-rune {
+  opacity: 0.42;
+  filter: drop-shadow(0 0 6px #ffd977);
+}
+
+.reception-tray-label {
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #9c8a60;
+  opacity: 0.55;
+  text-shadow: 0 1px 2px #000;
+}
+
+/* Resting Quest Paper Container in Tray */
+.reception-slot {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.reception-slot:empty {
+  pointer-events: none;
+}
+
+/* Mini Resting Paper in Tray */
+.reception-paper-preview {
+  position: relative;
+  width: 92%;
+  height: 90%;
+  background: linear-gradient(135deg, #f7eed7 0%, #ecd9b3 50%, #dfc594 100%);
+  border: 1px solid #6b4620;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+  padding: 8px 10px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  cursor: grab;
+  transition: transform 180ms ease, box-shadow 180ms ease;
+  animation: receptionPaperLand 260ms cubic-bezier(.2,.8,.3,1);
+}
+
+.reception-paper-preview:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.55);
+}
+
+@keyframes receptionPaperLand {
+  from { transform: translateY(-14px) scale(1.04); opacity: 0.6; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.reception-paper-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px dashed #7a502640;
+  padding-bottom: 4px;
+  font-size: 8.5px;
+  color: #5c3a19;
+}
+
+.reception-paper-title {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #2e1a0b;
+  line-height: 1.3;
+  margin: 4px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.reception-paper-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #7a502630;
+  padding-top: 3px;
+  font-size: 9px;
+  color: #633f1c;
+}
+
+.reception-paper-xp {
+  font-family: var(--display, 'Cinzel', serif);
+  font-weight: 700;
+  color: #446633;
+}
+
+.reception-paper-withdraw {
+  font-family: var(--body, 'Noto Sans Thai', sans-serif);
+  font-size: 8px;
+  color: #8c6840;
+}
+
+/* ==========================================================================
+   2. Counter Receptionist Service Bell (กระดิ่งเคาน์เตอร์กิลด์ 🛎️)
+   ========================================================================== */
+
+.reception-bell {
+  position: absolute;
+  top: -16px;
+  right: -14px;
+  width: 48px;
+  height: 48px;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 5;
+  outline: none;
+  transition: transform 160ms cubic-bezier(.2,.8,.3,1);
+}
+
+.reception-bell:hover {
+  transform: scale(1.08);
+}
+
+.reception-bell:focus-visible {
+  outline: 2px solid var(--gold, #c3ae78);
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.bell-assembly {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Bell Plunger Button */
+.bell-plunger {
+  position: absolute;
+  top: 2px;
+  width: 10px;
+  height: 8px;
+  background: linear-gradient(180deg, #fcedca 0%, #d4ae58 50%, #876221 100%);
+  border: 1px solid #4a300d;
+  border-radius: 5px 5px 2px 2px;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+  transition: transform 80ms ease;
+  z-index: 2;
+}
+
+.reception-bell.is-ringing .bell-plunger {
+  transform: translateY(2px);
+}
+
+/* Brass Dome */
+.bell-dome {
+  position: relative;
+  width: 40px;
+  height: 24px;
+  background: radial-gradient(ellipse at 40% 25%, #fff2cc 0%, #e2be67 35%, #b58933 70%, #614212 100%);
+  border: 1.5px solid #4a2e0a;
+  border-radius: 20px 20px 4px 4px;
+  box-shadow:
+    0 4px 10px rgba(16, 9, 4, 0.55),
+    inset 0 1px 2px #ffffffaa,
+    inset 0 -2px 4px #331e05aa;
+  transition: transform 80ms ease;
+  z-index: 1;
+}
+
+/* Bell Base */
+.bell-base {
+  width: 44px;
+  height: 7px;
+  background: linear-gradient(180deg, #523417 0%, #301b08 100%);
+  border: 1px solid #241304;
+  border-radius: 3px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  margin-top: -1px;
+}
+
+/* Bell Pulsing Shimmer when a quest is in tray awaiting submission */
+.reception-bell.has-quest::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid #ffde78;
+  opacity: 0.8;
+  animation: bellGlowPulse 1.8s infinite ease-in-out;
+  pointer-events: none;
+}
+
+@keyframes bellGlowPulse {
+  0%, 100% { transform: scale(0.92); opacity: 0.3; }
+  50% { transform: scale(1.15); opacity: 0.85; }
+}
+
+/* ==========================================================================
+   3. Receptionist Speech Bubble (บอลลูนคำพูดพนักงานกิลด์)
+   ========================================================================== */
+
+.reception-speech-bubble {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 6px;
+  width: 238px;
+  background: linear-gradient(145deg, #fcf7e9 0%, #f4e8cc 50%, #e8d5ae 100%);
+  border: 1.5px solid #73502b;
+  border-radius: 7px;
+  padding: 8px 12px;
+  box-sizing: border-box;
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 11px;
+  line-height: 1.45;
+  color: #36200d;
+  box-shadow:
+    0 6px 18px rgba(18, 10, 4, 0.42),
+    inset 0 1px 1px #fffef8;
+  pointer-events: none;
+  z-index: 20;
+  animation: speechBubblePop 240ms cubic-bezier(.2,.8,.3,1);
+}
+
+.reception-speech-bubble::before {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 22px;
+  border-width: 7px 6px 0 6px;
+  border-style: solid;
+  border-color: #73502b transparent transparent transparent;
+}
+
+.reception-speech-bubble::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  right: 23px;
+  border-width: 6px 5px 0 5px;
+  border-style: solid;
+  border-color: #e8d5ae transparent transparent transparent;
+}
+
+@keyframes speechBubblePop {
+  from { transform: translateY(8px) scale(0.94); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+/* ==========================================================================
+   4. Giant Guild Acceptance Stamp Impact (ตราประทับรับเรื่องกิลด์)
+   ========================================================================== */
+
+.reception-stamp-impact {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.reception-stamp-mark {
+  border: 3px double #9e2a1b;
+  border-radius: 8px;
+  padding: 6px 14px;
+  color: #9e2a1b;
+  font-family: var(--display, 'Cinzel', serif);
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  transform: rotate(-7deg);
+  background: rgba(255, 240, 220, 0.35);
+  box-shadow: 0 0 12px rgba(158, 42, 27, 0.35);
+  animation: stampImpactSlam 180ms cubic-bezier(.2,.8,.2,1);
+}
+
+@keyframes stampImpactSlam {
+  0% { transform: scale(1.6) rotate(-14deg); opacity: 0; }
+  70% { transform: scale(0.96) rotate(-6deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-7deg); opacity: 1; }
+}
+
+/* Slide-out into Archive Drawer Animation */
+.reception-paper-preview.is-archiving {
+  animation: receptionSlideToArchive 520ms cubic-bezier(.4, 0, .2, 1) forwards;
+}
+
+@keyframes receptionSlideToArchive {
+  0% { transform: translateX(0) scale(1); opacity: 1; }
+  40% { transform: translateX(40px) scale(0.96); opacity: 0.9; }
+  100% { transform: translateX(180px) scale(0.85); opacity: 0; }
+}

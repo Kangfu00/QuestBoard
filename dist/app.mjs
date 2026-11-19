@@ -35,6 +35,8 @@ import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './
 import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
 import {burnStage,burnVariant,paperAgeStage,burnWispAnchors,msUntilNextMidnight,installBurnLayers} from './burn-model.mjs';
 import {createAdventurerCard} from './adventurer-card.mjs';
+import {createQuestReception} from './quest-reception.mjs';
+import {canReceiveQuest} from './quest-reception-model.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -100,6 +102,7 @@ let questUnlockEffects=null,prerequisitePicker=null;
 let paperweightControl=null;
 let photoResizeControl=null;
 let adventurerCard=null;
+let questReception=null;
 const stampCues=new Map();
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const onSoundCue=(name,options)=>sound.play(name,options);
@@ -289,6 +292,32 @@ function shell(){
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   adventurerCard?.destroy();
   adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,getScale:()=>currentScale,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
+  questReception?.destroy();
+  questReception=createQuestReception({
+    surface:$('#board-scroll')||$('#desk-surface'),
+    document,
+    window,
+    icon,
+    onCue:onSoundCue,
+    reducedMotion,
+    getScale:()=>currentScale,
+    onTurnIn:(quest,{origin})=>{
+      const xp=quest.xp||50;
+      state=setItemStatus(state,quest.id,'done');
+      state=setArchived(state,quest.id,true);
+      persist();
+      if(typeof adventurerCard!=='undefined'&&adventurerCard){
+        adventurerCard.flyMana?.({origin,deltaXp:xp});
+      }
+      renderCounts();
+      renderBoard();
+      showToast(`ส่งมอบเควส "${quest.title||'ภารกิจ'}" สำเร็จ! ได้รับ +${xp} XP`);
+    },
+    onWithdraw:()=>{
+      renderBoard();
+      showToast('นำเควสกลับคืนสู่โต๊ะ');
+    },
+  });
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};
   $('#sound-volume').oninput=e=>{sound.setVolume(Number(e.target.value)/100);refreshSoundControls();};
@@ -673,7 +702,8 @@ function renderBoard(){
   if(!$('#board-canvas'))return;
   for(const cue of stampCues.values())cue.abort();stampCues.clear();
   paperEffects.cancelAll();
-  const quests=filterQuests(state.items,filters);
+  const restingId=typeof questReception!=='undefined'&&questReception?.currentQuest?.id;
+  const quests=filterQuests(state.items,filters).filter(q=>!restingId||q.id!==restingId);
   const filtered=filters.status!=='all'||filters.search||filters.category!=='all';
   const bookHtml=typeof renderDailyBookCover==='function'&&state.dailyBook&&!state.dailyBook.archived?renderDailyBookCover(state.dailyBook,{icon}):'';
   const notebooks=state.items.filter(item=>item.type==='notebook'&&!item.archived);
@@ -721,8 +751,9 @@ function resizeBoard(){
   $('#board-canvas').style.width=layout.width+'px';$('#board-canvas').style.height=layout.height+'px';$('#board-canvas').style.transform=`scale(${currentScale})`;
   $('#canvas-size').style.width=layout.width*currentScale+'px';$('#canvas-size').style.height=layout.height*currentScale+'px';
   $('.zoom-percent').textContent=Math.round(zoom*100)+'%';
-  viewport.style.setProperty('--desk-scale',String(currentScale));
-  adventurerCard?.setScale?.(currentScale);
+  viewport.style?.setProperty?.('--desk-scale',String(currentScale));
+  if(typeof adventurerCard!=='undefined'&&adventurerCard)adventurerCard.setScale?.(currentScale);
+  if(typeof questReception!=='undefined'&&questReception)questReception.setScale?.(currentScale);
 }
 
 function drawerTravel(id='quest-drawer'){return id==='tool-drawer'?Math.max(0,($('#'+id)?.offsetHeight||144)-30):Math.max(0,($('#'+id)?.offsetWidth||376)-44);}
@@ -1050,9 +1081,13 @@ function onDrag(e){
   highlightFolder(drag.folderTarget);
   drag.overTray=!drag.folderTarget&&overStorageTray(e,drag.type);
   highlightStorageTray(drag.overTray);
+  const overReception=drag.type==='quest'&&!drag.folderTarget&&typeof questReception!=='undefined'&&questReception?.checkDrop?.({x:e.clientX,y:e.clientY});
+  drag.overReception=Boolean(overReception);
+  if(typeof questReception!=='undefined'&&questReception)questReception.setDropTarget?.(drag.overReception);
 }
 function cleanupDrag(keepGhost=false){
   if(!drag)return;const {handle,pointerId,el,ghost}=drag;
+  if(typeof questReception!=='undefined'&&questReception)questReception.setDropTarget?.(false);
   if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(false);
   handle.removeEventListener('pointermove',onDrag);handle.removeEventListener('pointerup',endDrag);handle.removeEventListener('pointercancel',cancelDrag);
   if(handle.hasPointerCapture(pointerId))handle.releasePointerCapture(pointerId);stopHeldMotion(drag);el.classList.remove('dragging','drag-source');if(!keepGhost)ghost?.remove();clearStorageFeedback();highlightFolder(null);drag=null;
@@ -1060,8 +1095,19 @@ function cleanupDrag(keepGhost=false){
 function endDrag(e){
   if(!drag)return;
   if(e&&drag.moved)onDrag(e);
-  const {id,moved,arrivingPickup,next,overTray,ghost,drawerBefore,folderTarget,folderSurface,tilt,grab}=drag;cleanupDrag(!!overTray||!!folderTarget);
+  const {id,moved,arrivingPickup,next,overTray,overReception,ghost,drawerBefore,folderTarget,folderSurface,tilt,grab}=drag;cleanupDrag(!!overTray||!!folderTarget||!!overReception);
   if(moved||arrivingPickup)suppressClickUntil=performance.now()+400;
+  if(moved&&overReception&&typeof questReception!=='undefined'&&questReception){
+    const item=state.items.find(i=>i.id===id);
+    if(item&&canReceiveQuest(item)){
+      if(questReception.hasQuest)questReception.withdrawQuest();
+      if(questReception.placeQuest(item)){
+        renderBoard();
+        setActiveDrawer(drawerBefore,false,false);
+        return;
+      }
+    }
+  }
   if(moved&&folderTarget){setActiveDrawer(folderSurface==='drawer-folder-row'?'quest-drawer':drawerBefore,false,false);storeInFolder(id,folderTarget,ghost,folderSurface);return;}
   if(moved&&overTray){archiveQuest(id,ghost,e,grab);return;}
   if((moved||arrivingPickup)&&next){state=updateItem(state,id,{...next,z:Math.max(...state.items.map(i=>i.z),0)+1});const el=$(`[data-id="${id}"]`);el.style.left=next.x+'px';el.style.top=next.y+'px';persist();settlePaper(id,tilt);}
