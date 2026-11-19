@@ -229,6 +229,7 @@ function normalizeItem(raw) {
     imageDataUrl,
     ...(photoLayout===undefined?{}:{photoLayout:imageDataUrl===null?null:photoLayout}),
     ...(prerequisiteIds===undefined?{}:{prerequisiteIds}),
+    ...(raw.createdAt===undefined?{}:{createdAt:dueDate(raw.createdAt)}),
   };
 }
 
@@ -280,6 +281,7 @@ export function createQuest(input, state) {
     ...(input.photoLayout===undefined?{}:{photoLayout:input.photoLayout}),
     ...(input.notes===undefined&&input.subquests===undefined?{}:{notes:input.notes,subquests:input.subquests}),
     ...(input.prerequisiteIds===undefined?{}:{prerequisiteIds:input.prerequisiteIds}),
+    createdAt: input.createdAt ?? todayIsoDate(),
   });
   checkStampReference(quest, state.stamps);
   checkFolderReference(quest, state.items);

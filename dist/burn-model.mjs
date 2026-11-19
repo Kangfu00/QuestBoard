@@ -78,6 +78,73 @@ export function burnVariant(id = '') {
  * @param {Date} [now=new Date()]
  * @returns {number}
  */
+
+export const PAPER_AGE_STAGES = Object.freeze({
+  FRESH: 0,    // < 14 days
+  AGED: 1,     // 14–29 days
+  ANTIQUE: 2,  // 30+ days
+});
+
+/**
+ * Calculates paper aging stage (0–2) from creation date (YYYY-MM-DD) and current local date.
+ * Quests without a valid createdAt (including legacy v1 saves) stay fresh (0).
+ *
+ * @param {string|null|undefined} createdAt - Creation date string (YYYY-MM-DD)
+ * @param {string|Date} [today] - Reference date (YYYY-MM-DD or Date object)
+ * @returns {number} Age stage 0, 1 (14–29 days), or 2 (30+ days)
+ */
+export function paperAgeStage(createdAt, today = new Date()) {
+  if (!createdAt || typeof createdAt !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(createdAt)) return 0;
+
+  const todayStr = today instanceof Date
+    ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+    : typeof today === 'string' ? today : '';
+
+  if (!todayStr || !/^\d{4}-\d{2}-\d{2}$/.test(todayStr)) return 0;
+
+  const [y1, m1, d1] = createdAt.split('-').map(Number);
+  const [y2, m2, d2] = todayStr.split('-').map(Number);
+  if (!Number.isFinite(y1) || !Number.isFinite(m1) || !Number.isFinite(d1) ||
+      !Number.isFinite(y2) || !Number.isFinite(m2) || !Number.isFinite(d2)) return 0;
+
+  const createdMidday = Date.UTC(y1, m1 - 1, d1, 12, 0, 0);
+  const todayMidday = Date.UTC(y2, m2 - 1, d2, 12, 0, 0);
+  const ageDays = Math.round((todayMidday - createdMidday) / 86400000);
+
+  if (ageDays >= 30) return PAPER_AGE_STAGES.ANTIQUE;
+  if (ageDays >= 14) return PAPER_AGE_STAGES.AGED;
+  return PAPER_AGE_STAGES.FRESH;
+}
+
+const WISP_ANCHORS_BY_VARIANT = Object.freeze([
+  Object.freeze([
+    Object.freeze({ left: 16, top: 148, dur: '4.6s', delay: '0s', mid: '9px', end: '-5px', thin: false }),
+    Object.freeze({ left: 250, top: 210, dur: '5.2s', delay: '-1.8s', mid: '-7px', end: '8px', thin: true }),
+    Object.freeze({ left: 126, top: 318, dur: '4.2s', delay: '-2.9s', mid: '6px', end: '-7px', thin: true }),
+  ]),
+  Object.freeze([
+    Object.freeze({ left: 246, top: 138, dur: '4.8s', delay: '-0.6s', mid: '-8px', end: '6px', thin: false }),
+    Object.freeze({ left: 20, top: 232, dur: '4.3s', delay: '-2.2s', mid: '10px', end: '-4px', thin: true }),
+    Object.freeze({ left: 164, top: 326, dur: '5.1s', delay: '-3.3s', mid: '-5px', end: '7px', thin: true }),
+  ]),
+  Object.freeze([
+    Object.freeze({ left: 248, top: 168, dur: '4.4s', delay: '-0.3s', mid: '8px', end: '-6px', thin: false }),
+    Object.freeze({ left: 22, top: 146, dur: '5.0s', delay: '-2.5s', mid: '-6px', end: '9px', thin: true }),
+    Object.freeze({ left: 192, top: 316, dur: '4.2s', delay: '-1.4s', mid: '5px', end: '-8px', thin: true }),
+  ]),
+  Object.freeze([
+    Object.freeze({ left: 152, top: 122, dur: '4.5s', delay: '-0.8s', mid: '7px', end: '-7px', thin: false }),
+    Object.freeze({ left: 18, top: 214, dur: '5.3s', delay: '-2.6s', mid: '-8px', end: '6px', thin: true }),
+    Object.freeze({ left: 246, top: 286, dur: '4.1s', delay: '-1.7s', mid: '9px', end: '-4px', thin: true }),
+  ]),
+]);
+
+/** Deterministic smoldering wisp anchor points along the stage-3 ember edges for a variant. */
+export function burnWispAnchors(variant = 0) {
+  const v = Math.abs(Math.trunc(Number(variant) || 0)) % BURN_VARIANTS;
+  return WISP_ANCHORS_BY_VARIANT[v];
+}
+
 export function msUntilNextMidnight(now = new Date()) {
   const next = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1, 0, 0, 1);
   return Math.max(1000, next.getTime() - now.getTime());

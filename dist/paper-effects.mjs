@@ -13,7 +13,7 @@ export function createPaperEffects({
   cancelAnimationFrame=globalThis.cancelAnimationFrame?.bind(globalThis),
   onCue,
 }={}) {
-  const stores=new Set(),entries=new Map(),extinguishes=new Map();
+  const stores=new Set(),entries=new Map(),extinguishes=new Map(),ashFlakes=new Set();
   const reduce=()=>typeof reducedMotion==='function'?reducedMotion():!!reducedMotion;
   const viewport=()=>[window?.innerWidth??document?.documentElement?.clientWidth,window?.innerHeight??document?.documentElement?.clientHeight];
   const cue=(name,controller,delay=0)=>{
@@ -184,10 +184,65 @@ export function createPaperEffects({
     }finally{state.cancel();}
   }
 
+
+  function shedAsh(paper,{stage=0,mode='pickup',count}={}){
+    if(!paper||stage<3||reduce()||!document?.body?.append||typeof document?.createElement!=='function')return [];
+    const rect=paper.getBoundingClientRect?.();
+    if(!rect||![rect.left,rect.top,rect.width,rect.height].every(Number.isFinite)||rect.width<=0||rect.height<=0)return [];
+    const flakeCount=Number.isInteger(count)&&count>0?count:(mode==='drop'?5:3);
+    const spawned=[];
+    for(let i=0;i<flakeCount;i++){
+      const flake=document.createElement('span');
+      flake.className='paper-ash-flake';
+      flake.setAttribute('aria-hidden','true');
+      const side=Math.random();
+      let sx,sy;
+      if(side<0.42){
+        sx=rect.left+16+Math.random()*Math.max(1,rect.width-32);
+        sy=rect.top+rect.height-10-Math.random()*14;
+      }else if(side<0.71){
+        sx=rect.left+8+Math.random()*14;
+        sy=rect.top+28+Math.random()*Math.max(1,rect.height-56);
+      }else{
+        sx=rect.left+rect.width-8-Math.random()*14;
+        sy=rect.top+28+Math.random()*Math.max(1,rect.height-56);
+      }
+      const w=3+Math.random()*4.5,h=2+Math.random()*3.5;
+      const warm=stage===3&&Math.random()<0.22;
+      Object.assign(flake.style,{
+        width:`${w.toFixed(1)}px`,
+        height:`${h.toFixed(1)}px`,
+        borderRadius:`${Math.round(30+Math.random()*50)}% ${Math.round(20+Math.random()*60)}% ${Math.round(40+Math.random()*40)}% ${Math.round(25+Math.random()*55)}%`,
+        background:warm?'radial-gradient(circle, #ff9d42 0%, #6b2d12 72%)':(Math.random()<0.5?'#261a13':'#4a3527'),
+        ...(warm?{boxShadow:'0 0 5px rgba(255, 138, 48, .7)'}:{}),
+      });
+      document.body.append(flake);
+      ashFlakes.add(flake);
+      spawned.push(flake);
+      const spreadX=(Math.random()-0.5)*(mode==='drop'?62:42);
+      const fallY=mode==='drop'?18+Math.random()*42:28+Math.random()*54;
+      const rot0=(Math.random()-0.5)*60;
+      const rot1=rot0+(Math.random()-0.5)*260;
+      const duration=Math.round(580+Math.random()*460);
+      animateTransient(
+        flake,
+        [
+          {transform:`translate3d(${sx.toFixed(1)}px, ${sy.toFixed(1)}px, 0) rotate(${rot0.toFixed(0)}deg) scale(1)`,opacity:0.92},
+          {transform:`translate3d(${(sx+spreadX*0.65).toFixed(1)}px, ${(sy+fallY*0.65).toFixed(1)}px, 0) rotate(${((rot0+rot1)/2).toFixed(0)}deg) scale(0.85)`,opacity:0.78,offset:0.62},
+          {transform:`translate3d(${(sx+spreadX).toFixed(1)}px, ${(sy+fallY).toFixed(1)}px, 0) rotate(${rot1.toFixed(0)}deg) scale(0.45)`,opacity:0},
+        ],
+        {duration,easing:MOTION_EASING.slide,fill:'forwards'},
+        {remove:true,onFinish:()=>{ashFlakes.delete(flake);}}
+      );
+    }
+    return spawned;
+  }
+
   function cancelAll(){
     for(const state of [...stores])state.cancel();
     for(const state of [...entries.values()])state.cancel();
     for(const state of [...extinguishes.values()])state.cancel();
+    for(const flake of [...ashFlakes]){cancelMotion(flake);flake.remove();ashFlakes.delete(flake);}
   }
-  return {store,enter,extinguish,cancelExtinguish,cancelAll,cancelEntry};
+  return {store,enter,extinguish,cancelExtinguish,shedAsh,cancelAll,cancelEntry};
 }

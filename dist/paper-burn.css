@@ -103,3 +103,141 @@
   opacity: .55;
   filter: sepia(.65) brightness(.65);
 }
+
+/* Pause ember glow when desk shutter is closed or tab is hidden. */
+body.desk-shutter-closed .paper-burn::after,
+body.page-hidden .paper-burn::after {
+  animation-play-state: paused;
+}
+
+/* Paper Aging (14–29 days = data-age="1", 30+ days = data-age="2"). */
+.paper-age {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.quest-paper[data-age="1"] {
+  background-color: #e2ce9e;
+}
+
+.quest-paper[data-age="1"] .paper-age {
+  opacity: 1;
+  background-image:
+    radial-gradient(ellipse at 50% 50%, transparent 54%, rgba(145, 104, 44, .24) 100%),
+    radial-gradient(circle at 22% 76%, rgba(140, 98, 42, .14) 0%, rgba(140, 98, 42, .05) 14%, transparent 24%),
+    radial-gradient(circle at 82% 24%, rgba(133, 94, 40, .11) 0%, transparent 18%),
+    linear-gradient(148deg, transparent 49.4%, rgba(102, 72, 32, .12) 49.85%, rgba(255, 245, 214, .22) 50.25%, transparent 50.8%);
+}
+
+.quest-paper[data-age="2"] {
+  background-color: #d9bf88;
+}
+
+.quest-paper[data-age="2"] .paper-age {
+  opacity: 1;
+  background-image:
+    radial-gradient(ellipse at 50% 48%, transparent 42%, rgba(126, 84, 30, .36) 100%),
+    radial-gradient(circle at 19% 78%, rgba(118, 76, 26, .22) 0%, rgba(118, 76, 26, .08) 16%, transparent 28%),
+    radial-gradient(circle at 80% 22%, rgba(115, 74, 28, .18) 0%, transparent 20%),
+    radial-gradient(circle at 72% 68%, rgba(124, 84, 34, .14) 0%, transparent 11%),
+    radial-gradient(circle at 31% 31%, rgba(124, 84, 34, .11) 0%, transparent 9%),
+    linear-gradient(178deg, transparent 52.3%, rgba(92, 62, 24, .16) 52.7%, rgba(252, 240, 206, .24) 53.15%, transparent 53.7%),
+    linear-gradient(142deg, transparent 44.5%, rgba(92, 62, 24, .12) 44.9%, rgba(252, 240, 206, .18) 45.3%, transparent 45.8%);
+}
+
+.quest-paper[data-age="2"] .quest-top,
+.quest-paper[data-age="2"] .paper-rule {
+  color: #6a593a;
+}
+
+/* Smoldering Wisp (Stage 3 only — rises gently inside paper bounds, pauses on drag/shutter/hidden). */
+.paper-wisp-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.paper-wisp {
+  position: absolute;
+  width: 38px;
+  height: 82px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse at 50% 72%, rgba(235, 224, 206, .32) 0%, rgba(196, 182, 162, .15) 44%, transparent 74%);
+  filter: blur(6px);
+  transform-origin: 50% 85%;
+  animation: paper-wisp-rise var(--wisp-dur, 4.5s) ease-in-out var(--wisp-delay, 0s) infinite;
+  will-change: transform, opacity;
+}
+
+.paper-wisp.thin {
+  width: 24px;
+  height: 70px;
+  background: radial-gradient(ellipse at 50% 75%, rgba(242, 228, 206, .26) 0%, rgba(188, 173, 152, .12) 48%, transparent 76%);
+  filter: blur(5px);
+}
+
+@keyframes paper-wisp-rise {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(.55, .5) rotate(-4deg);
+  }
+  18% {
+    opacity: .68;
+  }
+  55% {
+    opacity: .44;
+    transform: translate3d(var(--wisp-mid, 8px), -32px, 0) scale(1.04, 1.14) rotate(5deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--wisp-end, -6px), -74px, 0) scale(1.42, 1.5) rotate(-6deg);
+  }
+}
+
+.quest-paper.dragging .paper-wisp,
+.quest-drag-ghost .paper-wisp,
+body.desk-shutter-closed .paper-wisp,
+body.page-hidden .paper-wisp {
+  animation-play-state: paused;
+}
+
+.quest-paper.dragging .paper-wisp-layer,
+.quest-drag-ghost .paper-wisp-layer {
+  opacity: .18;
+}
+
+/* Transient Ash Flakes (spawned via animateTransient in paper-effects.mjs). */
+.paper-ash-flake {
+  position: fixed;
+  left: 0;
+  top: 0;
+  pointer-events: none;
+  z-index: 10005;
+  will-change: transform, opacity;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paper-wisp-layer,
+  .paper-ash-flake {
+    display: none !important;
+  }
+  .paper-wisp {
+    animation: none !important;
+  }
+}
+
+@media (forced-colors: active) {
+  .paper-age,
+  .paper-wisp-layer,
+  .paper-ash-flake {
+    display: none !important;
+  }
+}

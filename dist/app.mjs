@@ -33,7 +33,7 @@ import {bindCoverEditor,renderCoverEditorFields} from './cover-editor.mjs';
 import {createPaperweight,paperweightFace} from './paperweight.mjs';
 import {bindPhotoSheetResizing,createPhotoSheetReader,renderPhotoSheet} from './photo-sheet.mjs';
 import {createNotebookWindows,renderNotebookCover} from './notebook.mjs';
-import {burnStage,burnVariant,msUntilNextMidnight,installBurnLayers} from './burn-model.mjs';
+import {burnStage,burnVariant,paperAgeStage,burnWispAnchors,msUntilNextMidnight,installBurnLayers} from './burn-model.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -246,6 +246,7 @@ function shell(){
     handle:$('#desk-shutter-handle'),surface:$('#desk-workspace'),
     canUse:()=>!(drag||storedDrag||bookDrag||bundleControl?.dragging||photoResizeControl?.active||paperweightControl?.dragging||dialog.open||$('#tool-menu-dialog').open),
     onChange:closed=>{
+      document.body.classList.toggle('desk-shutter-closed',closed);
       if(closed){
         returnStamp(false);
         for(const panel of document.querySelectorAll('[data-desk-window],.quest-bundle-selection,#toast')){
@@ -332,6 +333,10 @@ function questPhotoPresentation(q){
   const imageStyle=frame?` style="width:${frame.width-10}px;height:${frame.height-14}px;max-width:none;max-height:none;"`:'';
   return {className,markup:`<div class="quest-photo"${style}><img src="${esc(q.imageDataUrl)}" alt="รูปประกอบเควส ${esc(q.title)}" draggable="false"${imageStyle}></div>`};
 }
+function renderBurnWisps(variant){
+  const anchors=typeof burnWispAnchors==='function'?burnWispAnchors(variant):[];
+  return `<span class="paper-wisp-layer" aria-hidden="true">${anchors.map(a=>`<span class="paper-wisp${a.thin?' thin':''}" style="left:${a.left}px;top:${a.top}px;--wisp-dur:${a.dur};--wisp-delay:${a.delay};--wisp-mid:${a.mid};--wisp-end:${a.end}"></span>`).join('')}</span>`;
+}
 function renderQuest(q,index){
   const custom=state.stamps.find(s=>s.id===q.stampId);
   const priorities={high:['A','เควสสำคัญ'],normal:['B','เควสทั่วไป'],low:['C','เควสสบาย ๆ']};
@@ -340,11 +345,17 @@ function renderQuest(q,index){
   const dependencies=q.prerequisiteIds?.length?dependencyMarkup(q,state.items):'';
   const stage=typeof burnStage==='function'?burnStage(q.due,undefined,q.status):0;
   const variant=typeof burnVariant==='function'?burnVariant(q.id):0;
+  const ageStage=typeof paperAgeStage==='function'?paperAgeStage(q.createdAt):0;
   const burnAttrs=stage>=1?` data-burn="${stage}" data-burn-variant="${variant}"`:'';
+  const ageAttr=ageStage>=1?` data-age="${ageStage}"`:'';
+  const ageLayer=ageStage>=1?'<span class="paper-age" aria-hidden="true"></span>':'';
   const burnLayer=stage>=1?'<span class="paper-burn" aria-hidden="true"></span>':'';
-  return `<article class="quest-paper board-item paper-${index%3} ${q.status!=='active'?'has-stamp':''} ${q.imageDataUrl?'has-photo':''} ${photo.className}" data-id="${esc(q.id)}"${burnAttrs} style="left:${q.x}px;top:${q.y}px;--rotation:${q.rotation}deg;z-index:${q.z}" aria-label="เควส ${esc(q.title)}">
+  const wispLayer=stage===3?renderBurnWisps(variant):'';
+  return `<article class="quest-paper board-item paper-${index%3} ${q.status!=='active'?'has-stamp':''} ${q.imageDataUrl?'has-photo':''} ${photo.className}" data-id="${esc(q.id)}"${burnAttrs}${ageAttr} style="left:${q.x}px;top:${q.y}px;--rotation:${q.rotation}deg;z-index:${q.z}" aria-label="เควส ${esc(q.title)}">
     <span class="paper-wear" aria-hidden="true"></span>
+    ${ageLayer}
     ${burnLayer}
+    ${wispLayer}
     <button type="button" class="quest-bundle-select" data-bundle-select="${esc(q.id)}" aria-pressed="false" aria-label="เลือกเควส ${esc(q.title)} เพื่อหยิบเป็นมัด" title="เลือกหลายใบด้วย Shift+คลิก หรือกดช่องเลือก">${icon('check')}</button>
     <div class="quest-top drag-handle" tabindex="0" role="button" aria-label="ลากเควส ${esc(q.title)} หรือใช้ปุ่มลูกศรเพื่อย้าย"><span class="quest-type">${icon(q.category==='พัฒนาตัวเอง'?'feather':q.category==='ชีวิตประจำวัน'?'sun':'swords')}${esc(q.category)}</span>${icon('grip')}</div>
     <div class="paper-rule"><span>QUEST No. ${String(state.items.filter(i=>i.type==='quest').findIndex(i=>i.id===q.id)+1).padStart(3,'0')}</span><span class="rank rank-${q.priority}" title="${priority}">${rank}</span></div>
@@ -496,6 +507,7 @@ function settlePaper(id,tilt=0){
   const item=state.items.find(i=>i.id===id),el=$(`[data-id="${id}"]`);
   if(!item||!el||item.type==='label')return;
   queueContactSound(id,['folder','notebook'].includes(item.type)?'folderDrop':'paperDrop',typeof el.animate==='function'?166:0);
+  if(item.type==='quest'&&typeof paperEffects!=='undefined')paperEffects?.shedAsh?.(el,{stage:Number(el.dataset?.burn||0),mode:'drop'});
   if(reducedMotion())return;
   const rotation=item.rotation;
   const keyframes=typeof settleTiltKeyframes==='function'?settleTiltKeyframes(rotation,tilt):[
@@ -589,6 +601,7 @@ function moveStoredDrag(e){
       transform:`scale(${d.scale}) rotate(${d.rotation}deg)`,transformOrigin:'center',
     });
     ghost.classList.add('paper-in-hand');document.body.append(ghost);d.ghost=ghost;
+    if(d.item.type==='quest'&&typeof paperEffects!=='undefined')paperEffects?.shedAsh?.(d.surface||ghost,{stage:Number(ghost.dataset?.burn||0),mode:'pickup'});
     d.surface?.classList.add('storage-source');
     activateStorageDrawer('quest-drawer');
   }
@@ -993,6 +1006,7 @@ function onDrag(e){
     drag.moved=true;
     if(typeof atmosphere!=='undefined'&&atmosphere)atmosphere.setSuspended?.(true);
     sound.play(['folder','notebook'].includes(drag.type)?'folderPick':'paperPick');
+    if(drag.type==='quest'&&typeof paperEffects!=='undefined')paperEffects?.shedAsh?.(drag.el,{stage:Number(drag.el.dataset?.burn||0),mode:'pickup'});
     if(['quest','folder','photo','notebook'].includes(drag.type)){
       const ghost=drag.el.cloneNode(true);ghost.removeAttribute('data-id');ghost.removeAttribute('data-folder-target');ghost.removeAttribute('aria-label');ghost.setAttribute('aria-hidden','true');ghost.inert=true;ghost.classList.remove('dragging');ghost.classList.add(drag.type==='notebook'?'book-drag-ghost':drag.type==='folder'?'folder-drag-ghost':'quest-drag-ghost','paper-in-hand');ghost.style.setProperty('--drag-scale',currentScale);ghost.style.zIndex='10000';ghost.querySelectorAll('[tabindex],button').forEach(el=>el.setAttribute('tabindex','-1'));document.body.append(ghost);drag.ghost=ghost;drag.el.classList.add('drag-source');
       // Storage opens when its side handle is approached, leaving the desk free.
@@ -1666,6 +1680,7 @@ function syncBurnStages(){
   for(const q of quests){
     const stage=burnStage(q.due,now,q.status);
     const variant=burnVariant(q.id);
+    const ageStage=paperAgeStage(q.createdAt,now);
     const overdue=isOverdue(q);
     const elements=document.querySelectorAll(`.quest-paper[data-id="${q.id}"]`);
     for(const el of elements){
@@ -1687,6 +1702,33 @@ function syncBurnStages(){
           delete el.dataset.burnVariant;
           el.querySelector('.paper-burn')?.remove();
         }
+        const existingWisp=el.querySelector('.paper-wisp-layer');
+        if(stage===3&&!existingWisp){
+          const box=document.createElement('div');
+          box.innerHTML=renderBurnWisps(variant);
+          const burnEl=el.querySelector('.paper-burn');
+          if(burnEl)burnEl.after(box.firstElementChild);
+          else el.prepend(box.firstElementChild);
+        }else if(stage!==3&&existingWisp){
+          existingWisp.remove();
+        }
+      }
+      const prevAge=Number(el.dataset.age||0);
+      if(ageStage!==prevAge){
+        if(ageStage>=1){
+          el.dataset.age=String(ageStage);
+          if(!el.querySelector('.paper-age')){
+            const wear=el.querySelector('.paper-wear');
+            const ageEl=document.createElement('span');
+            ageEl.className='paper-age';
+            ageEl.setAttribute('aria-hidden','true');
+            if(wear)wear.after(ageEl);
+            else el.prepend(ageEl);
+          }
+        }else{
+          delete el.dataset.age;
+          el.querySelector('.paper-age')?.remove();
+        }
       }
       const dateEl=el.querySelector('.quest-date');
       if(dateEl){
@@ -1704,6 +1746,7 @@ function syncBurnStages(){
   }
 }
 function startBoard(){
+  document.addEventListener('visibilitychange',()=>document.body.classList.toggle('page-hidden',document.hidden));
   createMotionDebug({document,window});
   installBurnLayers(document);
   state=ensureDailyBook(ensureNotebook(ensureTrayPositions(state)));

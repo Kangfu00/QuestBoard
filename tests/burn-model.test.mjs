@@ -12,6 +12,9 @@ import {
   svgDataUri,
   burnLayerCss,
   installBurnLayers,
+  PAPER_AGE_STAGES,
+  paperAgeStage,
+  burnWispAnchors,
 } from '../dist/burn-model.mjs';
 
 test('burnStage returns 0 for non-active quests regardless of due date', () => {
@@ -175,4 +178,27 @@ test('installBurnLayers adds the style once and tolerates a missing document', (
   assert.ok('data-burn-layers' in added[0].attrs);
   assert.ok(added[0].textContent.includes('data-burn="4"'));
   assert.equal(installBurnLayers(null), false);
+});
+
+test('paperAgeStage computes fresh, aged (14+ days), and antique (30+ days) stages safely', () => {
+  const today = '2026-11-19';
+  assert.equal(paperAgeStage(undefined, today), PAPER_AGE_STAGES.FRESH);
+  assert.equal(paperAgeStage('', today), PAPER_AGE_STAGES.FRESH);
+  assert.equal(paperAgeStage('bad-date', today), PAPER_AGE_STAGES.FRESH);
+  assert.equal(paperAgeStage('2026-11-19', today), PAPER_AGE_STAGES.FRESH);
+  assert.equal(paperAgeStage('2026-11-06', today), PAPER_AGE_STAGES.FRESH);   // 13 days
+  assert.equal(paperAgeStage('2026-11-05', today), PAPER_AGE_STAGES.AGED);    // 14 days
+  assert.equal(paperAgeStage('2026-10-21', today), PAPER_AGE_STAGES.AGED);    // 29 days
+  assert.equal(paperAgeStage('2026-10-20', today), PAPER_AGE_STAGES.ANTIQUE); // 30 days
+  assert.equal(paperAgeStage('2026-09-01', new Date(2026, 10, 19, 10, 0)), PAPER_AGE_STAGES.ANTIQUE);
+});
+
+test('burnWispAnchors returns 3 deterministic stage-3 ember anchors per variant', () => {
+  for (let v = 0; v < BURN_VARIANTS; v++) {
+    const anchors = burnWispAnchors(v);
+    assert.equal(anchors.length, 3);
+    assert.deepEqual(anchors, burnWispAnchors(v));
+  }
+  assert.notDeepEqual(burnWispAnchors(0), burnWispAnchors(1));
+  assert.deepEqual(burnWispAnchors(4), burnWispAnchors(0));
 });

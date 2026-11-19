@@ -27,6 +27,7 @@ function createElement({ width = 300, height = 420 } = {}) {
     },
     offsetWidth: width,
     offsetHeight: height,
+    getBoundingClientRect() { return { left: 100, top: 120, width, height, right: 100 + width, bottom: 120 + height }; },
     isConnected: true,
     attributes,
     setAttribute(k, v) {
@@ -180,4 +181,51 @@ test('paper-burn.css is linked in index.html and defines all required tokens, va
   // Must support prefers-reduced-motion and forced-colors
   assert.ok(css.includes('prefers-reduced-motion: reduce'), 'Missing prefers-reduced-motion media query');
   assert.ok(css.includes('forced-colors: active'), 'Missing forced-colors media query');
+});
+
+test('shedAsh spawns 3–5 transient ash flakes for burn stages 3–4 via animateTransient and cleans up', async () => {
+  const { effects, paper, document } = setupDesk();
+
+  // Stages 0–2 do not shed ash
+  assert.equal(effects.shedAsh(paper, { stage: 0, mode: 'pickup' }).length, 0);
+  assert.equal(effects.shedAsh(paper, { stage: 2, mode: 'drop' }).length, 0);
+
+  // Stage 3 pickup spawns 3 flakes, Stage 4 drop spawns 5 flakes
+  const picked = effects.shedAsh(paper, { stage: 3, mode: 'pickup' });
+  assert.equal(picked.length, 3);
+  for (const flake of picked) {
+    assert.equal(flake.classList.contains('paper-ash-flake'), true);
+    assert.equal(flake.attributes['aria-hidden'], 'true');
+    assert.equal(flake.parentNode, document.body);
+    assert.equal(flake.animations.length, 1);
+  }
+  picked.forEach(f => f.animations[0].finish());
+  await new Promise(r => setTimeout(r, 0));
+  for (const flake of picked) {
+    assert.equal(flake.isConnected, false);
+  }
+
+  const dropped = effects.shedAsh(paper, { stage: 4, mode: 'drop' });
+  assert.equal(dropped.length, 5);
+  effects.cancelAll();
+  for (const flake of dropped) {
+    assert.equal(flake.isConnected, false);
+  }
+});
+
+test('shedAsh respects reduced-motion preference without spawning flakes', () => {
+  const { effects, paper, createdElements } = setupDesk({ reduced: true });
+  const spawned = effects.shedAsh(paper, { stage: 4, mode: 'drop' });
+  assert.equal(spawned.length, 0);
+  assert.equal(createdElements.length, 0);
+});
+
+test('paper-burn.css defines paper aging, smoldering wisp pauses, and ash flake rules', async () => {
+  const css = await readFile(new URL('../dist/paper-burn.css', import.meta.url), 'utf8');
+  assert.ok(css.includes('.quest-paper[data-age="1"]'), 'Missing data-age=1 rule');
+  assert.ok(css.includes('.quest-paper[data-age="2"]'), 'Missing data-age=2 rule');
+  assert.ok(css.includes('@keyframes paper-wisp-rise'), 'Missing paper-wisp-rise keyframes');
+  assert.ok(css.includes('body.desk-shutter-closed .paper-wisp'), 'Missing shutter pause rule for wisps');
+  assert.ok(css.includes('body.page-hidden .paper-wisp'), 'Missing hidden tab pause rule for wisps');
+  assert.ok(css.includes('.paper-ash-flake'), 'Missing ash flake class');
 });
