@@ -1,176 +1,59 @@
 /* ==========================================================================
    The Questboard — The Guild Chronicle (สมุดบันทึกประวัติศาสตร์การผจญภัย)
-   Leather-bound fantasy tome window, two-page parchment spread, ledger list,
-   and authentic A4 parchment showcase with "GUILD ACCEPTED" wax seal.
+   Styled as an authentic fantasy tome, matching the opening and closing
+   behavior and visuals of the guild notebooks (daily-book-window).
    ========================================================================== */
 
-/* 1. Main Window Container */
-.guild-chronicle-window {
-  position: fixed;
-  width: min(940px, calc(100vw - 32px));
-  height: min(680px, calc(100dvh - 64px));
-  max-height: 90vh;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  background: #1e130c;
-  border: 3px solid #5a381f;
-  border-radius: 8px;
-  box-shadow:
-    0 24px 50px rgba(8, 4, 2, 0.75),
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    inset 0 1px 1px rgba(230, 190, 130, 0.25);
-  font-family: inherit;
-  color: #2c1e11;
-  overflow: hidden;
+/* 1. Main Window Container — Sizing & Layout */
+.daily-book-window.guild-chronicle-window {
+  width: min(880px, calc(100vw - 32px));
+  height: min(580px, calc(100vh - 48px));
+  max-height: calc(100vh - 32px);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
   user-select: none;
-  z-index: 250;
-  box-sizing: border-box;
 }
 
-.guild-chronicle-window[data-desk-window] {
-  margin: 0;
+/* 2. 3D Cover Subtitle */
+.chronicle-cover-subtitle {
+  font-family: var(--serif, 'Noto Serif Thai', serif);
+  font-size: 11px;
+  color: var(--leather-muted, #cfb68e);
+  letter-spacing: 0.06em;
+  margin-top: 6px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 
-/* 2. Tome Leather Header */
-.chronicle-header {
-  height: 48px;
-  min-height: 48px;
-  background: linear-gradient(180deg, #361f12 0%, #24130a 100%);
-  border-bottom: 2px solid #583921;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.45);
-  cursor: grab;
-  touch-action: none;
-  position: relative;
-  z-index: 20;
-}
-
-.is-window-dragging .chronicle-header {
-  cursor: grabbing;
-}
-
-.chronicle-header-title {
-  display: flex;
-  align-items: center;
+/* 3. Left Page — Header, Ledger & Filters */
+.chronicle-left {
   gap: 10px;
-  color: #eed6aa;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  padding: 18px 20px 16px;
+  overflow-y: auto;
 }
 
-.chronicle-header-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 26px;
-  height: 26px;
-  color: #e2ba6d;
+.chronicle-header {
+  min-height: 38px;
+  padding-bottom: 8px;
+  border-bottom: 3px double var(--book-rule, #91704459);
 }
 
-.chronicle-header-text h2 {
-  margin: 0;
-  font-size: 15px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #f7e6c4;
-  line-height: 1.1;
-  text-transform: uppercase;
-}
-
-.chronicle-header-text small {
+.chronicle-header-sub {
   display: block;
   font-size: 11px;
-  letter-spacing: 0.04em;
-  color: #b89b74;
+  color: var(--book-muted, #705638);
+  letter-spacing: 0.03em;
+  margin-top: 2px;
 }
 
-.chronicle-header-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.chronicle-close-btn {
-  background: #2b170e;
-  border: 1px solid #6d472c;
-  border-radius: 4px;
-  color: #d1b794;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  font-size: 14px;
-  transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
-}
-
-.chronicle-close-btn:hover {
-  background: #472615;
-  border-color: #d8a25e;
-  color: #fff2db;
-}
-
-/* 3. Two-Page Open Tome Spread */
-.chronicle-spread {
-  flex: 1;
-  display: flex;
-  min-height: 0;
-  position: relative;
-  background: #1b110a;
-  overflow: hidden;
-}
-
-/* Spine shadow crease down the center */
-.chronicle-spine-crease {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 50%;
-  width: 36px;
-  margin-left: -18px;
-  pointer-events: none;
-  z-index: 15;
-  background: linear-gradient(to right,
-    rgba(15, 8, 4, 0.5) 0%,
-    rgba(25, 14, 8, 0.2) 35%,
-    rgba(0, 0, 0, 0.05) 50%,
-    rgba(25, 14, 8, 0.2) 65%,
-    rgba(15, 8, 4, 0.5) 100%
-  );
-  box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
-}
-
-/* 4. Left Page — Chronicle Ledger / Index */
-.chronicle-left {
-  flex: 1.1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  background: #f6efe1;
-  background-image:
-    radial-gradient(ellipse at 15% 15%, rgba(255, 255, 255, 0.45) 0%, transparent 60%),
-    radial-gradient(ellipse at 85% 85%, rgba(180, 150, 110, 0.15) 0%, transparent 70%);
-  border-right: 1px solid #d5c3a3;
-  padding: 16px 20px;
-  box-sizing: border-box;
-  box-shadow: inset -6px 0 12px rgba(40, 20, 10, 0.08);
-}
-
-/* Stats summary card */
+/* Stats Summary Banner */
 .chronicle-stats-card {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #ede2cd;
-  border: 1px solid #cbba98;
+  background: rgba(237, 226, 205, 0.65);
+  border: 1px solid rgba(203, 186, 152, 0.7);
   border-radius: 6px;
-  padding: 10px 14px;
-  margin-bottom: 12px;
-  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(0, 0, 0, 0.06);
+  padding: 8px 12px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.6), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .chronicle-stat-item {
@@ -179,28 +62,29 @@
 }
 
 .chronicle-stat-label {
-  font-size: 11px;
+  font-size: 10.5px;
   letter-spacing: 0.03em;
-  color: #7a634a;
+  color: var(--book-muted, #705638);
   text-transform: uppercase;
+  font-weight: 500;
 }
 
 .chronicle-stat-value {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 700;
-  color: #3b2514;
+  color: var(--book-ink, #39271a);
+  font-family: var(--serif, Georgia, serif);
 }
 
 .chronicle-stat-value.xp-value {
-  color: #946816;
+  color: #8c5b16;
 }
 
 /* Search and Filters */
 .chronicle-toolbar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: 7px;
 }
 
 .chronicle-search-box {
@@ -211,7 +95,7 @@
 
 .chronicle-search-icon {
   position: absolute;
-  left: 10px;
+  left: 9px;
   color: #8c765c;
   pointer-events: none;
   display: flex;
@@ -220,13 +104,13 @@
 
 .chronicle-search-input {
   width: 100%;
-  padding: 7px 10px 7px 32px;
-  font-size: 13px;
+  padding: 6px 10px 6px 30px;
+  font-size: 12.5px;
   font-family: inherit;
-  background: #fdfaf4;
-  border: 1px solid #c9b798;
+  background: rgba(253, 250, 244, 0.85);
+  border: 1px solid #cbba98;
   border-radius: 4px;
-  color: #2e1d0f;
+  color: var(--book-ink, #2e1d0f);
   outline: none;
   box-sizing: border-box;
   transition: border-color 140ms ease, box-shadow 140ms ease;
@@ -239,18 +123,18 @@
 
 .chronicle-filter-pills {
   display: flex;
-  gap: 6px;
+  gap: 5px;
   overflow-x: auto;
   padding-bottom: 2px;
 }
 
 .chronicle-pill {
   border: 1px solid #cbba98;
-  background: #ece3cd;
+  background: rgba(236, 227, 205, 0.7);
   color: #5c4530;
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 600;
-  padding: 3px 10px;
+  padding: 2.5px 8px;
   border-radius: 12px;
   cursor: pointer;
   transition: all 120ms ease;
@@ -278,10 +162,12 @@
   flex-direction: column;
   gap: 6px;
   padding-right: 4px;
+  scrollbar-color: #9e7c50 transparent;
+  scrollbar-width: thin;
 }
 
 .chronicle-list::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 
 .chronicle-list::-webkit-scrollbar-thumb {
@@ -289,23 +175,19 @@
   border-radius: 3px;
 }
 
-.chronicle-list::-webkit-scrollbar-thumb:hover {
-  background: #9f8664;
-}
-
 .chronicle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #fbf7ef;
+  background: rgba(251, 247, 239, 0.85);
   border: 1px solid #dcd0ba;
   border-radius: 5px;
-  padding: 9px 12px;
+  padding: 8px 11px;
   cursor: pointer;
   text-align: left;
   position: relative;
   transition: background 130ms ease, border-color 130ms ease, transform 130ms ease;
-  gap: 10px;
+  gap: 8px;
 }
 
 .chronicle-row:hover {
@@ -323,7 +205,7 @@
 .chronicle-row-main {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 9px;
   min-width: 0;
   flex: 1;
 }
@@ -332,10 +214,10 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 22px;
+  height: 22px;
   border-radius: 3px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   color: #fff;
   flex-shrink: 0;
@@ -370,9 +252,9 @@
 }
 
 .chronicle-row-title {
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 600;
-  color: #2b1c10;
+  color: var(--book-ink, #2b1c10);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -380,8 +262,8 @@
 }
 
 .chronicle-row-meta {
-  font-size: 11px;
-  color: #7a634a;
+  font-size: 10.5px;
+  color: var(--book-muted, #7a634a);
   display: flex;
   gap: 8px;
   align-items: center;
@@ -390,9 +272,9 @@
 
 .chronicle-row-tag {
   background: #ede0c7;
-  padding: 1px 6px;
+  padding: 1px 5px;
   border-radius: 3px;
-  font-size: 10px;
+  font-size: 9.5px;
 }
 
 .chronicle-row-side {
@@ -404,10 +286,10 @@
 }
 
 .chronicle-row-xp {
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   color: #946816;
-  background: #f3ebda;
+  background: rgba(243, 235, 218, 0.9);
   padding: 1px 6px;
   border-radius: 10px;
   border: 1px solid #d5c4a3;
@@ -425,48 +307,72 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 36px 20px;
-  color: #7a664e;
+  padding: 32px 18px;
+  color: var(--book-muted, #7a664e);
   flex: 1;
 }
 
 .chronicle-empty-icon {
-  width: 48px;
-  height: 48px;
+  width: 44px;
+  height: 44px;
   color: #b59e7a;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 
 .chronicle-empty-title {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
-  margin-bottom: 6px;
-  color: #45301e;
+  margin-bottom: 5px;
+  color: var(--book-ink, #45301e);
+  font-family: var(--serif, Georgia, serif);
 }
 
 .chronicle-empty-desc {
-  font-size: 12px;
-  line-height: 1.5;
-  max-width: 280px;
+  font-size: 11.5px;
+  line-height: 1.45;
+  max-width: 270px;
 }
 
-/* 5. Right Page — Authentic Quest Parchment Showcase */
+/* 4. Right Page — Authentic Quest Sheet Showcase on Parchment */
 .chronicle-right {
-  flex: 1.25;
   display: flex;
   flex-direction: column;
+  padding: 18px 20px 16px;
+  min-height: 0;
   min-width: 0;
-  background: #1b120c;
-  background-image:
-    radial-gradient(ellipse at 50% 50%, rgba(55, 34, 20, 0.45) 0%, transparent 80%),
-    linear-gradient(180deg, #180f09 0%, #20150d 100%);
-  padding: 16px 20px;
-  box-sizing: border-box;
-  position: relative;
-  overflow: hidden;
-  box-shadow: inset 6px 0 16px rgba(0, 0, 0, 0.4);
+  gap: 10px;
 }
 
+.chronicle-right-header {
+  min-height: 38px;
+  padding-bottom: 8px;
+  border-bottom: 3px double var(--book-rule, #91704459);
+}
+
+.chronicle-right-title {
+  margin: 0;
+  font: 700 clamp(16px, 2.2vw, 20px)/1.35 var(--serif, Georgia, serif);
+  color: var(--book-ink, #39271a);
+}
+
+.chronicle-right-subtitle {
+  display: block;
+  font-size: 11px;
+  color: var(--book-muted, #705638);
+  letter-spacing: 0.03em;
+  margin-top: 2px;
+}
+
+.chronicle-close-btn {
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Framed Parchment Stage */
 .chronicle-showcase-container {
   flex: 1;
   min-height: 0;
@@ -474,18 +380,23 @@
   align-items: center;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow: auto;
+  padding: 12px 6px;
+  background: rgba(145, 112, 68, 0.05);
+  border-radius: 6px;
+  border: 1px dashed rgba(145, 112, 68, 0.35);
+  scrollbar-color: #9e7c50 transparent;
+  scrollbar-width: thin;
 }
 
-/* Quest Paper in Showcase */
 .chronicle-paper-stage {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  max-width: 100%;
-  max-height: 100%;
-  transition: opacity 160ms ease, transform 160ms ease;
+  flex: 0 0 auto;
+  transform-origin: center center;
+  transition: opacity 160ms ease;
 }
 
 .chronicle-paper-stage .quest-paper {
@@ -493,44 +404,44 @@
   left: auto !important;
   top: auto !important;
   margin: 0 !important;
-  transform: scale(0.88);
+  transform: scale(0.78);
   transform-origin: center center;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.65), 0 2px 6px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 8px 24px rgba(60, 40, 20, 0.25), 0 2px 6px rgba(60, 40, 20, 0.18);
   pointer-events: auto;
 }
 
 /* Guild Accepted Stamp Overlay */
 .chronicle-accepted-seal {
   position: absolute;
-  top: 42%;
+  top: 40%;
   left: 50%;
   transform: translate(-50%, -50%) rotate(-12deg);
-  width: 170px;
-  height: 170px;
-  border: 4px double #b68228;
+  width: 156px;
+  height: 156px;
+  border: 4px double #9e6d22;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  color: #cda247;
+  color: #8c5b16;
   text-align: center;
-  background: radial-gradient(circle, rgba(160, 110, 30, 0.15) 0%, rgba(20, 10, 5, 0.3) 80%);
-  box-shadow: 0 0 16px rgba(185, 138, 48, 0.3), inset 0 0 12px rgba(185, 138, 48, 0.25);
+  background: radial-gradient(circle, rgba(220, 175, 80, 0.2) 0%, rgba(145, 95, 25, 0.08) 80%);
+  box-shadow: 0 0 12px rgba(158, 109, 34, 0.25), inset 0 0 10px rgba(158, 109, 34, 0.2);
   pointer-events: none;
   z-index: 25;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.4);
   user-select: none;
 }
 
 .chronicle-seal-icon {
-  width: 32px;
-  height: 32px;
+  width: 26px;
+  height: 26px;
   margin-bottom: 2px;
 }
 
 .chronicle-seal-title {
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -538,89 +449,56 @@
 }
 
 .chronicle-seal-thai {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.05em;
-  color: #e6c57f;
+  color: #784c10;
   margin-top: 2px;
 }
 
 .chronicle-seal-dept {
-  font-size: 9px;
+  font-size: 8px;
   letter-spacing: 0.08em;
-  color: #b59556;
+  color: #9c6e26;
   margin-top: 3px;
   text-transform: uppercase;
 }
 
 /* Showcase Action Footer */
 .chronicle-showcase-footer {
-  height: 44px;
+  height: 38px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 10px;
-  border-top: 1px solid #3d2616;
-  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--book-rule, #91704459);
   z-index: 20;
 }
 
 .chronicle-reopen-btn {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  background: linear-gradient(180deg, #3c2415 0%, #29160a 100%);
-  border: 1px solid #7c4c28;
-  border-radius: 5px;
-  color: #eed5ad;
-  font-size: 12px;
+  gap: 6px;
+  background: linear-gradient(180deg, #ede2cd 0%, #dbcbab 100%);
+  border: 1px solid #9c7b4f;
+  border-radius: 4px;
+  color: #3f2a18;
+  font-size: 11.5px;
   font-weight: 600;
-  padding: 6px 14px;
+  padding: 5px 12px;
   cursor: pointer;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: 0 1px 3px rgba(60, 40, 20, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.6);
   transition: all 130ms ease;
 }
 
 .chronicle-reopen-btn:hover {
-  background: linear-gradient(180deg, #53321c 0%, #3a1e0e 100%);
-  border-color: #d19e4f;
-  color: #fff4dc;
-  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, #f4ecd9 0%, #e8dcbf 100%);
+  border-color: #7b5b2f;
+  color: #2b1a0e;
+  box-shadow: 0 2px 6px rgba(60, 40, 20, 0.3);
 }
 
 .chronicle-timestamp-label {
-  font-size: 11px;
-  color: #9e8568;
-}
-
-/* 6. Animations & Transitions */
-.guild-chronicle-window.is-unfolding {
-  animation: chronicleUnfold 240ms cubic-bezier(0.2, 0.8, 0.3, 1) forwards;
-  transform-origin: center center;
-}
-
-@keyframes chronicleUnfold {
-  from {
-    opacity: 0;
-    transform: scale(0.96);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-}
-
-/* 7. Reduced Motion Accessibility */
-@media (prefers-reduced-motion: reduce) {
-  .guild-chronicle-window.is-unfolding {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
-  .chronicle-row,
-  .chronicle-reopen-btn,
-  .chronicle-paper-stage {
-    transition: none !important;
-    transform: none !important;
-  }
+  font-size: 10.5px;
+  color: var(--book-muted, #705638);
 }

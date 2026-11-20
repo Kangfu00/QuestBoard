@@ -1,10 +1,11 @@
 /**
  * The Questboard — The Guild Chronicle (สมุดบันทึกประวัติศาสตร์การผจญภัย)
- * Component providing an interactive two-page fantasy tome to inspect, search,
- * and manage all completed and turned-in guild quests.
+ * Component providing an authentic 3D fantasy tome matching the appearance,
+ * unfolding, and closing animations of the Guild Notebooks.
  */
 
 import { chronicleQuests, chronicleStats, reopenQuest } from './guild-chronicle-model.mjs';
+import { fastForwardAnimations } from './desk-motion.mjs';
 
 const escapeHtml = value =>
   String(value ?? '').replace(/[&<>"']/g, char => ({
@@ -79,6 +80,7 @@ export function createGuildChronicle({
 
   let panel = null;
   let registration = null;
+  let openingTimer = null;
   let isOpenState = false;
   let selectedQuestId = null;
   let currentSearch = '';
@@ -91,67 +93,82 @@ export function createGuildChronicle({
 
   function buildWindowMarkup() {
     return `
-      <header class="chronicle-header" data-desk-window-handle>
-        <div class="chronicle-header-title">
-          <span class="chronicle-header-icon" aria-hidden="true">${bookIcon}</span>
-          <div class="chronicle-header-text">
-            <h2>The Guild Chronicle</h2>
-            <small>สมุดบันทึกประวัติศาสตร์เกียรติยศนักผจญภัย</small>
+      <!-- 3D Leather Cover Flap (Unfolds and Folds) -->
+      <div class="daily-book-window-cover" aria-hidden="true">
+        <div class="daily-book-cover-outer">
+          <div class="daily-book-cover-frame"></div>
+          <div class="daily-book-cover-content">
+            <span class="daily-book-emblem">${shieldIcon}</span>
+            <strong class="daily-book-title">The Guild Chronicle</strong>
+            <span class="chronicle-cover-subtitle">สมุดบันทึกประวัติศาสตร์เกียรติยศ</span>
           </div>
         </div>
-        <div class="chronicle-header-actions">
-          <button type="button" class="chronicle-close-btn" data-action="close" aria-label="ปิดสมุดประวัติศาสตร์ (Esc)" title="ปิดสมุดประวัติศาสตร์ (Esc)">✕</button>
-        </div>
-      </header>
-
-      <div class="chronicle-spread">
-        <div class="chronicle-spine-crease" aria-hidden="true"></div>
-
-        <!-- Left Page: Chronicle Index & Ledger -->
-        <section class="chronicle-left" aria-label="ทะเบียนภารกิจที่สำเร็จ">
-          <div class="chronicle-stats-card">
-            <div class="chronicle-stat-item">
-              <span class="chronicle-stat-label">ภารกิจที่สำเร็จ</span>
-              <strong class="chronicle-stat-value" data-stat-total>0 เควส</strong>
-            </div>
-            <div class="chronicle-stat-item" style="text-align: right;">
-              <span class="chronicle-stat-label">XP สะสมทั้งหมด</span>
-              <strong class="chronicle-stat-value xp-value" data-stat-xp>0 XP</strong>
-            </div>
-          </div>
-
-          <div class="chronicle-toolbar">
-            <div class="chronicle-search-box">
-              <span class="chronicle-search-icon" aria-hidden="true">${searchIcon}</span>
-              <input type="search" class="chronicle-search-input" placeholder="ค้นหาตามชื่อ, หมวดหมู่, โน้ต..." aria-label="ค้นหาเควสในสมุดประวัติศาสตร์" />
-            </div>
-            <div class="chronicle-filter-pills" role="radiogroup" aria-label="กรองตามระดับความสำคัญ">
-              <button type="button" class="chronicle-pill is-active" data-rank="all">ทั้งหมด</button>
-              <button type="button" class="chronicle-pill" data-rank="S">Rank S</button>
-              <button type="button" class="chronicle-pill" data-rank="A">Rank A</button>
-              <button type="button" class="chronicle-pill" data-rank="B">Rank B</button>
-              <button type="button" class="chronicle-pill" data-rank="C">Rank C</button>
-            </div>
-          </div>
-
-          <div class="chronicle-list" role="listbox" aria-label="รายการเควสสำเร็จ"></div>
-        </section>
-
-        <!-- Right Page: Quest Showcase -->
-        <section class="chronicle-right" aria-label="หน้าจัดแสดงใบเควสตัวจริง">
-          <div class="chronicle-showcase-container">
-            <div class="chronicle-paper-stage" data-showcase-stage>
-              <!-- Authentic Quest Sheet Mounts Here -->
-            </div>
-          </div>
-          <footer class="chronicle-showcase-footer">
-            <button type="button" class="chronicle-reopen-btn" data-action="reopen" title="นำเควสนี้กลับขึ้นสู่บอร์ดเพื่อทำต่อ">
-              ${restoreIcon} <span>นำเควสกลับมาทำใหม่</span>
-            </button>
-            <span class="chronicle-timestamp-label" data-timestamp-label></span>
-          </footer>
-        </section>
+        <div class="daily-book-cover-inner"></div>
       </div>
+
+      <!-- Left Page: Chronicle Index & Ledger -->
+      <section class="daily-book-page daily-book-left chronicle-left" aria-label="ทะเบียนภารกิจที่สำเร็จ">
+        <header class="daily-book-header chronicle-header" data-desk-window-handle>
+          <div class="daily-book-heading">
+            <span class="daily-book-ink-emblem" aria-hidden="true">${bookIcon}</span>
+            <h2>The Guild Chronicle</h2>
+            <small class="chronicle-header-sub">สมุดบันทึกประวัติศาสตร์เกียรติยศ</small>
+          </div>
+        </header>
+
+        <div class="chronicle-stats-card">
+          <div class="chronicle-stat-item">
+            <span class="chronicle-stat-label">ภารกิจที่สำเร็จ</span>
+            <strong class="chronicle-stat-value" data-stat-total>0 เควส</strong>
+          </div>
+          <div class="chronicle-stat-item" style="text-align: right;">
+            <span class="chronicle-stat-label">XP สะสมทั้งหมด</span>
+            <strong class="chronicle-stat-value xp-value" data-stat-xp>0 XP</strong>
+          </div>
+        </div>
+
+        <div class="chronicle-toolbar">
+          <div class="chronicle-search-box">
+            <span class="chronicle-search-icon" aria-hidden="true">${searchIcon}</span>
+            <input type="search" class="chronicle-search-input" placeholder="ค้นหาตามชื่อ, หมวดหมู่, โน้ต..." aria-label="ค้นหาเควสในสมุดประวัติศาสตร์" />
+          </div>
+          <div class="chronicle-filter-pills" role="radiogroup" aria-label="กรองตามระดับความสำคัญ">
+            <button type="button" class="chronicle-pill is-active" data-rank="all">ทั้งหมด</button>
+            <button type="button" class="chronicle-pill" data-rank="S">Rank S</button>
+            <button type="button" class="chronicle-pill" data-rank="A">Rank A</button>
+            <button type="button" class="chronicle-pill" data-rank="B">Rank B</button>
+            <button type="button" class="chronicle-pill" data-rank="C">Rank C</button>
+          </div>
+        </div>
+
+        <div class="chronicle-list" role="listbox" aria-label="รายการเควสสำเร็จ"></div>
+      </section>
+
+      <!-- Right Page: Quest Showcase on Parchment -->
+      <section class="daily-book-page daily-book-right chronicle-right" aria-label="หน้าจัดแสดงใบเควสตัวจริง">
+        <header class="daily-book-header chronicle-right-header" data-desk-window-handle>
+          <div class="daily-book-heading">
+            <h3 class="chronicle-right-title">หลักฐานภารกิจที่สำเร็จ</h3>
+            <small class="chronicle-right-subtitle">Archived Quest Certificate</small>
+          </div>
+          <div class="daily-book-header-actions">
+            <button type="button" class="icon-button chronicle-close-btn" data-action="close" aria-label="ปิดสมุดประวัติศาสตร์" title="ปิดสมุดประวัติศาสตร์ (Esc)">✕</button>
+          </div>
+        </header>
+
+        <div class="chronicle-showcase-container">
+          <div class="chronicle-paper-stage" data-showcase-stage>
+            <!-- Authentic Quest Sheet Mounts Here -->
+          </div>
+        </div>
+
+        <footer class="chronicle-showcase-footer">
+          <button type="button" class="chronicle-reopen-btn" data-action="reopen" title="นำเควสนี้กลับขึ้นสู่บอร์ดเพื่อทำต่อ">
+            ${restoreIcon} <span>นำเควสกลับมาทำใหม่</span>
+          </button>
+          <span class="chronicle-timestamp-label" data-timestamp-label></span>
+        </footer>
+      </section>
     `;
   }
 
@@ -374,7 +391,7 @@ export function createGuildChronicle({
     }
 
     panel = document.createElement('section');
-    panel.className = 'guild-chronicle-window document-window';
+    panel.className = 'daily-book-window guild-chronicle-window book-gold';
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'The Guild Chronicle · สมุดบันทึกประวัติศาสตร์การผจญภัย');
     panel.setAttribute('data-desk-window', '');
@@ -383,8 +400,8 @@ export function createGuildChronicle({
     // Center in viewport
     const vw = window?.innerWidth || document?.documentElement?.clientWidth || 1024;
     const vh = window?.innerHeight || document?.documentElement?.clientHeight || 768;
-    const targetW = Math.min(940, vw - 32);
-    const targetH = Math.min(680, vh - 64);
+    const targetW = Math.min(880, vw - 32);
+    const targetH = Math.min(580, vh - 48);
     const initialLeft = Math.max(12, Math.round((vw - targetW) / 2));
     const initialTop = Math.max(12, Math.round((vh - targetH) / 2));
     panel.style.left = `${initialLeft}px`;
@@ -413,9 +430,10 @@ export function createGuildChronicle({
 
     if (!isReduced()) {
       panel.classList.add('is-unfolding');
-      window.setTimeout(() => {
+      openingTimer = window.setTimeout(() => {
         panel?.classList.remove('is-unfolding');
-      }, 300);
+        openingTimer = null;
+      }, 740);
     }
   }
 
@@ -423,8 +441,38 @@ export function createGuildChronicle({
     if (!isOpenState || !panel) return false;
     isOpenState = false;
 
+    if (panel.classList.contains('is-unfolding')) {
+      fastForwardAnimations(panel, 4);
+    }
+    if (openingTimer) {
+      window.clearTimeout(openingTimer);
+      openingTimer = null;
+    }
+
+    registration?.cancelDrag?.();
+
     if (animate) {
-      onCue('drawerClose');
+      onCue('folderClose');
+      if (!isReduced() && typeof panel.cloneNode === 'function' && document?.body) {
+        const rect = panel.getBoundingClientRect ? panel.getBoundingClientRect() : { left: 0, top: 0, width: 880, height: 580 };
+        const ghost = panel.cloneNode(true);
+        ghost.inert = true;
+        ghost.setAttribute('aria-hidden', 'true');
+        ghost.classList.remove('is-unfolding');
+        ghost.classList.add('daily-book-closing-ghost');
+        Object.assign(ghost.style, {
+          position: 'fixed',
+          left: `${rect.left || 0}px`,
+          top: `${rect.top || 0}px`,
+          width: `${rect.width || 880}px`,
+          height: `${rect.height || 580}px`,
+          margin: '0',
+          pointerEvents: 'none',
+          zIndex: '9999',
+        });
+        document.body.append(ghost);
+        window.setTimeout(() => ghost.remove(), 700);
+      }
     }
 
     registration?.destroy?.();

@@ -381,5 +381,5 @@ test('createGuildChronicle lifecycle: opens, renders items, showcases, and reope
   chronicle.close({ animate: true });
   assert.equal(chronicle.isOpen, false);
   assert.equal(chronicle.element, null);
-  assert.ok(cues.includes('drawerClose'));
+  assert.ok(cues.includes('folderClose'));
 });
