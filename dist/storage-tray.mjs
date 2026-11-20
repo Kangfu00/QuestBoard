@@ -21,7 +21,7 @@ export function trayDrop(pointer,origin,grab={x:PAPER.width/2,y:28},scale=TRAY_S
 }
 export function trayItems(state,search=''){
   const term=search.trim().toLocaleLowerCase();
-  return state.items.filter(item=>item.archived&&(item.type==='folder'||item.type==='photo'||item.type==='notebook'||item.type==='quest'&&!item.folderId))
+  return state.items.filter(item=>item.archived&&!item.turnedIn&&(item.type==='folder'||item.type==='photo'||item.type==='notebook'||item.type==='quest'&&!item.folderId))
     .filter(item=>!term||[item.title,item.name,item.description,item.category,item.type==='photo'?item.notes:null,...(item.pages??[])].some(value=>value?.toLocaleLowerCase().includes(term))
       ||item.type==='folder'&&state.items.some(q=>q.folderId===item.id&&[q.title,q.description,q.category].some(value=>value?.toLocaleLowerCase().includes(term))));
 }

@@ -25,6 +25,7 @@ export function createAdventurerCard({
   getState = () => ({}),
   onSavePosition = () => {},
   onEdit = () => {},
+  onOpenChronicle = () => {},
   reducedMotion = () => false,
   onCue = () => {},
   icon = () => '',
@@ -56,6 +57,7 @@ export function createAdventurerCard({
 
   const zoomIcon = icon('zoom-in') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>';
   const penIcon = icon('pen') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>';
+  const bookIcon = icon('book') || '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
 
   // Card element (button)
   const card = document.createElement('button');
@@ -153,6 +155,9 @@ export function createAdventurerCard({
         <footer class="adventurer-back-footer">
           <button type="button" class="adventurer-back-inspect-btn">
             ${zoomIcon} ขยายดูบัตร
+          </button>
+          <button type="button" class="adventurer-back-chronicle-btn" aria-label="เปิดสมุดประวัติศาสตร์การผจญภัย" title="เปิดสมุดประวัติศาสตร์">
+            ${bookIcon} สมุดประวัติศาสตร์
           </button>
           <button type="button" class="adventurer-back-edit-btn">
             ${penIcon} แก้ไขชื่อและรูป
@@ -284,6 +289,16 @@ export function createAdventurerCard({
     e.preventDefault();
     openViewer();
   }));
+
+  // Wire chronicle triggers
+  const triggerChronicle = e => {
+    e.stopPropagation();
+    e.preventDefault();
+    onOpenChronicle?.();
+  };
+  card.querySelectorAll('.adventurer-back-chronicle-btn, .adventurer-back-done').forEach(btn => {
+    btn.addEventListener('click', triggerChronicle);
+  });
 
   card.addEventListener('dblclick', e => {
     e.stopPropagation();

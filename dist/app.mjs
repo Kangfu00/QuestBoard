@@ -37,6 +37,8 @@ import {burnStage,burnVariant,paperAgeStage,burnWispAnchors,msUntilNextMidnight,
 import {createAdventurerCard} from './adventurer-card.mjs';
 import {createQuestReception} from './quest-reception.mjs';
 import {canReceiveQuest} from './quest-reception-model.mjs';
+import {createGuildChronicle} from './guild-chronicle.mjs';
+import {markQuestTurnedIn} from './guild-chronicle-model.mjs';
 const sound=createDeskSound();
 // Warm the local recordings on the first interaction, before delayed motion cues.
 document.addEventListener('pointerdown',()=>{sound.prime();ambience.unlock();daypartAmbience.unlock();},{capture:true,passive:true});
@@ -102,7 +104,7 @@ let questUnlockEffects=null,prerequisitePicker=null;
 let paperweightControl=null;
 let photoResizeControl=null;
 let adventurerCard=null;
-let questReception=null;
+let questReception=null, guildChronicle=null;
 const stampCues=new Map();
 const reducedMotion=()=>matchMedia('(prefers-reduced-motion: reduce)').matches;
 const onSoundCue=(name,options)=>sound.play(name,options);
@@ -159,7 +161,7 @@ function persist() {
 function commit(next, message,{animateUnlock=true,announceUnlock=true}={}){
   const unlocked=animateUnlock?newlyUnlockedQuestIds(state.items,next.items):[];
   questUnlockEffects?.cancelAll();
-  state=ensureTrayPositions(next);renderBoard();renderCounts();renderFolderWindow();paperReader.refresh();if(dailyBookWindow?.isOpen)dailyBookWindow.render();persist();
+  state=ensureTrayPositions(next);renderBoard();renderCounts();renderFolderWindow();paperReader.refresh();if(dailyBookWindow?.isOpen)dailyBookWindow.render();if(typeof guildChronicle!=='undefined'&&guildChronicle?.refresh)guildChronicle.refresh();persist();
   if(message)showToast(message);
   else if(announceUnlock&&unlocked.length)showToast(unlocked.length===1?`ปลดล็อกเควส “${state.items.find(q=>q.id===unlocked[0])?.title??''}” แล้ว`:`ปลดล็อก ${unlocked.length} เควส พร้อมออกเดินทางแล้ว`);
   if(unlocked.length)questUnlockEffects?.play(unlocked);
@@ -209,7 +211,7 @@ function shell(){
         <label class="tool-custom-select">ตราของฉัน<select id="tool-custom-stamp" aria-label="เลือกตราที่อัปโหลด"></select></label>
         <label class="drawer-search">${icon('search')}<input id="search" type="search" aria-label="ค้นหาเควสบนโต๊ะ" placeholder="ค้นหาเควสบนโต๊ะ…" autocomplete="off"></label>
         <div class="drawer-filters" role="group" aria-label="กรองสถานะ"><button data-filter="all">ทั้งหมด <span id="all-badge"></span></button>${['active','done','failed','paused'].map(status=>`<button data-filter="${status}">${STATUS[status].label}</button>`).join('')}</div>
-        <div class="drawer-menu-grid"><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="adventurer-card">${icon('pen')}บัตรนักผจญภัย</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
+        <div class="drawer-menu-grid"><button data-action="new-label">${icon('tag')}เพิ่มป้าย</button><button data-action="arrange">${icon('grid')}จัดกระดาษ</button><button data-action="stamps">${icon('stamp')}คลังตรา / เพิ่มรูปตรา</button><button data-action="adventurer-card">${icon('pen')}บัตรนักผจญภัย</button><button data-action="guild-chronicle">${icon('book')}สมุดประวัติศาสตร์</button><button data-action="settings">${icon('settings')}ตกแต่ง / สำรองข้อมูล</button><button data-action="help">${icon('help')}วิธีใช้งาน</button></div>
         <div class="sound-controls"><button id="sound-toggle" class="button ghost small" aria-pressed="false">${icon('volume')}<span></span></button><label>เสียงหยิบจับ<input id="sound-volume" type="range" min="0" max="100" aria-label="ความดังเสียงหยิบจับ"></label><button class="button ghost small" id="sound-preview">ลองฟัง</button></div>
         <div id="atmosphere-controls"></div>
         <div class="canvas-controls"><button class="zoom-button" data-action="zoom-out" aria-label="ย่อโต๊ะ">${icon('minus')}</button><button class="zoom-percent" data-action="zoom-reset" title="คืนขนาดเริ่มต้น">100%</button><button class="zoom-button" data-action="zoom-in" aria-label="ขยายโต๊ะ">${icon('plus')}</button></div>
@@ -291,7 +293,42 @@ function shell(){
   });
   questUnlockEffects??=createQuestUnlockEffects({document,window,reducedMotion});
   adventurerCard?.destroy();
-  adventurerCard=createAdventurerCard({deskSurface:$('#board-scroll')||$('#desk-surface'),document,window,getState:()=>state,getScale:()=>currentScale,onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},onEdit:openAdventurerCardEditor,reducedMotion,onCue:onSoundCue,icon,boardName:()=>state.settings?.boardName||'THE QUESTBOARD'});
+  adventurerCard=createAdventurerCard({
+    deskSurface:$('#board-scroll')||$('#desk-surface'),
+    document,window,
+    getState:()=>state,
+    getScale:()=>currentScale,
+    onSavePosition:cardPos=>{state=updateAdventurerCard(state,cardPos);persist();},
+    onEdit:openAdventurerCardEditor,
+    onOpenChronicle:()=>guildChronicle?.toggle(),
+    reducedMotion,
+    onCue:onSoundCue,
+    icon,
+    boardName:()=>state.settings?.boardName||'THE QUESTBOARD'
+  });
+  guildChronicle?.destroy();
+  guildChronicle = createGuildChronicle({
+    document,
+    window,
+    windows: deskWindows,
+    getState: () => state,
+    commit: next => {
+      commit(next);
+      renderBoard();
+      renderCounts();
+      adventurerCard?.update?.();
+    },
+    renderQuest: q => renderQuest(q, 0),
+    icon,
+    onCue: onSoundCue,
+    reducedMotion,
+    onReopen: quest => {
+      showToast(`นำภารกิจ "${quest.title}" กลับมาทำใหม่แล้ว`);
+      renderBoard();
+      renderCounts();
+      adventurerCard?.update?.();
+    },
+  });
   questReception?.destroy();
   questReception = createQuestReception({
     surface: document.body,
@@ -301,18 +338,19 @@ function shell(){
     renderQuest: q => renderQuest(q, 0),
     onCue: onSoundCue,
     reducedMotion,
+    onOpenChronicle: () => guildChronicle?.toggle(),
     onTurnIn:quest=>{
       const latest=state.items.find(item=>item.id===quest.id);
       if(!canReceiveQuest(latest))return false;
       let next;
       try {
-        next=latest.status==='done'?state:setItemStatus(state,quest.id,'done');
-        next=setArchived(next,quest.id,true);
+        next = markQuestTurnedIn(state, quest.id);
       } catch(error) {
         showToast(error.message);
         return false;
       }
       commit(next,undefined,{announceUnlock:false});
+      guildChronicle?.refresh?.();
     },
     onMana:(quest,{origin,sourceBounds})=>adventurerCard?.flyMana({origin,sourceBounds,deltaXp:quest.xp}),
     onWithdraw:renderBoard,
@@ -1753,7 +1791,7 @@ document.addEventListener('click',e=>{
   if(b.dataset.edit){openQuest(b.dataset.edit);return;}if(b.dataset.stamp){openStamp(b.dataset.stamp);return;}if(b.dataset.editLabel){openLabel(b.dataset.editLabel);return;}
   if(b.dataset.openArchived){openQuest(b.dataset.openArchived);return;}if(b.dataset.restore){restoreQuest(b.dataset.restore);return;}
   if(b.dataset.action==='open-drawer'){document.body.classList.remove('menu-open');setDrawerOpen(true,true);return;}if(b.dataset.action==='close-drawer'){setDrawerOpen(false);return;}
-  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,'adventurer-card':()=>openAdventurerCardEditor?.(),settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
+  const actions={'tool-menu':openToolMenu,'close-tool-menu':closeToolMenu,'new-quest':()=>{sound.play('pen');setToolsOpen(false,false);openQuest();},'close-daily-book':()=>dailyBookWindow?.close?.({animate:true,returnFocus:true}),'new-folder':()=>openFolderEditor(),'close-tools':()=>setToolsOpen(false),'return-stamp':()=>returnStamp(),'new-label':()=>openLabel(),stamps:openLibrary,'adventurer-card':()=>openAdventurerCardEditor?.(),'guild-chronicle':()=>guildChronicle?.toggle(),settings:openSettings,help:openHelp,arrange:arrangeBoard,menu:()=>document.body.classList.toggle('menu-open'),'zoom-in':()=>{zoom=Math.min(1.5,zoom+.1);resizeBoard();},'zoom-out':()=>{zoom=Math.max(.6,zoom-.1);resizeBoard();},'zoom-reset':()=>{zoom=1;resizeBoard();},'empty-action':()=>{if(filters.status!=='all'||filters.search||filters.category!=='all'){filters={status:'all',category:'all',search:''};$('#search').value='';renderBoard();}else setToolsOpen(true);}};
   if(b.dataset.action&&!['tool-menu','close-tool-menu','zoom-in','zoom-out','zoom-reset'].includes(b.dataset.action))closeToolMenu();
   actions[b.dataset.action]?.();
 });

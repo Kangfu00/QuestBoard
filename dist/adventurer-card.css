@@ -470,7 +470,8 @@
 }
 
 .adventurer-back-inspect-btn,
-.adventurer-back-edit-btn {
+.adventurer-back-edit-btn,
+.adventurer-back-chronicle-btn {
   font-family: var(--body, 'Noto Sans Thai', sans-serif);
   font-size: 8.5px;
   font-weight: 600;
@@ -487,13 +488,15 @@
 }
 
 .adventurer-back-inspect-btn:hover,
-.adventurer-back-edit-btn:hover {
+.adventurer-back-edit-btn:hover,
+.adventurer-back-chronicle-btn:hover {
   background: #f0dac2;
   transform: translateY(-1px);
 }
 
 .adventurer-back-inspect-btn svg,
-.adventurer-back-edit-btn svg {
+.adventurer-back-edit-btn svg,
+.adventurer-back-chronicle-btn svg {
   width: 11px;
   height: 11px;
 }

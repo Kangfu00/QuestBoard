@@ -232,6 +232,8 @@ function normalizeItem(raw) {
     ...(photoLayout===undefined?{}:{photoLayout:imageDataUrl===null?null:photoLayout}),
     ...(prerequisiteIds===undefined?{}:{prerequisiteIds}),
     ...(raw.createdAt===undefined?{}:{createdAt:dueDate(raw.createdAt)}),
+    ...(raw.turnedIn===undefined?{}:{turnedIn:boolean(raw.turnedIn,'การส่งมอบเควส')}),
+    ...(raw.turnedInAt===undefined?{}:{turnedInAt:raw.turnedInAt===null?null:text(raw.turnedInAt,'เวลาส่งมอบเควส',60)}),
   };
 }
 
@@ -284,6 +286,8 @@ export function createQuest(input, state) {
     ...(input.notes===undefined&&input.subquests===undefined?{}:{notes:input.notes,subquests:input.subquests}),
     ...(input.prerequisiteIds===undefined?{}:{prerequisiteIds:input.prerequisiteIds}),
     createdAt: input.createdAt ?? todayIsoDate(),
+    ...(input.turnedIn===undefined?{}:{turnedIn:input.turnedIn}),
+    ...(input.turnedInAt===undefined?{}:{turnedInAt:input.turnedInAt}),
   });
   checkStampReference(quest, state.stamps);
   checkFolderReference(quest, state.items);

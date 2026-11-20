@@ -35,6 +35,7 @@ export function createQuestReception({
   onTurnIn = () => {},
   onMana = () => {},
   onWithdraw = () => {},
+  onOpenChronicle = () => {},
   reducedMotion = () => false,
 } = {}) {
   if (!surface || !document) {
@@ -82,6 +83,7 @@ export function createQuestReception({
   drawer.setAttribute('aria-label', 'ลิ้นชักส่งเควส');
 
   const shieldIcon = icon('shield') || '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
+  const bookIcon = icon('book') || '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>';
 
   drawer.innerHTML = `
     <div class="drawer-body reception-drawer-body" id="reception-drawer-content">
@@ -92,6 +94,10 @@ export function createQuestReception({
             <span class="bell-dome"></span>
             <span class="bell-base"></span>
           </span>
+        </button>
+        <button type="button" class="reception-chronicle-btn" id="reception-chronicle-btn" aria-label="เปิดสมุดประวัติศาสตร์เควส" title="เปิดสมุดประวัติศาสตร์ (Chronicle)">
+          <span class="reception-chronicle-icon" aria-hidden="true">${bookIcon}</span>
+          <span>สมุดประวัติศาสตร์</span>
         </button>
       </div>
 
@@ -120,6 +126,12 @@ export function createQuestReception({
   const slotEl = drawer.querySelector('.reception-slot');
   const bellBtn = drawer.querySelector('.reception-bell');
   const badgeEl = drawer.querySelector('.reception-handle-badge');
+  const chronicleBtn = drawer.querySelector('.reception-chronicle-btn');
+
+  chronicleBtn?.addEventListener('click', e => {
+    e.stopPropagation();
+    onOpenChronicle?.();
+  });
 
   const travel = () => Math.max(0, (drawer.offsetWidth || 348) - 44);
 
