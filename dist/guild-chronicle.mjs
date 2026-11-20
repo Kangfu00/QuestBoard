@@ -380,6 +380,16 @@ export function createGuildChronicle({
     panel.setAttribute('data-desk-window', '');
     panel.innerHTML = buildWindowMarkup();
 
+    // Center in viewport
+    const vw = window?.innerWidth || document?.documentElement?.clientWidth || 1024;
+    const vh = window?.innerHeight || document?.documentElement?.clientHeight || 768;
+    const targetW = Math.min(940, vw - 32);
+    const targetH = Math.min(680, vh - 64);
+    const initialLeft = Math.max(12, Math.round((vw - targetW) / 2));
+    const initialTop = Math.max(12, Math.round((vh - targetH) / 2));
+    panel.style.left = `${initialLeft}px`;
+    panel.style.top = `${initialTop}px`;
+
     document.body.appendChild(panel);
     isOpenState = true;
 
@@ -392,7 +402,7 @@ export function createGuildChronicle({
 
     if (windows) {
       registration = windows.register(panel, {
-        key: 'guild-chronicle',
+        key: 'guild-chronicle-tome',
         handle: '.chronicle-header',
         onEscape: () => close({ animate: true }),
       });
