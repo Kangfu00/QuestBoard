@@ -156,12 +156,12 @@ function persist() {
   $('#save-indicator').innerHTML=`<span class="save-dot pending"></span>กำลังบันทึก`;
   backupClient.save(snapshot).catch(error=>renderBackupStatus({mode:'failed',error:error.message}));
 }
-function commit(next, message,{animateUnlock=true}={}){
+function commit(next, message,{animateUnlock=true,announceUnlock=true}={}){
   const unlocked=animateUnlock?newlyUnlockedQuestIds(state.items,next.items):[];
   questUnlockEffects?.cancelAll();
   state=ensureTrayPositions(next);renderBoard();renderCounts();renderFolderWindow();paperReader.refresh();if(dailyBookWindow?.isOpen)dailyBookWindow.render();persist();
   if(message)showToast(message);
-  else if(unlocked.length)showToast(unlocked.length===1?`ปลดล็อกเควส “${state.items.find(q=>q.id===unlocked[0])?.title??''}” แล้ว`:`ปลดล็อก ${unlocked.length} เควส พร้อมออกเดินทางแล้ว`);
+  else if(announceUnlock&&unlocked.length)showToast(unlocked.length===1?`ปลดล็อกเควส “${state.items.find(q=>q.id===unlocked[0])?.title??''}” แล้ว`:`ปลดล็อก ${unlocked.length} เควส พร้อมออกเดินทางแล้ว`);
   if(unlocked.length)questUnlockEffects?.play(unlocked);
 }
 const questItems=(includeArchived=false)=>state.items.filter(i=>i.type==='quest'&&(includeArchived||!i.archived));
@@ -301,22 +301,21 @@ function shell(){
     renderQuest: q => renderQuest(q, 0),
     onCue: onSoundCue,
     reducedMotion,
-    onTurnIn:(quest,{origin})=>{
-      const xp=quest.xp||50;
-      state=setItemStatus(state,quest.id,'done');
-      state=setArchived(state,quest.id,true);
-      persist();
-      if(typeof adventurerCard!=='undefined'&&adventurerCard){
-        adventurerCard.flyMana?.({origin,deltaXp:xp});
+    onTurnIn:quest=>{
+      const latest=state.items.find(item=>item.id===quest.id);
+      if(!canReceiveQuest(latest))return false;
+      let next;
+      try {
+        next=latest.status==='done'?state:setItemStatus(state,quest.id,'done');
+        next=setArchived(next,quest.id,true);
+      } catch(error) {
+        showToast(error.message);
+        return false;
       }
-      renderCounts();
-      renderBoard();
-      showToast(`ส่งมอบเควส "${quest.title||'ภารกิจ'}" สำเร็จ! ได้รับ +${xp} XP`);
+      commit(next,undefined,{announceUnlock:false});
     },
-    onWithdraw:()=>{
-      renderBoard();
-      showToast('นำเควสกลับคืนสู่โต๊ะ');
-    },
+    onMana:(quest,{origin,sourceBounds})=>adventurerCard?.flyMana({origin,sourceBounds,deltaXp:quest.xp}),
+    onWithdraw:renderBoard,
   });
   $('#tool-menu-dialog').addEventListener('click',e=>{if(e.target===$('#tool-menu-dialog')){const rect=e.target.getBoundingClientRect();if(e.clientX<rect.left||e.clientX>rect.right||e.clientY<rect.top||e.clientY>rect.bottom)closeToolMenu();}});
   $('#sound-toggle').onclick=()=>{sound.setMuted(!sound.getSettings().muted);ambience.setMuted(sound.getSettings().muted);daypartAmbience.setMuted(sound.getSettings().muted);refreshSoundControls();if(!sound.getSettings().muted){ambience.unlock();daypartAmbience.unlock();sound.play('paperDrop');}};

@@ -1,32 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {
-  RECEPTIONIST_IDLE_QUOTES,
-  RECEPTIONIST_TURNIN_QUOTES,
-  pickReceptionistQuote,
-  canReceiveQuest,
-} from '../dist/quest-reception-model.mjs';
+import { canReceiveQuest } from '../dist/quest-reception-model.mjs';
+import { PAPER } from '../dist/paper-format.mjs';
 import { createQuestReception } from '../dist/quest-reception.mjs';
 
 // =========================================================================
 // 1. Model Unit Tests
 // =========================================================================
-
-test('pickReceptionistQuote returns idle quotes when isSubmission is false', () => {
-  for (let i = 0; i < RECEPTIONIST_IDLE_QUOTES.length; i++) {
-    const seed = i / RECEPTIONIST_IDLE_QUOTES.length;
-    const quote = pickReceptionistQuote(false, seed);
-    assert.ok(RECEPTIONIST_IDLE_QUOTES.includes(quote), 'Returns valid idle quote');
-  }
-});
-
-test('pickReceptionistQuote returns turnin quotes when isSubmission is true', () => {
-  for (let i = 0; i < RECEPTIONIST_TURNIN_QUOTES.length; i++) {
-    const seed = i / RECEPTIONIST_TURNIN_QUOTES.length;
-    const quote = pickReceptionistQuote(true, seed);
-    assert.ok(RECEPTIONIST_TURNIN_QUOTES.includes(quote), 'Returns valid turnin quote');
-  }
-});
 
 test('canReceiveQuest validates item eligibility', () => {
   assert.equal(canReceiveQuest(null), false);
@@ -43,7 +23,7 @@ test('canReceiveQuest validates item eligibility', () => {
 // 2. Component DOM Mock Environment
 // =========================================================================
 
-function createMockEnvironment({ reducedMotion = false } = {}) {
+function createMockEnvironment({ reducedMotion = false, slotWidth = 310, slotHeight = 490 } = {}) {
   const createdAnimations = [];
   const soundCues = [];
   const turnedIn = [];
@@ -60,6 +40,9 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       tagName: tag.toUpperCase(),
       offsetWidth: tag.toLowerCase() === 'aside' ? 392 : 348,
       offsetHeight: 650,
+      focus: () => {},
+      get clientWidth() { return slotWidth; },
+      get clientHeight() { return slotHeight; },
       style: {
         setProperty: (k, v) => customProps.set(k, String(v)),
         getPropertyValue: k => customProps.get(k) || '',
@@ -182,6 +165,7 @@ function createMockEnvironment({ reducedMotion = false } = {}) {
       get() { return _innerHTML; },
       set(html) {
         _innerHTML = html;
+        children.length = 0;
         buildMockTree(node, html, createNode);
       },
     });
@@ -240,46 +224,28 @@ function buildMockTree(parent, html, createNode) {
   const elements = [
     { class: 'reception-drawer-body', tag: 'div', id: 'reception-drawer-content' },
     { class: 'reception-header', tag: 'header' },
-    { class: 'reception-header-title', tag: 'div' },
-    { class: 'reception-close-btn', tag: 'button' },
     { class: 'reception-counter-bar', tag: 'div' },
-    { class: 'reception-bell-wrap', tag: 'div' },
     { class: 'reception-bell', tag: 'button', id: 'reception-bell' },
     { class: 'bell-assembly', tag: 'div' },
     { class: 'bell-plunger', tag: 'span' },
     { class: 'bell-dome', tag: 'span' },
     { class: 'bell-base', tag: 'span' },
-    { class: 'reception-bell-hint', tag: 'span' },
     { class: 'reception-speech-bubble', tag: 'div', id: 'reception-speech' },
     { class: 'reception-tray-container', tag: 'div' },
     { class: 'reception-tray', tag: 'div', attrs: { 'data-reception-dropzone': '' } },
     { class: 'reception-tray-inner', tag: 'div' },
     { class: 'reception-tray-velvet', tag: 'div' },
     { class: 'reception-tray-rune', tag: 'span' },
-    { class: 'reception-tray-label', tag: 'span' },
-    { class: 'reception-tray-instruction', tag: 'span' },
     { class: 'reception-slot', tag: 'div', attrs: { 'data-slot': '' } },
     { class: 'reception-drawer-handle', tag: 'button', id: 'reception-drawer-handle' },
     { class: 'reception-handle-icon', tag: 'div' },
     { class: 'reception-handle-text', tag: 'span' },
     { class: 'reception-handle-badge', tag: 'b', id: 'reception-badge' },
-    { class: 'reception-paper-preview', tag: 'div' },
     { class: 'reception-placed-sheet', tag: 'div' },
     { class: 'reception-paper-stage', tag: 'div' },
+    { class: 'reception-mana-dust', tag: 'div' },
     { class: 'quest-paper', tag: 'article' },
-    { class: 'reception-sheet-actions', tag: 'div' },
-    { class: 'reception-withdraw-prompt', tag: 'span' },
-    { class: 'reception-paper-header', tag: 'div' },
-    { class: 'reception-paper-tag', tag: 'span' },
-    { class: 'reception-paper-xp', tag: 'span' },
-    { class: 'reception-paper-body', tag: 'div' },
-    { class: 'reception-paper-title', tag: 'h3' },
-    { class: 'reception-paper-desc', tag: 'p' },
-    { class: 'reception-paper-footer', tag: 'div' },
     { class: 'reception-withdraw-btn', tag: 'button' },
-    { class: 'reception-paper-prompt', tag: 'span' },
-    { class: 'reception-stamp-impact', tag: 'div' },
-    { class: 'reception-stamp-mark', tag: 'span' },
   ];
 
   for (const item of elements) {
@@ -375,7 +341,7 @@ test('createQuestReception mounts left drawer into surface and toggles open/clos
   assert.equal(env.rootSurface.children.length, 0, 'Drawer removed after destroy');
 });
 
-test('clicking bell when empty rings bell sound and shows idle dialogue bubble', () => {
+test('ringing an empty bell plays a chime', () => {
   const env = createMockEnvironment();
   const reception = createQuestReception({
     surface: env.rootSurface,
@@ -388,9 +354,8 @@ test('clicking bell when empty rings bell sound and shows idle dialogue bubble',
   bellBtn.click();
 
   assert.ok(env.soundCues.includes('bell'), 'bell sound cue triggered');
-  const bubble = reception.element.querySelector('.reception-speech-bubble');
-  assert.equal(bubble.hidden, false, 'Speech bubble is visible');
-  assert.ok(RECEPTIONIST_IDLE_QUOTES.includes(bubble.textContent), 'Displays an idle quote');
+  assert.equal(reception.element.querySelector('.reception-speech-bubble'), null);
+  assert.equal(reception.element.querySelector('.reception-header'), null);
 
   reception.destroy();
 });
@@ -489,38 +454,68 @@ test('placeQuest displays full quest parchment, opens drawer, removes drag ghost
   reception.destroy();
 });
 
-test('ringing bell with quest triggers turnin, stamp impact, mana origin, and dissolves paper', () => {
-  const env = createMockEnvironment();
-  const reception = createQuestReception({
-    surface: env.rootSurface,
-    document: env.document,
-    window: env.window,
-    onCue: env.onCue,
-    onTurnIn: env.onTurnIn,
-  });
+test('staged A4 reward fits each axis and preserves the quest XP', () => {
+  for (const [slotWidth, slotHeight] of [[217, 470], [310, 270]]) {
+    const env = createMockEnvironment({ slotWidth, slotHeight });
+    const reception = createQuestReception({ surface: env.rootSurface, document: env.document, window: env.window });
+    reception.placeQuest({ id: 'sample', type: 'quest', xp: 0 });
+    const preview = reception.element.querySelector('.reception-placed-sheet');
+    assert.equal(Number(preview.style.getPropertyValue('--reception-fit')), Math.min(slotWidth / PAPER.width, slotHeight / PAPER.height));
+    const slot = reception.element.querySelector('.reception-slot');
+    assert.match(slot.innerHTML, /class="reception-reward">0 XP</);
+    assert.ok(slot.querySelector('.reception-mana-dust'));
+    reception.destroy();
+  }
+});
 
-  const quest = {
-    id: 'quest-404',
-    type: 'quest',
-    title: 'ปราบมังกรเพลิง',
-    category: 'boss',
-    xp: 500,
-  };
+test('bell confirms once, starts paper dissolution, and sends mana from the whole sheet', async () => {
+  const env = createMockEnvironment();
+  const flights = [];
+  const reception = createQuestReception({
+    surface: env.rootSurface, document: env.document, window: env.window,
+    onCue: env.onCue, onTurnIn: env.onTurnIn, onMana: (quest, meta) => flights.push({ quest, meta }),
+  });
+  const quest = { id: 'quest-404', type: 'quest', title: 'ปราบมังกรเพลิง', xp: 500 };
 
   reception.placeQuest(quest);
   reception.ringBell();
+  reception.ringBell();
+  assert.deepEqual(env.soundCues.filter(cue => cue === 'bell'), ['bell']);
+  assert.equal(env.turnedIn.length, 1);
+  assert.equal(env.turnedIn[0].quest, quest);
+  assert.equal(reception.withdrawQuest(), null);
+  assert.equal(reception.checkDrop({ x: 50, y: 150 }), false);
+  assert.equal(reception.placeQuest({ ...quest, id: 'other' }), false);
+  assert.equal(reception.element.querySelector('.reception-speech-bubble'), null);
+  assert.equal(reception.element.querySelector('.reception-placed-sheet').classList.contains('is-dissolving'), true);
+  const dissolve = env.createdAnimations.at(-1);
+  assert.equal(dissolve.keyframes.at(-1).opacity, 0);
+  assert.equal(flights.length, 1);
+  assert.ok(flights[0].meta.sourceBounds.width > 0);
+  assert.equal(flights[0].meta.origin.x, flights[0].meta.sourceBounds.left + flights[0].meta.sourceBounds.width / 2);
+  dissolve.finish();
+  await dissolve.finished;
+  assert.equal(reception.hasQuest, false);
+  reception.destroy();
+});
 
-  assert.ok(env.soundCues.includes('bell'), 'bell chime cue triggered');
-  assert.ok(env.soundCues.includes('receptionStamp'), 'receptionStamp heavy stamp cue triggered');
-
-  const bubble = reception.element.querySelector('.reception-speech-bubble');
-  assert.equal(bubble.hidden, false, 'Speech bubble visible');
-  assert.ok(RECEPTIONIST_TURNIN_QUOTES.includes(bubble.textContent), 'Displays a turn-in quote');
-
-  assert.equal(env.turnedIn.length, 1, 'onTurnIn callback called');
-  assert.equal(env.turnedIn[0].quest.id, 'quest-404', 'Turned in quest matches');
-  assert.ok(env.turnedIn[0].meta?.origin, 'Origin point passed for blue mana arc');
-
+test('a rejected submission stays staged and reduced motion submits without dissolving', () => {
+  const env = createMockEnvironment({ reducedMotion: true });
+  let accepted = false;
+  const flights = [];
+  const reception = createQuestReception({
+    surface: env.rootSurface, document: env.document, window: env.window, reducedMotion: env.reducedMotion,
+    onTurnIn: () => accepted, onMana: quest => flights.push(quest),
+  });
+  reception.placeQuest({ id: 'sample', type: 'quest', xp: 20 });
+  reception.ringBell();
+  assert.equal(reception.hasQuest, true);
+  assert.equal(flights.length, 0);
+  accepted = true;
+  reception.ringBell();
+  assert.equal(reception.hasQuest, false);
+  assert.equal(flights.length, 1);
+  assert.equal(env.createdAnimations.length, 0);
   reception.destroy();
 });
 
@@ -603,7 +598,7 @@ test('placeQuest uses provided renderQuest callback to retain authentic quest sh
   assert.equal(paper.classList.contains('in-reception-tray'), true, 'in-reception-tray class applied');
 
   const withdrawBtn = reception.element.querySelector('.reception-withdraw-btn');
-  assert.ok(withdrawBtn, 'Withdraw button exists below paper');
+  assert.ok(withdrawBtn, 'Withdraw button is available in the tray');
 
   reception.destroy();
 });

@@ -891,12 +891,11 @@ export function createAdventurerCard({
   }
 
   /**
-   * Spawns flying blue mana light particles from a quest paper's completion stamp
-   * towards the Adventurer Card's seal.
+   * Sends blue mana from a stamp or across a dissolving sheet to the card's seal.
    */
-  function flyMana({ origin = null, deltaXp = 0 } = {}) {
+  function flyMana({ origin = null, deltaXp = 0, sourceBounds = null } = {}) {
     if (!origin || typeof origin.x !== 'number' || typeof origin.y !== 'number') return;
-    const count = manaCount(deltaXp);
+    const count = sourceBounds ? Math.max(9, manaCount(deltaXp)) : manaCount(deltaXp);
     if (count <= 0) return;
 
     if (isReduced()) {
@@ -911,11 +910,11 @@ export function createAdventurerCard({
       return;
     }
 
-    const startX = origin.x;
-    const startY = origin.y;
-
     for (let i = 0; i < toSpawn; i++) {
-      const delay = i * 45;
+      const delay = i * 45 + (sourceBounds ? MOTION_DURATION.reducedFade : 0);
+      // Sweep down the dissolving sheet, alternating columns along the way.
+      const startX = sourceBounds ? sourceBounds.left + sourceBounds.width * (0.17 + ((i * 3) % 7) * 0.11) : origin.x;
+      const startY = sourceBounds ? sourceBounds.top + sourceBounds.height * (0.1 + 0.8 * i / toSpawn) : origin.y;
 
       const timerId = setTimeout(() => {
         pendingTimers.delete(timerId);
@@ -931,7 +930,7 @@ export function createAdventurerCard({
         activeParticles.add(particle);
 
         const target = getSealCenter();
-        const duration = 520 + Math.random() * 180;
+        const duration = MOTION_DURATION.manaFlight - 60 + Math.random() * 180;
         const curveOffset = (Math.random() - 0.5) * 80;
         const midX = (startX + target.x) / 2 + curveOffset;
         const midY = (startY + target.y) / 2 - Math.abs(curveOffset) * 0.8;

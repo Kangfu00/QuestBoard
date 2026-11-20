@@ -19,6 +19,7 @@ export const MOTION_DURATION = Object.freeze({
   retrieve: 600,
   paperTurn: 780,
   questUnlock: 780,
+  receptionDissolve: 780,
   folioClose: 880,
   folioOpen: 1020,
   reducedFade: 120,

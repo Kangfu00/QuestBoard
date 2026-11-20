@@ -3,8 +3,13 @@
  * Left-rim draggable slide-out drawer with service bell & velvet turn-in tray.
  */
 
-import { pickReceptionistQuote, canReceiveQuest } from './quest-reception-model.mjs';
+import { canReceiveQuest } from './quest-reception-model.mjs';
 import { animateTransient, cancelMotion } from './desk-motion.mjs';
+import { PAPER } from './paper-format.mjs';
+import { MOTION_DURATION, MOTION_EASING } from './motion-tokens.mjs';
+
+const DUST_POINTS = [[12, 14], [73, 12], [38, 22], [89, 29], [17, 37], [60, 37],
+  [36, 48], [81, 53], [12, 58], [60, 65], [36, 73], [90, 77], [15, 85], [72, 90]];
 
 /**
  * Creates and mounts the Guild Quest Reception Drawer.
@@ -15,7 +20,8 @@ import { animateTransient, cancelMotion } from './desk-motion.mjs';
  * @param {Function} [options.icon] - Icon helper function icon(name).
  * @param {Function} [options.renderQuest] - Renderer producing authentic quest article HTML: renderQuest(quest).
  * @param {Function} [options.onCue] - Sound playback callback onCue(name).
- * @param {Function} [options.onTurnIn] - Callback when quest submission is confirmed: onTurnIn(quest, { origin }).
+ * @param {Function} [options.onTurnIn] - Confirms submission; return false to keep the quest staged.
+ * @param {Function} [options.onMana] - Starts mana flight with the staged sheet's screen coordinates.
  * @param {Function} [options.onWithdraw] - Callback when resting quest is withdrawn: onWithdraw(quest).
  * @param {Function} [options.reducedMotion] - Predicate returning true when reduced motion is requested.
  */
@@ -27,6 +33,7 @@ export function createQuestReception({
   renderQuest = null,
   onCue = () => {},
   onTurnIn = () => {},
+  onMana = () => {},
   onWithdraw = () => {},
   reducedMotion = () => false,
 } = {}) {
@@ -61,10 +68,9 @@ export function createQuestReception({
 
   let currentQuest = null;
   let isSubmitting = false;
-  let speechTimer = null;
-  let autoCloseTimer = null;
-  let dissolveTimer = null;
-  let finishTimer = null;
+  let bellTimer;
+  let autoCloseTimer;
+  let previewEl = null;
   let isOpen = false;
   let gesture = null;
   let suppressClickUntil = 0;
@@ -73,49 +79,34 @@ export function createQuestReception({
   const drawer = document.createElement('aside');
   drawer.className = 'quest-drawer left-reception';
   drawer.id = 'reception-drawer';
-  drawer.setAttribute('aria-label', 'ลิ้นชักเคาน์เตอร์ส่งเควส');
+  drawer.setAttribute('aria-label', 'ลิ้นชักส่งเควส');
 
   const shieldIcon = icon('shield') || '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>';
-  const crossIcon = icon('cross') || '✕';
 
   drawer.innerHTML = `
     <div class="drawer-body reception-drawer-body" id="reception-drawer-content">
-      <header class="reception-header">
-        <div class="reception-header-title">
-          <span class="eyebrow">THE GUILD RECEPTION</span>
-          <h2>เคาน์เตอร์ส่งมอบภารกิจ</h2>
-        </div>
-        <button type="button" class="icon-button reception-close-btn" aria-label="ปิดลิ้นชักส่งเควส">${crossIcon}</button>
-      </header>
-
       <div class="reception-counter-bar">
-        <div class="reception-bell-wrap">
-          <button type="button" class="reception-bell" id="reception-bell" aria-label="สั่นกระดิ่งเคาน์เตอร์กิลด์" title="กดกระดิ่งเพื่อส่งมอบภารกิจ หรือเรียกพนักงานกิลด์">
-            <div class="bell-assembly" aria-hidden="true">
-              <span class="bell-plunger"></span>
-              <span class="bell-dome"></span>
-              <span class="bell-base"></span>
-            </div>
-          </button>
-          <span class="reception-bell-hint">กดกระดิ่ง 🛎️ ส่งงาน</span>
-        </div>
-        <div class="reception-speech-bubble" id="reception-speech" aria-live="polite" hidden></div>
+        <button type="button" class="reception-bell" id="reception-bell" aria-label="กดกระดิ่งส่งเควส" title="กดกระดิ่งส่งเควส">
+          <span class="bell-assembly" aria-hidden="true">
+            <span class="bell-plunger"></span>
+            <span class="bell-dome"></span>
+            <span class="bell-base"></span>
+          </span>
+        </button>
       </div>
 
       <div class="reception-tray-container">
-        <div class="reception-tray" data-reception-dropzone aria-label="ถาดทองเหลืองส่งงานกิลด์" tabindex="0">
+        <div class="reception-tray" data-reception-dropzone aria-label="ถาดส่งเควส ลากใบเควสมาวางที่นี่" tabindex="0">
           <div class="reception-tray-inner">
             <div class="reception-tray-velvet" aria-hidden="true">
               <span class="reception-tray-rune">${shieldIcon}</span>
-              <span class="reception-tray-label">GUILD SUBMISSION TRAY</span>
-              <span class="reception-tray-instruction">ลากใบเควสมาวางที่นี่เพื่อส่งมอบ</span>
             </div>
             <div class="reception-slot" data-slot></div>
           </div>
         </div>
       </div>
     </div>
-    <button type="button" class="reception-drawer-handle" id="reception-drawer-handle" aria-label="ดึงเพื่อเปิด/ปิดลิ้นชักเคาน์เตอร์ส่งเควส" aria-expanded="false" aria-controls="reception-drawer-content">
+    <button type="button" class="reception-drawer-handle" id="reception-drawer-handle" aria-label="เปิดหรือปิดลิ้นชักส่งเควส" aria-expanded="false" aria-controls="reception-drawer-content">
       <div class="reception-handle-icon">${shieldIcon}</div>
       <span class="reception-handle-text">ส่งมอบเควส</span>
       <b class="reception-handle-badge" id="reception-badge" hidden>1</b>
@@ -125,11 +116,9 @@ export function createQuestReception({
   surface.appendChild(drawer);
 
   const handleBtn = drawer.querySelector('.reception-drawer-handle');
-  const closeBtn = drawer.querySelector('.reception-close-btn');
   const trayEl = drawer.querySelector('.reception-tray');
   const slotEl = drawer.querySelector('.reception-slot');
   const bellBtn = drawer.querySelector('.reception-bell');
-  const speechBubble = drawer.querySelector('.reception-speech-bubble');
   const badgeEl = drawer.querySelector('.reception-handle-badge');
 
   const travel = () => Math.max(0, (drawer.offsetWidth || 348) - 44);
@@ -229,55 +218,14 @@ export function createQuestReception({
     toggleDrawer();
   });
 
-  closeBtn.addEventListener('click', e => {
-    e.stopPropagation();
-    closeDrawer();
-  });
-
-  function showSpeechBubble(message) {
-    if (!speechBubble) return;
-    if (speechTimer) {
-      clearTimeout(speechTimer);
-      speechTimer = null;
-    }
-    speechBubble.textContent = message;
-    speechBubble.hidden = false;
-    speechBubble.style.opacity = '1';
-
-    speechTimer = setTimeout(() => {
-      speechTimer = null;
-      if (!isReduced()) {
-        animateTransient(
-          speechBubble,
-          [{ opacity: 1, transform: 'translateY(0)' }, { opacity: 0, transform: 'translateY(-6px)' }],
-          { duration: 220, easing: 'ease-out' },
-          {
-            onFinish: () => {
-              speechBubble.hidden = true;
-            },
-          },
-        );
-      } else {
-        speechBubble.hidden = true;
-      }
-    }, 2800);
+  function fitPaper() {
+    if (!previewEl) return;
+    const scale = Math.min(slotEl.clientWidth / PAPER.width, slotEl.clientHeight / PAPER.height, 1);
+    previewEl.style.setProperty('--reception-fit', String(scale));
   }
 
-  function getStampCenter() {
-    const stampEl = slotEl.querySelector('.reception-stamp-impact') || slotEl.querySelector('.quest-paper') || slotEl.querySelector('.reception-paper-preview') || slotEl;
-    if (stampEl && typeof stampEl.getBoundingClientRect === 'function') {
-      const rect = stampEl.getBoundingClientRect();
-      return {
-        x: rect.left + rect.width / 2,
-        y: rect.top + rect.height / 2,
-      };
-    }
-    const slotRect = slotEl.getBoundingClientRect();
-    return {
-      x: slotRect.left + slotRect.width / 2,
-      y: slotRect.top + slotRect.height / 2,
-    };
-  }
+  const resizeObserver = window?.ResizeObserver ? new window.ResizeObserver(fitPaper) : null;
+  resizeObserver?.observe(slotEl);
 
   function placeQuest(quest, ghostEl = null) {
     if (!canReceiveQuest(quest) || isSubmitting) return false;
@@ -286,6 +234,7 @@ export function createQuestReception({
         ghostEl.remove();
       } catch {}
     }
+    clearTimeout(autoCloseTimer);
     currentQuest = quest;
 
     let paperHtml = '';
@@ -301,49 +250,45 @@ export function createQuestReception({
           <div class="paper-rule"><span>QUEST No. 001</span><span class="rank rank-${quest.priority || 'normal'}" title="${priority}">${rank}</span></div>
           <button class="quest-title">${esc(quest.title || 'เควสไม่ระบุชื่อ')}</button>
           <p class="quest-description">${esc(quest.description || '')}</p>
-          <div class="quest-metadata"><span class="priority priority-${quest.priority || 'normal'}"><i></i>${priority}</span><span class="quest-xp">✨ ${quest.xp || 50} XP</span></div>
+          <div class="quest-metadata"><span class="priority priority-${quest.priority || 'normal'}"><i></i>${priority}</span><span class="quest-xp">✨ ${esc(quest.xp ?? 0)} XP</span></div>
         </article>
       `;
     }
 
+    const dust = DUST_POINTS.map(([x, y], index) =>
+      `<i style="--x:${x}%;--y:${y}%;--drift:${index % 2 ? -7 : 7}px;--phase:-${index * 219}ms"></i>`).join('');
     slotEl.innerHTML = `
-      <div class="reception-placed-sheet" data-reception-quest="${quest.id}">
-        <div class="reception-paper-stage">
-          ${paperHtml}
-        </div>
-        <div class="reception-sheet-actions">
-          <button type="button" class="reception-withdraw-btn" title="นำเควสกลับคืนสู่โต๊ะ">
-            ${crossIcon} นำเควสกลับคืน
-          </button>
-          <span class="reception-withdraw-prompt">กดกระดิ่ง 🛎️ เพื่อส่งมอบ</span>
-        </div>
+      <div class="reception-placed-sheet" style="--reception-paper-width:${PAPER.width}px;--reception-paper-height:${PAPER.height}px">
+        <div class="reception-paper-stage" inert>${paperHtml}</div>
+        <div class="reception-mana-dust" aria-hidden="true">${dust}</div>
+        <output class="reception-reward">${esc((quest.xp ?? 0).toLocaleString('th-TH'))} XP</output>
+        <button type="button" class="reception-withdraw-btn" aria-label="นำเควสกลับคืนสู่โต๊ะ" title="นำเควสกลับคืนสู่โต๊ะ">↶</button>
       </div>
     `;
 
+    previewEl = slotEl.querySelector('.reception-placed-sheet');
     const paperEl = slotEl.querySelector('.quest-paper');
     if (paperEl) {
       paperEl.classList.remove('board-item');
       paperEl.classList.add('in-reception-tray');
+      paperEl.removeAttribute('data-id');
       paperEl.style.left = 'auto';
       paperEl.style.top = 'auto';
-      paperEl.style.margin = '0 auto';
       paperEl.style.transform = 'none';
       paperEl.style.setProperty('--rotation', '0deg');
-      paperEl.style.position = 'relative';
-
-      // Strip board-specific control tools inside tray
       paperEl.querySelectorAll('.quest-bundle-select, .paper-turn-corner').forEach(el => el.remove());
     }
-
+    fitPaper();
+    drawer.classList.add('has-staged-quest');
     bellBtn.classList.add('has-quest');
     badgeEl.hidden = false;
     badgeEl.textContent = '1';
     onCue?.('paperDrop');
 
-    // Withdraw button trigger inside paper actions
     const withdrawBtn = slotEl.querySelector('.reception-withdraw-btn');
     withdrawBtn?.addEventListener('click', e => {
       e.stopPropagation();
+      bellBtn.focus();
       withdrawQuest();
     });
 
@@ -351,13 +296,19 @@ export function createQuestReception({
     return true;
   }
 
+  function emptySlot() {
+    currentQuest = null;
+    previewEl = null;
+    slotEl.innerHTML = '';
+    drawer.classList.remove('has-staged-quest');
+    bellBtn.classList.remove('has-quest');
+    badgeEl.hidden = true;
+  }
+
   function withdrawQuest() {
     if (!currentQuest || isSubmitting) return null;
     const quest = currentQuest;
-    currentQuest = null;
-    slotEl.innerHTML = '';
-    bellBtn.classList.remove('has-quest');
-    badgeEl.hidden = true;
+    emptySlot();
     onCue?.('cardDrop');
     onWithdraw?.(quest);
     return quest;
@@ -365,63 +316,44 @@ export function createQuestReception({
 
   function ringBell() {
     if (isSubmitting) return;
-
-    // Visual button press
     bellBtn.classList.add('is-ringing');
-    setTimeout(() => bellBtn.classList.remove('is-ringing'), 160);
-
-    // Audio chime
+    clearTimeout(bellTimer);
+    bellTimer = setTimeout(() => bellBtn.classList.remove('is-ringing'), MOTION_DURATION.dialog);
     onCue?.('bell');
+    if (!currentQuest || !previewEl) return;
 
-    if (currentQuest) {
-      // Submitting the quest
-      isSubmitting = true;
-      const quest = currentQuest;
-      const quote = pickReceptionistQuote(true);
-      showSpeechBubble(quote);
-
-      const previewEl = slotEl.querySelector('.reception-placed-sheet') || slotEl.querySelector('.quest-paper') || slotEl.querySelector('.reception-paper-preview');
-      if (previewEl) {
-        // Overlay giant guild accepted stamp
-        const stampOverlay = document.createElement('div');
-        stampOverlay.className = 'reception-stamp-impact';
-        stampOverlay.innerHTML = '<span class="reception-stamp-mark">GUILD ACCEPTED</span>';
-        previewEl.appendChild(stampOverlay);
-
-        onCue?.('receptionStamp');
-
-        // Trigger blue mana surge arcing to adventurer card
-        const origin = getStampCenter();
-        onTurnIn?.(quest, { origin });
-
-        // Trigger paper dissolving animation
-        clearTimeout(dissolveTimer);
-        clearTimeout(finishTimer);
-        dissolveTimer = setTimeout(() => {
-          previewEl.classList.add('is-dissolving');
-
-          finishTimer = setTimeout(() => {
-            currentQuest = null;
-            slotEl.innerHTML = '';
-            bellBtn.classList.remove('has-quest');
-            badgeEl.hidden = true;
-            isSubmitting = false;
-
-            // Auto close drawer gently after turn-in completion
-            clearTimeout(autoCloseTimer);
-            autoCloseTimer = setTimeout(() => {
-              if (!currentQuest) closeDrawer();
-            }, 1800);
-          }, 650);
-        }, 380);
-      } else {
-        isSubmitting = false;
-      }
-    } else {
-      // Idle bell ring banter
-      const idleQuote = pickReceptionistQuote(false);
-      showSpeechBubble(idleQuote);
+    const quest = currentQuest;
+    const sourceBounds = previewEl.getBoundingClientRect();
+    const origin = { x: sourceBounds.left + sourceBounds.width / 2, y: sourceBounds.top + sourceBounds.height / 2 };
+    isSubmitting = true;
+    let accepted = false;
+    try {
+      accepted = onTurnIn(quest, { origin, sourceBounds }) !== false;
+    } finally {
+      if (!accepted) isSubmitting = false;
     }
+    if (!accepted) return;
+
+    const finishSubmission = () => {
+      emptySlot();
+      isSubmitting = false;
+      autoCloseTimer = setTimeout(closeDrawer, 1800);
+    };
+    if (isReduced()) {
+      finishSubmission();
+    } else {
+      previewEl.classList.add('is-dissolving');
+      const withdraw = slotEl.querySelector('.reception-withdraw-btn');
+      if (document.activeElement === withdraw) bellBtn.focus();
+      withdraw.hidden = true;
+      animateTransient(previewEl, [
+        { opacity: 1, maskPosition: '0 100%' },
+        { opacity: 1, maskPosition: '0 91%', offset: 0.14 },
+        { opacity: 0.82, maskPosition: '0 40%', offset: 0.67 },
+        { opacity: 0, maskPosition: '0 0%' },
+      ], { duration: MOTION_DURATION.receptionDissolve, easing: MOTION_EASING.turn, fill: 'forwards' }, { onFinish: finishSubmission });
+    }
+    onMana(quest, { origin, sourceBounds });
   }
 
   bellBtn.addEventListener('click', e => {
@@ -430,14 +362,14 @@ export function createQuestReception({
   });
 
   trayEl.addEventListener('keydown', e => {
-    if (['Enter', ' '].includes(e.key)) {
+    if (e.target === trayEl && ['Enter', ' '].includes(e.key)) {
       e.preventDefault();
       ringBell();
     }
   });
 
   function checkDrop(point) {
-    if (!point || typeof point.x !== 'number' || typeof point.y !== 'number') return false;
+    if (isSubmitting || !point || typeof point.x !== 'number' || typeof point.y !== 'number') return false;
     const trayRect = trayEl.getBoundingClientRect();
     const handleRect = handleBtn.getBoundingClientRect();
 
@@ -454,28 +386,11 @@ export function createQuestReception({
     }
   }
 
-  function setScale(newScale) {
-    // Drawer scales naturally with viewport
-  }
-
   function destroy() {
-    if (speechTimer) {
-      clearTimeout(speechTimer);
-      speechTimer = null;
-    }
-    if (autoCloseTimer) {
-      clearTimeout(autoCloseTimer);
-      autoCloseTimer = null;
-    }
-    if (dissolveTimer) {
-      clearTimeout(dissolveTimer);
-      dissolveTimer = null;
-    }
-    if (finishTimer) {
-      clearTimeout(finishTimer);
-      finishTimer = null;
-    }
-    cancelMotion(drawer);
+    resizeObserver?.disconnect();
+    if (previewEl) cancelMotion(previewEl);
+    clearTimeout(bellTimer);
+    clearTimeout(autoCloseTimer);
     try {
       drawer.remove();
     } catch {}
@@ -494,7 +409,7 @@ export function createQuestReception({
     placeQuest,
     withdrawQuest,
     ringBell,
-    setScale,
+    setScale: fitPaper,
     get hasQuest() {
       return Boolean(currentQuest);
     },

@@ -696,6 +696,8 @@
 /* Flying Mana Light Particle */
 .mana-particle {
   position: fixed;
+  top: 0;
+  left: 0;
   width: 9px;
   height: 9px;
   border-radius: 50%;
