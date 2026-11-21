@@ -3,6 +3,11 @@ import {normalizePhotoLayout} from './photo-layout.mjs';
 import {validateLeatherColor} from './leather-colors.mjs';
 import {normalizePrerequisiteIds,validateDependencies,dependencyInfo} from './quest-dependencies.mjs';
 import {
+  normalizeStopwatch,
+  DEFAULT_STOPWATCH,
+  updateStopwatch,
+} from './stopwatch-model.mjs';
+import {
   DAILY_BOOK_SIZE,
   MAX_DAILY_TASKS,
   MAX_DAILY_TALLY,
@@ -40,6 +45,9 @@ export {
   resetAllDailyTaskCounts,
   splitTallyBundles,
   todayIsoDate,
+  normalizeStopwatch,
+  DEFAULT_STOPWATCH,
+  updateStopwatch,
 };
 
 export const BOARD = Object.freeze({ width: 1180, height: 1000 });
@@ -549,6 +557,7 @@ export function validateState(raw) {
   const dailyBook = raw.dailyBook === undefined ? undefined : normalizeDailyBook(raw.dailyBook, BOARD_LIMIT);
   const paperweight = raw.paperweight === undefined ? undefined : normalizePaperweight(raw.paperweight, items);
   const adventurerCard = raw.adventurerCard === undefined ? undefined : normalizeAdventurerCard(raw.adventurerCard);
+  const stopwatch = raw.stopwatch === undefined ? undefined : normalizeStopwatch(raw.stopwatch, items);
   const normalized = {
     version: 1,
     items,
@@ -557,6 +566,7 @@ export function validateState(raw) {
     ...(dailyBook === undefined ? {} : { dailyBook }),
     ...(paperweight === undefined ? {} : { paperweight }),
     ...(adventurerCard === undefined ? {} : { adventurerCard }),
+    ...(stopwatch === undefined ? {} : { stopwatch }),
   };
   checkBackupBudget(normalized);
   return normalized;

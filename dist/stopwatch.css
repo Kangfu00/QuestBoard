@@ -1,0 +1,566 @@
+/* ==========================================================================
+   The Questboard — The Overdrive Pocket Stopwatch (นาฬิกาพกจับเวลาโอเวอร์ไดรฟ์)
+   Antique brass fantasy chronometer on the guild desk.
+   Features chain, skull ornament, winding crown, side pusher, floral flourish,
+   vintage filigree clock hands, and real-time ticking animations.
+   ========================================================================== */
+
+/* 1. Desk Tabletop Item Container */
+.desk-stopwatch {
+  position: absolute;
+  width: 108px;
+  height: 128px;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  border: none;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  outline: none;
+  z-index: 45;
+  filter: drop-shadow(
+    calc(var(--light-x, 0.4) * 4px * var(--lift, 1))
+    calc(var(--light-y, 1) * 8px * var(--lift, 1))
+    calc(14px * var(--lift, 1))
+    rgba(15, 8, 4, 0.55)
+  );
+  transition: filter 0.2s ease, transform 0.2s cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.desk-stopwatch:active {
+  cursor: grabbing;
+}
+
+.desk-stopwatch:focus-visible {
+  outline: 2px solid #e2ba6d;
+  outline-offset: 4px;
+  border-radius: 50%;
+}
+
+.desk-stopwatch.is-dragging {
+  cursor: grabbing;
+  z-index: 1000;
+  filter: drop-shadow(
+    calc(var(--light-x, 0.4) * 12px * var(--lift, 2.5))
+    calc(var(--light-y, 1) * 22px * var(--lift, 2.5))
+    calc(28px * var(--lift, 2.5))
+    rgba(10, 5, 2, 0.65)
+  );
+}
+
+/* 2. Brass Chain */
+.stopwatch-chain-svg {
+  position: absolute;
+  top: -14px;
+  left: -28px;
+  width: 160px;
+  height: 150px;
+  pointer-events: none;
+  z-index: 1;
+  filter: drop-shadow(1px 3px 4px rgba(10, 5, 2, 0.45));
+}
+
+/* 3. Main Watch Body */
+.stopwatch-body {
+  position: absolute;
+  top: 24px;
+  left: 6px;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fff2c4 0%, #e6bd6a 22%, #b58532 55%, #664314 85%, #3c2409 100%);
+  box-shadow:
+    inset 0 2px 4px rgba(255, 245, 205, 0.8),
+    inset 0 -3px 6px rgba(20, 10, 3, 0.8),
+    inset 2px 0 4px rgba(120, 80, 25, 0.5),
+    inset -2px 0 4px rgba(120, 80, 25, 0.5),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 5;
+}
+
+/* Outer Rim Rivets */
+.stopwatch-body::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  border-radius: 50%;
+  border: 1px dashed rgba(60, 35, 10, 0.45);
+  pointer-events: none;
+}
+
+/* 4. Top Winding Crown & Loop (12 o'clock) */
+.stopwatch-crown-assembly {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 10;
+  cursor: pointer;
+}
+
+.stopwatch-crown-loop {
+  width: 28px;
+  height: 18px;
+  border: 3.5px solid #c9983e;
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow:
+    inset 0 1px 2px rgba(255, 245, 210, 0.8),
+    0 1px 3px rgba(0, 0, 0, 0.5);
+  background: linear-gradient(180deg, rgba(230, 185, 95, 0.4) 0%, transparent 100%);
+}
+
+.stopwatch-crown-knob {
+  width: 18px;
+  height: 10px;
+  margin-top: -3px;
+  background: repeating-linear-gradient(
+    90deg,
+    #5a3a14 0px,
+    #5a3a14 2px,
+    #e9bf68 2px,
+    #e9bf68 4px,
+    #a87728 4px,
+    #a87728 5px
+  );
+  border-radius: 3px 3px 2px 2px;
+  border: 1px solid #4a2c0c;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  transition: transform 0.1s ease;
+}
+
+.stopwatch-crown-assembly:active .stopwatch-crown-knob {
+  transform: translateY(2px) scale(0.96);
+}
+
+/* Miniature Skull Ornament sitting on top of the bezel */
+.stopwatch-skull-ornament {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 17px;
+  height: 17px;
+  z-index: 12;
+  filter: drop-shadow(0 2px 3px rgba(10, 5, 2, 0.6));
+  pointer-events: none;
+}
+
+/* 5. Side Pusher Button (2 o'clock position) */
+.stopwatch-side-pusher {
+  position: absolute;
+  top: 31px;
+  right: 4px;
+  width: 12px;
+  height: 14px;
+  background: linear-gradient(135deg, #f3d489 0%, #aa7728 50%, #52300c 100%);
+  border: 1px solid #422509;
+  border-radius: 3px;
+  transform: rotate(38deg);
+  cursor: pointer;
+  z-index: 4;
+  box-shadow: 1px 2px 4px rgba(0, 0, 0, 0.5);
+  transition: transform 0.1s ease;
+}
+
+.stopwatch-side-pusher:active {
+  transform: rotate(38deg) translateY(2px) scale(0.92);
+}
+
+/* 6. Floral Motif (7-8 o'clock position) */
+.stopwatch-floral-motif {
+  position: absolute;
+  bottom: 12px;
+  left: 6px;
+  width: 22px;
+  height: 22px;
+  z-index: 12;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 3px rgba(10, 5, 2, 0.55));
+}
+
+/* 7. Watch Dial Face */
+.stopwatch-dial {
+  position: relative;
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 45% 42%, #fffdf8 0%, #f6edd9 60%, #e0ceaa 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(45, 25, 8, 0.6),
+    inset 0 0 1px rgba(0, 0, 0, 0.4),
+    0 1px 1px rgba(255, 255, 255, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+/* Dial Tick Marks & Background Grid */
+.stopwatch-dial-face {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Overdrive Title & Digital Readout */
+.stopwatch-brand {
+  position: absolute;
+  top: 14px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--serif, 'Noto Serif Thai', Georgia, serif);
+  font-size: 6.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #634320;
+  text-shadow: 0 0.5px 0 rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+}
+
+.stopwatch-digital-time {
+  position: absolute;
+  bottom: 13px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--display, monospace);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  color: #2b1a0a;
+  background: rgba(230, 215, 185, 0.75);
+  border: 1px solid rgba(145, 110, 55, 0.35);
+  border-radius: 3px;
+  padding: 0 3px;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, 0.15);
+  pointer-events: none;
+}
+
+.stopwatch-mode-badge {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 5.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #8c5b16;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+/* 8. Clock Hands */
+.stopwatch-hands {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.stopwatch-hand {
+  position: absolute;
+  left: 50%;
+  bottom: 50%;
+  transform-origin: 50% 100%;
+  transition: transform 0.08s linear;
+}
+
+/* Hour Hand (Ornate Gothic Spade) */
+.stopwatch-hand.hand-hour {
+  width: 4px;
+  height: 18px;
+  margin-left: -2px;
+  background: #2a1608;
+  clip-path: polygon(50% 0%, 100% 35%, 70% 45%, 70% 100%, 30% 100%, 30% 45%, 0% 35%);
+  transform: rotate(var(--hour-rot, 0deg));
+  z-index: 15;
+}
+
+/* Minute Hand (Slender Diamond Pointer) */
+.stopwatch-hand.hand-minute {
+  width: 3px;
+  height: 27px;
+  margin-left: -1.5px;
+  background: #391e0a;
+  clip-path: polygon(50% 0%, 100% 30%, 65% 40%, 65% 100%, 35% 100%, 35% 40%, 0% 30%);
+  transform: rotate(var(--minute-rot, 0deg));
+  z-index: 16;
+}
+
+/* Second Hand (Chrono Needle with Counterweight) */
+.stopwatch-hand.hand-second {
+  width: 1.5px;
+  height: 33px;
+  margin-left: -0.75px;
+  background: #9b2818;
+  transform: rotate(var(--second-rot, 0deg));
+  z-index: 17;
+}
+
+.stopwatch-hand.hand-second::after {
+  content: "";
+  position: absolute;
+  bottom: -6px;
+  left: -2px;
+  width: 5.5px;
+  height: 5.5px;
+  border-radius: 50%;
+  background: #9b2818;
+}
+
+/* Center Pivot Brass Cap */
+.stopwatch-pivot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, #fff2b8 0%, #d4a042 50%, #684110 100%);
+  border: 1px solid #3c240a;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  z-index: 20;
+}
+
+/* 9. Completed / Alarm State */
+.desk-stopwatch.is-completed {
+  animation: stopwatch-alarm-chime 0.8s ease-in-out infinite alternate;
+}
+
+.desk-stopwatch.is-completed .stopwatch-dial {
+  box-shadow:
+    inset 0 0 14px rgba(220, 160, 40, 0.85),
+    0 0 16px rgba(220, 160, 40, 0.7);
+}
+
+@keyframes stopwatch-alarm-chime {
+  0% {
+    transform: rotate(0deg) scale(1);
+    filter: drop-shadow(0 4px 12px rgba(215, 145, 30, 0.5));
+  }
+  25% {
+    transform: rotate(-3deg) scale(1.03);
+  }
+  50% {
+    transform: rotate(3deg) scale(1.03);
+  }
+  75% {
+    transform: rotate(-2deg) scale(1.02);
+  }
+  100% {
+    transform: rotate(2deg) scale(1.02);
+    filter: drop-shadow(0 6px 18px rgba(240, 175, 45, 0.8));
+  }
+}
+
+/* 10. Running State Pulse */
+.desk-stopwatch.is-running .stopwatch-digital-time {
+  color: #8c2616;
+  border-color: #c9883e;
+}
+
+/* 11. Enlarged Inspection / Control Dialog */
+.stopwatch-dialog-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 8px 12px;
+  min-width: 320px;
+}
+
+.stopwatch-dialog-view {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.stopwatch-large-display {
+  position: relative;
+  width: 170px;
+  height: 170px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 35% 30%, #fff2c4 0%, #e6bd6a 22%, #b58532 55%, #664314 85%, #3c2409 100%);
+  box-shadow:
+    inset 0 3px 6px rgba(255, 245, 205, 0.8),
+    inset 0 -4px 8px rgba(20, 10, 3, 0.85),
+    0 10px 24px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stopwatch-large-dial {
+  position: relative;
+  width: 136px;
+  height: 136px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 45% 42%, #fffdf8 0%, #f6edd9 60%, #dfd2b5 100%);
+  box-shadow: inset 0 3px 8px rgba(45, 25, 8, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.stopwatch-large-time {
+  font-family: var(--display, monospace);
+  font-size: 24px;
+  font-weight: 700;
+  color: #2b1a0a;
+  letter-spacing: 0.08em;
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+.stopwatch-dialog-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+}
+
+.stopwatch-mode-tabs {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.stopwatch-mode-tab {
+  flex: 1;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid #9c7843;
+  border-radius: 4px;
+  background: rgba(235, 222, 195, 0.6);
+  color: #4c3218;
+  cursor: pointer;
+  transition: all 120ms ease;
+  text-align: center;
+}
+
+.stopwatch-mode-tab:hover {
+  background: #ede0c5;
+}
+
+.stopwatch-mode-tab.is-active {
+  background: #503118;
+  color: #f7eedb;
+  border-color: #381f0d;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.stopwatch-presets {
+  display: flex;
+  gap: 6px;
+  width: 100%;
+}
+
+.stopwatch-preset-btn {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid #cbba98;
+  border-radius: 4px;
+  background: rgba(251, 246, 235, 0.85);
+  color: #5c4125;
+  cursor: pointer;
+  transition: all 120ms ease;
+}
+
+.stopwatch-preset-btn:hover {
+  background: #fdfaf2;
+  border-color: #9f7535;
+}
+
+.stopwatch-preset-btn.is-active {
+  background: #8c5b16;
+  border-color: #633e08;
+  color: #fff6e0;
+}
+
+.stopwatch-primary-actions {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  margin-top: 4px;
+}
+
+.stopwatch-action-btn {
+  flex: 1;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 5px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 130ms ease;
+}
+
+.stopwatch-action-btn.btn-start {
+  background: linear-gradient(180deg, #3d6e35 0%, #294f23 100%);
+  border: 1px solid #1c3b17;
+  color: #f0ffe8;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stopwatch-action-btn.btn-start:hover {
+  background: linear-gradient(180deg, #498240 0%, #305c2a 100%);
+}
+
+.stopwatch-action-btn.btn-pause {
+  background: linear-gradient(180deg, #a3621d 0%, #7d4710 100%);
+  border: 1px solid #573007;
+  color: #fff3e0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.stopwatch-action-btn.btn-pause:hover {
+  background: linear-gradient(180deg, #b97226 0%, #915315 100%);
+}
+
+.stopwatch-action-btn.btn-reset {
+  background: linear-gradient(180deg, #ede2cd 0%, #d8c6a2 100%);
+  border: 1px solid #99794e;
+  color: #3b2512;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.stopwatch-action-btn.btn-reset:hover {
+  background: linear-gradient(180deg, #f7ecd6 0%, #e3d2af 100%);
+}
+
+.stopwatch-quest-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  font-size: 11px;
+  color: #634320;
+}
+
+.stopwatch-quest-select {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 11.5px;
+  font-family: inherit;
+  background: #fcf9f2;
+  border: 1px solid #cbba98;
+  border-radius: 4px;
+  color: #3b2512;
+}
